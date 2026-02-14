@@ -36,6 +36,11 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Step 3 gate tests
+        env:
+          BLOG_API_KEY: ci-step3-test-key
+        run: npm run test:step3
+
   ui-visual:
     runs-on: ubuntu-latest
     timeout-minutes: 30

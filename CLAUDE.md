@@ -1,0 +1,194 @@
+# 프로젝트 개요
+
+AI(크론잡)가 웹 스크래핑한 정보를 자동으로 올리고, 사용자도 직접 글을 쓸 수 있는 개인 블로그.
+
+## 기술 스택
+
+- **프레임워크**: Next.js 16 (App Router, standalone 모드)
+- **DB**: SQLite (better-sqlite3, raw SQL, WAL 모드, FTS5)
+- **스타일링**: Tailwind CSS v4
+- **마크다운**: unified + remark-gfm + remark-math + rehype-shiki + rehype-katex + rehype-sanitize
+- **배포**: GitHub Actions → Oracle Free Tier AMD VM (1/8 OCPU, 1GB RAM)
+- **리버스 프록시**: Caddy (자동 HTTPS)
+- **프로세스 관리**: systemd
+
+## 프로젝트 구조
+
+```
+.
+├── CLAUDE.md
+├── plans/
+│   ├── blog-architecture.md      # 아키텍처 설계
+│   └── implementation-plan.md    # 구현+테스트+결정 통합 계획
+├── src/
+│   ├── app/                      # App Router 페이지 & API
+│   ├── lib/                      # DB, 인증, 마크다운 등 유틸
+│   └── components/               # React 컴포넌트
+├── scripts/                      # 마이그레이션, 테스트 스크립트
+├── data/                         # SQLite DB (gitignore)
+├── uploads/                      # 이미지 저장 (gitignore)
+├── next.config.ts
+├── package.json
+├── .env.local                    # 환경변수 (gitignore)
+└── .env.example                  # 환경변수 템플릿
+```
+
+## 문서 참조
+
+- **아키텍처**: @plans/blog-architecture.md
+- **구현 계획**: @plans/implementation-plan.md
+- **이슈 템플릿**: @.github/ISSUE_TEMPLATE/feature.md, @.github/ISSUE_TEMPLATE/bug.md
+- **PR 템플릿**: @.github/pull_request_template.md
+
+---
+
+## 커밋 컨벤션
+
+### 원자적 커밋
+
+- 하나의 커밋은 하나의 논리적 변경만 포함합니다.
+- 커밋 단위로 revert가 가능하도록 독립적으로 작성합니다.
+
+### 커밋 타입
+
+| 타입 | 설명 |
+|------|------|
+| feat | 새로운 기능 추가 |
+| fix | 버그 수정 |
+| style | 코드 포맷팅, 세미콜론 누락 등 코드 변경이 없는 수정 |
+| refactor | 기능 변경 없이 코드 구조 개선 |
+| docs | 문서 수정 |
+| test | 테스트 코드 추가, 수정 |
+| setting | 빌드, 패키지 매니저 등 환경 설정 관련 변경 |
+| chore | 위 타입에 포함되지 않는 기타 작업 |
+
+### 커밋 메시지 형식
+
+```
+{타입}: {설명}
+```
+
+- 설명은 한글로 작성합니다.
+- 복잡한 변경은 본문에 Why/What을 추가합니다.
+
+### 커밋 예시
+
+```
+feat: 글 생성 API 구현
+fix: slug 중복 시 suffix 미적용 버그 수정
+setting: standalone 빌드 설정 추가
+docs: 구현 계획에 Phase 2 로드맵 추가
+```
+
+---
+
+## 브랜치 컨벤션
+
+### 브랜치 전략
+
+| 브랜치 | 용도 |
+|--------|------|
+| `main` | 프로덕션 배포 브랜치. 항상 배포 가능한 상태 유지 |
+| `feat/{기능명}` | 새 기능 개발 |
+| `fix/{버그명}` | 버그 수정 |
+| `refactor/{대상}` | 리팩토링 |
+| `docs/{문서명}` | 문서 작업 |
+| `setting/{설정명}` | 환경 설정 |
+
+### 브랜치 이름 예시
+
+```
+feat/api-posts
+feat/write-page
+fix/slug-duplicate
+setting/ci-cd-pipeline
+docs/architecture-update
+```
+
+### 규칙
+
+- 브랜치명은 영문 소문자 + 하이픈 사용
+- `main`에 직접 커밋하지 않고 PR을 통해 머지
+- 머지 후 feature 브랜치는 삭제
+
+---
+
+## 이슈 컨벤션
+
+### 이슈 제목 형식
+
+```
+{타입}: {설명}
+```
+
+커밋 타입과 동일한 접두사를 사용합니다.
+
+### 이슈 생성 (CLI)
+
+```bash
+gh issue create \
+  --title "feat: 기능 제목" \
+  --body "$(cat <<'EOF'
+## 설명
+> 무엇을 구현/수정해야 하는지
+
+## 작업 내용
+- [ ] TODO 1
+- [ ] TODO 2
+
+## 참고
+- 관련 문서/코드 참조
+EOF
+)"
+```
+
+### 이슈 조회 (CLI)
+
+```bash
+gh issue list
+gh issue view <번호>
+```
+
+---
+
+## PR 컨벤션
+
+### PR 작성 원칙
+
+- PR은 하나의 기능 또는 하나의 버그 단위로 생성합니다.
+- PR 제목은 커밋 타입 형식을 따릅니다: `feat: 글 생성 API 구현`
+- PR 본문만 읽어도 작업 내용을 이해할 수 있도록 작성합니다.
+
+### PR 생성 (CLI)
+
+```bash
+gh pr create \
+  --title "feat: 기능 제목" \
+  --body "$(cat <<'EOF'
+## 관련 이슈
+- close: #이슈번호
+
+## 작업 내용
+- 변경 사항 상세 기술
+- 관련 파일 함께 명시
+
+## 테스트
+- 어떻게 테스트했는지 기술
+
+## 체크리스트
+- [ ] PR 제목을 형식에 맞게 작성했나요?
+- [ ] 빌드가 성공하나요? (`npm run build`)
+- [ ] 관련 문서를 업데이트했나요?
+EOF
+)"
+```
+
+---
+
+## 주의사항
+
+- 1GB RAM 제약: shiki 언어 10개 제한, systemd MemoryMax=400M
+- better-sqlite3는 동기 API — 비동기 래핑 불필요
+- standalone 빌드: `serverExternalPackages: ['better-sqlite3']` 필수
+- DB 백업: `cp` 대신 `sqlite3 .backup` 사용 (WAL 안전성)
+- API Key 인증: `crypto.timingSafeEqual`로 비교 (타이밍 공격 방지)

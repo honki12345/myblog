@@ -226,6 +226,6 @@ npm run test:step1
 #### 피드백 루프
 
 - 다음 단계 영향: standalone 빌드가 실패하면 Step 6(CI/CD)에서도 실패. `output: 'standalone'` 설정이 없으면 Step 7 배포 불가능.
-- 회귀 테스트: Step 2 이후 의존성 추가 시마다 `npm run build` 재실행
+- 회귀 테스트: Step 2 완료 이후에는 각 Step 구현/수정 종료 시마다 `npm run test:all` 재실행을 기본으로 하고, 초기 구성 구간에서는 `npm run build`와 가능한 Step 테스트를 순차 실행
 
 ---

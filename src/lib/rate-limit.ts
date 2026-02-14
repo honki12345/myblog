@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 type Bucket = {
   count: number;
   resetAt: number;
@@ -5,7 +7,12 @@ type Bucket = {
 
 const buckets = new Map<string, Bucket>();
 
-export function checkRateLimit(key: string, limit = 60, windowMs = 60_000) {
+function hashRateLimitKey(rawKey: string): string {
+  return createHash("sha256").update(rawKey).digest("hex");
+}
+
+export function checkRateLimit(rawKey: string, limit = 10, windowMs = 60_000) {
+  const key = hashRateLimitKey(rawKey);
   const now = Date.now();
   const bucket = buckets.get(key);
 
@@ -17,6 +24,7 @@ export function checkRateLimit(key: string, limit = 60, windowMs = 60_000) {
       allowed: true,
       remaining: limit - 1,
       resetAt,
+      retryAfterMs: 0,
     };
   }
 
@@ -25,6 +33,7 @@ export function checkRateLimit(key: string, limit = 60, windowMs = 60_000) {
       allowed: false,
       remaining: 0,
       resetAt: bucket.resetAt,
+      retryAfterMs: Math.max(0, bucket.resetAt - now),
     };
   }
 
@@ -34,5 +43,10 @@ export function checkRateLimit(key: string, limit = 60, windowMs = 60_000) {
     allowed: true,
     remaining: Math.max(0, limit - bucket.count),
     resetAt: bucket.resetAt,
+    retryAfterMs: 0,
   };
+}
+
+export function clearRateLimitState() {
+  buckets.clear();
 }

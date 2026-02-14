@@ -26,7 +26,7 @@
 .DS_Store
 *.pem
 data/
-uploads/
+/uploads/
 artifacts/
 
 # debug

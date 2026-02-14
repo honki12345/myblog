@@ -131,11 +131,9 @@ function testPragmas(db) {
     "console.log(JSON.stringify(snapshot));",
   ].join("\n");
 
-  const probeResult = runCommand(
-    "npx",
-    ["tsx", "--eval", probeScript],
-    { DATABASE_PATH: TEST_DB_PATH },
-  );
+  const probeResult = runCommand("npx", ["tsx", "--eval", probeScript], {
+    DATABASE_PATH: TEST_DB_PATH,
+  });
 
   const probeLines = probeResult.stdout
     .split(/\r?\n/)
@@ -186,8 +184,13 @@ function testCrud(db) {
   const read = db.prepare("SELECT title FROM posts WHERE id = ?").get(postId);
   assert(read?.title === "Step 2 CRUD", "READ failed");
 
-  db.prepare("UPDATE posts SET status = ? WHERE id = ?").run("published", postId);
-  const updated = db.prepare("SELECT status FROM posts WHERE id = ?").get(postId);
+  db.prepare("UPDATE posts SET status = ? WHERE id = ?").run(
+    "published",
+    postId,
+  );
+  const updated = db
+    .prepare("SELECT status FROM posts WHERE id = ?")
+    .get(postId);
   assert(updated?.status === "published", "UPDATE failed");
 
   db.prepare("DELETE FROM posts WHERE id = ?").run(postId);
@@ -209,7 +212,12 @@ function testFts(db) {
   );
   db.prepare(
     "INSERT INTO posts (title, slug, content, status) VALUES (?, ?, ?, ?)",
-  ).run("Python ML intro", pySlug, "Start machine learning with scikit", "published");
+  ).run(
+    "Python ML intro",
+    pySlug,
+    "Start machine learning with scikit",
+    "published",
+  );
 
   const matches = db
     .prepare("SELECT rowid, title FROM posts_fts WHERE posts_fts MATCH ?")
@@ -228,12 +236,15 @@ function testForeignKeyCascade(db) {
   const tagName = `tag-${Date.now()}`;
 
   const postId = Number(
-    db.prepare(
-      "INSERT INTO posts (title, slug, content, status) VALUES (?, ?, ?, ?)",
-    ).run("FK test", postSlug, "FK content", "draft").lastInsertRowid,
+    db
+      .prepare(
+        "INSERT INTO posts (title, slug, content, status) VALUES (?, ?, ?, ?)",
+      )
+      .run("FK test", postSlug, "FK content", "draft").lastInsertRowid,
   );
   const tagId = Number(
-    db.prepare("INSERT INTO tags (name) VALUES (?)").run(tagName).lastInsertRowid,
+    db.prepare("INSERT INTO tags (name) VALUES (?)").run(tagName)
+      .lastInsertRowid,
   );
 
   db.prepare("INSERT INTO post_tags (post_id, tag_id) VALUES (?, ?)").run(

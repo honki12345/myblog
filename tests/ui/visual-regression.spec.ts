@@ -25,7 +25,8 @@ for (const route of routes) {
     await page.addStyleTag({ content: DISABLE_ANIMATION_STYLE });
     await expect(page.locator("main").first()).toBeVisible();
 
-    const maxDiffPixelRatio = testInfo.project.name === "mobile-360" ? 0.04 : 0.01;
+    const maxDiffPixelRatio =
+      testInfo.project.name === "mobile-360" ? 0.04 : 0.01;
     await expect(page).toHaveScreenshot(`${route.name}.png`, {
       fullPage: true,
       maxDiffPixelRatio,

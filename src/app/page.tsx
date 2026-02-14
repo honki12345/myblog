@@ -11,15 +11,15 @@ export default function Home() {
     <main className="min-h-screen">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-10 sm:px-6 lg:px-8">
         <header className="space-y-2">
-          <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+          <p className="text-sm font-semibold tracking-wide text-slate-500 uppercase">
             Step 1 Ready
           </p>
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
             Honki Blog Scaffold
           </h1>
           <p className="max-w-2xl text-sm text-slate-600 sm:text-base">
-            Next.js standalone build and foundational routes are prepared for the following
-            implementation steps.
+            Next.js standalone build and foundational routes are prepared for
+            the following implementation steps.
           </p>
         </header>
 

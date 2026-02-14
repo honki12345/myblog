@@ -1,0 +1,9 @@
+.next
+node_modules
+artifacts
+coverage
+package-lock.json
+data
+uploads
+plans
+CLAUDE.md

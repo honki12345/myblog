@@ -31,7 +31,9 @@ function run(command, args, options = {}) {
         return;
       }
 
-      reject(new Error(`${command} ${args.join(" ")} failed with code ${code}`));
+      reject(
+        new Error(`${command} ${args.join(" ")} failed with code ${code}`),
+      );
     });
   });
 }
@@ -135,8 +137,12 @@ async function testStandaloneServer() {
     stdio: ["ignore", "pipe", "pipe"],
   });
 
-  standalone.stdout.on("data", (chunk) => process.stdout.write(chunk.toString()));
-  standalone.stderr.on("data", (chunk) => process.stderr.write(chunk.toString()));
+  standalone.stdout.on("data", (chunk) =>
+    process.stdout.write(chunk.toString()),
+  );
+  standalone.stderr.on("data", (chunk) =>
+    process.stderr.write(chunk.toString()),
+  );
 
   try {
     await waitForHttpOk("http://localhost:3001");
@@ -147,10 +153,14 @@ async function testStandaloneServer() {
 
 async function testDevServer() {
   console.log("\n[4/6] dev server health check");
-  const dev = spawn("node", ["node_modules/next/dist/bin/next", "dev", "--port", "3000"], {
-    env: { ...process.env },
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  const dev = spawn(
+    "node",
+    ["node_modules/next/dist/bin/next", "dev", "--port", "3000"],
+    {
+      env: { ...process.env },
+      stdio: ["ignore", "pipe", "pipe"],
+    },
+  );
 
   dev.stdout.on("data", (chunk) => process.stdout.write(chunk.toString()));
   dev.stderr.on("data", (chunk) => process.stderr.write(chunk.toString()));
@@ -168,7 +178,10 @@ async function testEnvFiles() {
   await ensureLocalEnvFile();
   await assertFile(".env.local");
 
-  const { stdout } = await run("bash", ["-lc", "grep -q 'BLOG_API_KEY' .env.example && echo OK"]);
+  const { stdout } = await run("bash", [
+    "-lc",
+    "grep -q 'BLOG_API_KEY' .env.example && echo OK",
+  ]);
   if (!stdout.includes("OK")) {
     throw new Error(".env.example is missing BLOG_API_KEY");
   }
@@ -179,7 +192,10 @@ async function testGitignoreEntries() {
   const checks = ["data/", "uploads/", ".env.local"];
 
   for (const value of checks) {
-    const { stdout } = await run("bash", ["-lc", `grep -q '${value}' .gitignore && echo OK`]);
+    const { stdout } = await run("bash", [
+      "-lc",
+      `grep -q '${value}' .gitignore && echo OK`,
+    ]);
     if (!stdout.includes("OK")) {
       throw new Error(`.gitignore is missing ${value}`);
     }

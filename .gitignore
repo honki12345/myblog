@@ -25,6 +25,7 @@
 *.pem
 data/
 uploads/
+artifacts/
 
 # debug
 npm-debug.log*

@@ -169,8 +169,9 @@ Step 7 (배포)
 | 1-1 | standalone 빌드 설정 | `output: 'standalone'` + `serverExternalPackages: ['better-sqlite3']` | 네이티브 바인딩이 standalone 번들에 올바르게 포함되도록 초기에 해결. 나중에 바꾸면 Step 6~7 전체 재작성 필요 |
 | 1-2 | Tailwind CSS v4 설정 | v4 네이티브 (CSS `@theme`) | 신규 프로젝트이므로 레거시 호환(`@tailwindcss/compat`) 불필요. `create-next-app --tailwind` 기반 조정 |
 | 1-3 | tsconfig | `create-next-app` 기본값 (`strict: true`, `@/*` alias) | strict 모드로 better-sqlite3 반환값 타입 실수 방지. alias로 깔끔한 import |
+| 1-4 | UI 반응형 기준 | 모바일 우선 반응형 (최소 360px ~ 데스크톱 1440px) | 초기 단계에서 반응형 기준을 고정해야 Step 5 UI 재작업과 레이아웃 회귀를 줄일 수 있음 |
 
-> **의존성 영향**: standalone → Step 6 CI 아티팩트, Step 7 systemd 경로 / Tailwind → Step 5 스타일링 / tsconfig → 모든 Step
+> **의존성 영향**: standalone → Step 6 CI 아티팩트, Step 7 systemd 경로 / Tailwind → Step 5 스타일링 / UI 반응형 기준 → Step 5 페이지 레이아웃 / tsconfig → 모든 Step
 
 #### 구현 내용
 
@@ -278,6 +279,7 @@ uploads/
 - `npm run build`가 에러 없이 완료되고, `.next/standalone/server.js` 파일이 생성된다.
 - `npm run dev`로 개발 서버가 기동되어 `http://localhost:3000`에 응답한다.
 - 환경변수 파일(`.env.local`, `.env.example`)이 존재하고 구조가 올바르다.
+- 모바일(360x800)과 데스크톱(1440x900) 뷰포트에서 핵심 레이아웃이 깨지지 않는다.
 
 #### 자동화 실행
 
@@ -337,6 +339,12 @@ npm run test:step1
    grep -q ".env.local" .gitignore && echo "OK" || echo "MISSING"
    ```
    - 기대 결과: 두 줄 모두 `OK`
+
+7. **반응형 레이아웃 확인 (수동)**
+   ```bash
+   npm run dev
+   ```
+   - 기대 결과: 브라우저 DevTools에서 360x800, 768x1024, 1440x900 뷰포트 전환 시 가로 스크롤 없이 주요 UI가 정상 표시된다.
 
 #### 피드백 루프
 

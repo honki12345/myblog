@@ -92,7 +92,7 @@ Phase 1: MVP (Step 1~7) — 로컬 개발 + 배포까지 완전한 블로그
   Step 7: Oracle VM 배포 설정
 
 Phase 2: AI 친화 기능
-  - 벌크 포스팅 API (최대 10건)
+  - 벌크 포스팅 API (최대 10건: 1GB VM 메모리 예산과 SQLite 트랜잭션 시간 고려)
   - 이미지 포함 포스팅 E2E 흐름 테스트
   - sources 테이블 활용 (ai_model, prompt_hint 기록)
   - 로깅 개선 (API 요청 JSON 로그)
@@ -2011,7 +2011,7 @@ npm run test:step7-remote      # HTTPS, 리다이렉트, API 인증, 페이지 �
 
 ### 구현 항목
 
-- **POST /api/posts/bulk** — 벌크 포스팅 (최대 10건, 단일 트랜잭션)
+- **POST /api/posts/bulk** — 벌크 포스팅 (최대 10건, 단일 트랜잭션 / 1GB VM 메모리와 처리 시간 고려)
   - 요청: `{ posts: [{ title, content, tags, sourceUrl, status }] }`
   - 응답: `{ created: [{ id, slug }], errors: [{ index, message }] }`
 - **이미지 포함 포스팅 E2E 흐름 테스트** — upload → URL 삽입 → 글 생성 전체 흐름 검증
@@ -2167,7 +2167,7 @@ npm run test:step7-remote      # HTTPS, 리다이렉트, API 인증, 페이지 �
 
 ### Phase 2: AI 친화 기능
 
-- [ ] POST /api/posts/bulk (최대 10건)
+- [ ] POST /api/posts/bulk (최대 10건, 메모리/처리시간 기준)
 - [ ] 이미지 포함 포스팅 E2E 흐름 테스트
 - [ ] sources 테이블 ai_model, prompt_hint 활용
 - [ ] 로깅 개선 (JSON 구조화 로그)

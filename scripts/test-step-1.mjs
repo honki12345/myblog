@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { access } from "node:fs/promises";
+import { access, readFile, writeFile } from "node:fs/promises";
 import process from "node:process";
 
 function run(command, args, options = {}) {
@@ -58,6 +58,42 @@ async function assertFile(pathname) {
     await access(pathname);
   } catch {
     throw new Error(`Missing expected path: ${pathname}`);
+  }
+}
+
+async function ensureLocalEnvFile() {
+  try {
+    await access(".env.local");
+    return;
+  } catch {
+    // continue to create from template
+  }
+
+  let template = "";
+  try {
+    template = await readFile(".env.example", "utf8");
+  } catch {
+    // .env.example validation is handled in testEnvFiles
+  }
+
+  const lines = template
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (!lines.some((line) => line.startsWith("BLOG_API_KEY="))) {
+    lines.push("BLOG_API_KEY=change-this-local-api-key");
+  }
+
+  const content = `${lines.join("\n")}\n`;
+  try {
+    await writeFile(".env.local", content, { flag: "wx" });
+    console.log("Created .env.local from template for this local test run.");
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "EEXIST") {
+      return;
+    }
+    throw error;
   }
 }
 
@@ -128,8 +164,9 @@ async function testDevServer() {
 
 async function testEnvFiles() {
   console.log("\n[5/6] env file checks");
-  await assertFile(".env.local");
   await assertFile(".env.example");
+  await ensureLocalEnvFile();
+  await assertFile(".env.local");
 
   const { stdout } = await run("bash", ["-lc", "grep -q 'BLOG_API_KEY' .env.example && echo OK"]);
   if (!stdout.includes("OK")) {

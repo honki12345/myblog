@@ -8,6 +8,7 @@ function escapeHtml(value: string) {
 }
 
 export function markdownToHtml(markdown: string) {
+  // Step 1 placeholder parser. Step 4 must replace this with unified + sanitize.
   const safe = escapeHtml(markdown);
 
   return safe

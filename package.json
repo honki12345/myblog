@@ -14,7 +14,7 @@
     "test:step2": "node scripts/test-step-2.mjs",
     "test:ui": "playwright test",
     "test:ui:update": "playwright test --update-snapshots",
-    "test:all": "npm run test:step1 && npm run test:step2",
+    "test:all": "npm run test:step1 && npm run test:step2 && npm run test:ui",
     "lint": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --fix",
     "format": "prettier . --write",

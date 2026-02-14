@@ -6,7 +6,7 @@
 
 ---
 
-### Step 2: SQLite DB 연결 & 스키마 생성
+## Step 2: SQLite DB 연결 & 스키마 생성
 
 #### 사전 결정 사항
 

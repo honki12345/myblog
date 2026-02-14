@@ -92,7 +92,7 @@ Phase 1: MVP (Step 1~7) — 로컬 개발 + 배포까지 완전한 블로그
   Step 7: Oracle VM 배포 설정
 
 Phase 2: AI 친화 기능
-  - 벌크 포스팅 API (최대 20건)
+  - 벌크 포스팅 API (최대 10건: 1GB VM 메모리 예산과 SQLite 트랜잭션 시간 고려)
   - 이미지 포함 포스팅 E2E 흐름 테스트
   - sources 테이블 활용 (ai_model, prompt_hint 기록)
   - 로깅 개선 (API 요청 JSON 로그)
@@ -169,26 +169,31 @@ Step 7 (배포)
 | 1-1 | standalone 빌드 설정 | `output: 'standalone'` + `serverExternalPackages: ['better-sqlite3']` | 네이티브 바인딩이 standalone 번들에 올바르게 포함되도록 초기에 해결. 나중에 바꾸면 Step 6~7 전체 재작성 필요 |
 | 1-2 | Tailwind CSS v4 설정 | v4 네이티브 (CSS `@theme`) | 신규 프로젝트이므로 레거시 호환(`@tailwindcss/compat`) 불필요. `create-next-app --tailwind` 기반 조정 |
 | 1-3 | tsconfig | `create-next-app` 기본값 (`strict: true`, `@/*` alias) | strict 모드로 better-sqlite3 반환값 타입 실수 방지. alias로 깔끔한 import |
+| 1-4 | UI 반응형 기준 | 모바일 우선 반응형 (최소 360px ~ 데스크톱 1440px) | 초기 단계에서 반응형 기준을 고정해야 Step 5 UI 재작업과 레이아웃 회귀를 줄일 수 있음 |
 
-> **의존성 영향**: standalone → Step 6 CI 아티팩트, Step 7 systemd 경로 / Tailwind → Step 5 스타일링 / tsconfig → 모든 Step
+> **의존성 영향**: standalone → Step 6 CI 아티팩트, Step 7 systemd 경로 / Tailwind → Step 5 스타일링 / UI 반응형 기준 → Step 5 페이지 레이아웃 / tsconfig → 모든 Step
 
 #### 구현 내용
 
 **1-1. Next.js 프로젝트 생성**
 
 ```bash
-npx create-next-app@latest . --typescript --tailwind --app --src-dir --no-eslint --no-import-alias
+npx create-next-app@latest . --typescript --tailwind --app --src-dir --no-linter --import-alias "@/*"
 ```
 
 > `.`은 현재 디렉토리(프로젝트 루트)에 생성. 별도 하위 디렉토리 없음.
+> 현재 저장소 루트에서 직접 초기화한다.
+> 실행 전 `git status --short`, `ls -la`로 파일 충돌 가능성을 확인한다.
 
-> `--no-eslint`: MVP에서는 린터 제외, 필요시 나중에 추가.
+> `--no-linter`: MVP에서는 린터 제외, 필요시 나중에 추가.
+> `--import-alias "@/*"`: alias를 유지해 import 경로를 일관되게 관리.
 
 **1-2. `next.config.ts` 수정**
 
 ```ts
 const nextConfig = {
   output: 'standalone',  // 배포용 standalone 빌드
+  serverExternalPackages: ['better-sqlite3'], // 네이티브 바인딩 패키지 명시
 };
 ```
 
@@ -205,6 +210,11 @@ BLOG_API_KEY=<생성할 API 키>
 ```env
 BLOG_API_KEY=your-api-key-here
 ```
+
+> **API Key 실주입 시점 정책**
+> - Step 1~6: 저장소 내 `.env.local`은 플레이스홀더/개인 로컬 키만 사용 (실운영 키 커밋 금지).
+> - Step 7 배포 직전: 대상 서버에서만 실운영 `BLOG_API_KEY` 주입 (`systemd` 환경변수 또는 서버 전용 env 파일).
+> - 배포 후 검증: `/api/health` 확인 뒤 인증이 필요한 API(`POST /api/posts`)를 실키 기준으로 점검.
 
 **1-4. 디렉토리 구조 생성**
 
@@ -273,11 +283,25 @@ uploads/
 .env.local
 ```
 
+**1-6. Step 1 테스트 자동화 연결**
+
+- `scripts/test-step-1.mjs` 파일을 생성해 Gate Criteria를 자동 검증한다.
+- `package.json`에 아래 스크립트를 추가한다.
+
+```json
+{
+  "scripts": {
+    "test:step1": "node scripts/test-step-1.mjs"
+  }
+}
+```
+
 #### 통과 기준 (Gate Criteria)
 
 - `npm run build`가 에러 없이 완료되고, `.next/standalone/server.js` 파일이 생성된다.
 - `npm run dev`로 개발 서버가 기동되어 `http://localhost:3000`에 응답한다.
 - 환경변수 파일(`.env.local`, `.env.example`)이 존재하고 구조가 올바르다.
+- 모바일(360x800)과 데스크톱(1440x900) 뷰포트에서 핵심 레이아웃이 깨지지 않는다.
 
 #### 자동화 실행
 
@@ -337,6 +361,22 @@ npm run test:step1
    grep -q ".env.local" .gitignore && echo "OK" || echo "MISSING"
    ```
    - 기대 결과: 두 줄 모두 `OK`
+
+7. **반응형 레이아웃 확인 (수동)**
+   ```bash
+   npm run dev
+   ```
+   - 수동 점검 절차:
+     1) 브라우저에서 `http://localhost:3000` 접속
+     2) DevTools 열기 후 Device Toolbar 활성화 (`Ctrl+Shift+M` 또는 `Cmd+Shift+M`)
+     3) 뷰포트 순서대로 전환: `360x800` → `768x1024` → `1440x900`
+     4) 각 뷰포트에서 경로 점검: `/`, `/posts`, `/write`, `/tags/sample`
+   - 체크리스트:
+     - 가로 스크롤이 생기지 않는다.
+     - 본문/카드/폼이 화면 밖으로 잘리지 않는다.
+     - 버튼/링크가 겹치지 않고 클릭 가능한 크기(모바일 기준 약 40px 이상)를 유지한다.
+     - 제목/본문 텍스트가 지나치게 작거나 줄바꿈 깨짐 없이 읽힌다.
+   - 기대 결과: 위 체크리스트를 3개 뷰포트에서 모두 충족한다.
 
 #### 피드백 루프
 
@@ -1971,7 +2011,7 @@ npm run test:step7-remote      # HTTPS, 리다이렉트, API 인증, 페이지 �
 
 ### 구현 항목
 
-- **POST /api/posts/bulk** — 벌크 포스팅 (최대 20건, 단일 트랜잭션)
+- **POST /api/posts/bulk** — 벌크 포스팅 (최대 10건, 단일 트랜잭션 / 1GB VM 메모리와 처리 시간 고려)
   - 요청: `{ posts: [{ title, content, tags, sourceUrl, status }] }`
   - 응답: `{ created: [{ id, slug }], errors: [{ index, message }] }`
 - **이미지 포함 포스팅 E2E 흐름 테스트** — upload → URL 삽입 → 글 생성 전체 흐름 검증
@@ -2127,7 +2167,7 @@ npm run test:step7-remote      # HTTPS, 리다이렉트, API 인증, 페이지 �
 
 ### Phase 2: AI 친화 기능
 
-- [ ] POST /api/posts/bulk (최대 20건)
+- [ ] POST /api/posts/bulk (최대 10건, 메모리/처리시간 기준)
 - [ ] 이미지 포함 포스팅 E2E 흐름 테스트
 - [ ] sources 테이블 ai_model, prompt_hint 활용
 - [ ] 로깅 개선 (JSON 구조화 로그)

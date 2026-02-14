@@ -23,18 +23,22 @@
 **1-1. Next.js 프로젝트 생성**
 
 ```bash
-npx create-next-app@latest . --typescript --tailwind --app --src-dir --no-eslint --no-import-alias
+npx create-next-app@latest . --typescript --tailwind --app --src-dir --no-linter --import-alias "@/*"
 ```
 
 > `.`은 현재 디렉토리(프로젝트 루트)에 생성. 별도 하위 디렉토리 없음.
+> 현재 저장소 루트에서 직접 초기화한다.
+> 실행 전 `git status --short`, `ls -la`로 파일 충돌 가능성을 확인한다.
 
-> `--no-eslint`: MVP에서는 린터 제외, 필요시 나중에 추가.
+> `--no-linter`: MVP에서는 린터 제외, 필요시 나중에 추가.
+> `--import-alias "@/*"`: alias를 유지해 import 경로를 일관되게 관리.
 
 **1-2. `next.config.ts` 수정**
 
 ```ts
 const nextConfig = {
   output: 'standalone',  // 배포용 standalone 빌드
+  serverExternalPackages: ['better-sqlite3'], // 네이티브 바인딩 패키지 명시
 };
 ```
 
@@ -51,6 +55,11 @@ BLOG_API_KEY=<생성할 API 키>
 ```env
 BLOG_API_KEY=your-api-key-here
 ```
+
+> **API Key 실주입 시점 정책**
+> - Step 1~6: 저장소 내 `.env.local`은 플레이스홀더/개인 로컬 키만 사용 (실운영 키 커밋 금지).
+> - Step 7 배포 직전: 대상 서버에서만 실운영 `BLOG_API_KEY` 주입 (`systemd` 환경변수 또는 서버 전용 env 파일).
+> - 배포 후 검증: `/api/health` 확인 뒤 인증이 필요한 API(`POST /api/posts`)를 실키 기준으로 점검.
 
 **1-4. 디렉토리 구조 생성**
 
@@ -117,6 +126,19 @@ BLOG_API_KEY=your-api-key-here
 data/
 uploads/
 .env.local
+```
+
+**1-6. Step 1 테스트 자동화 연결**
+
+- `scripts/test-step-1.mjs` 파일을 생성해 Gate Criteria를 자동 검증한다.
+- `package.json`에 아래 스크립트를 추가한다.
+
+```json
+{
+  "scripts": {
+    "test:step1": "node scripts/test-step-1.mjs"
+  }
+}
 ```
 
 #### 통과 기준 (Gate Criteria)
@@ -189,7 +211,17 @@ npm run test:step1
    ```bash
    npm run dev
    ```
-   - 기대 결과: 브라우저 DevTools에서 360x800, 768x1024, 1440x900 뷰포트 전환 시 가로 스크롤 없이 주요 UI가 정상 표시된다.
+   - 수동 점검 절차:
+     1) 브라우저에서 `http://localhost:3000` 접속
+     2) DevTools 열기 후 Device Toolbar 활성화 (`Ctrl+Shift+M` 또는 `Cmd+Shift+M`)
+     3) 뷰포트 순서대로 전환: `360x800` → `768x1024` → `1440x900`
+     4) 각 뷰포트에서 경로 점검: `/`, `/posts`, `/write`, `/tags/sample`
+   - 체크리스트:
+     - 가로 스크롤이 생기지 않는다.
+     - 본문/카드/폼이 화면 밖으로 잘리지 않는다.
+     - 버튼/링크가 겹치지 않고 클릭 가능한 크기(모바일 기준 약 40px 이상)를 유지한다.
+     - 제목/본문 텍스트가 지나치게 작거나 줄바꿈 깨짐 없이 읽힌다.
+   - 기대 결과: 위 체크리스트를 3개 뷰포트에서 모두 충족한다.
 
 #### 피드백 루프
 

@@ -116,7 +116,7 @@ Sources: `src/app/api/health/route.ts`, `src/app/api/posts/route.ts`, `src/app/a
 | Name                   | Required   | Used by                             | Description                                          |
 | ---------------------- | ---------- | ----------------------------------- | ---------------------------------------------------- |
 | `BLOG_API_KEY`         | Yes (운영) | API routes, write auth, tests       | 보호 API 인증 키                                     |
-| `DATABASE_PATH`        | No         | DB layer, tests                     | SQLite 파일 경로 오버라이드. 기본값은 `data/blog.db` |
+| `DATABASE_PATH`        | No         | DB layer, tests                     | SQLite 파일 경로 오버라이드. 기본값은 `data/blog.db`, 운영 권장값은 `/var/lib/blog/data/blog.db` |
 | `NEXT_PUBLIC_SITE_URL` | No         | post metadata, Playwright webServer | 상세 페이지 canonical URL 생성 기준                  |
 | `API_KEY`              | No         | UI 테스트 헬퍼                      | 테스트 시 `BLOG_API_KEY` 대체 입력값                 |
 
@@ -135,6 +135,7 @@ Sources: `src/app/api/health/route.ts`, `src/app/api/posts/route.ts`, `src/app/a
 
 - DB 초기화는 `getDb()` 최초 호출 시 자동 실행되며, 스키마/트리거/인덱스/FTS가 생성된다.
 - SQLite PRAGMA: `journal_mode=WAL`, `foreign_keys=ON`, `busy_timeout=5000`, `synchronous=NORMAL`, `cache_size=-2000`
+- 운영 배포는 영속 데이터 경로(`/var/lib/blog/data`, `/var/lib/blog/uploads`)를 사용하고, 각 릴리즈의 `data/uploads`는 해당 경로를 가리키는 심볼릭 링크로 구성한다.
 - 헬스체크 엔드포인트: `GET /api/health`
 - 업로드 파일은 `uploads/`에 저장되며 `.gitignore` 대상이다.
 - 저장소에는 Oracle VM 배포용 GitHub Actions 워크플로우(`.github/workflows/deploy.yml`)가 포함된다.

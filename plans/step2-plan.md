@@ -37,7 +37,7 @@
 #### 운영 확정값 (관점 5 반영)
 
 - 마이그레이션 버전 규칙: `schema_versions.version`은 `1, 2, 3...` 단순 정수 증가만 사용한다.
-- 프로덕션 DB 경로 표준: `DATABASE_PATH=/opt/blog/data/blog.db`를 기본 운영값으로 사용한다.
+- 프로덕션 DB 경로 표준: `DATABASE_PATH=/var/lib/blog/data/blog.db`를 기본 운영값으로 사용한다.
 - 마이그레이션 실행 트리거: 배포 시 `npm run db:migrate`를 명시 실행하고, 앱 시작 시 `getDb()`의 자동 마이그레이션(idempotent)을 이중 안전장치로 유지한다.
 
 #### 구현 착수 체크포인트

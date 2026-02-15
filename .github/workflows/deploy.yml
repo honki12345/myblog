@@ -140,7 +140,17 @@ jobs:
         run: |
           set -euo pipefail
 
-          if ! curl -fsS "https://${BLOG_DOMAIN}/api/health" > /dev/null; then
+          DOMAIN_HOST="${BLOG_DOMAIN#http://}"
+          DOMAIN_HOST="${DOMAIN_HOST#https://}"
+          DOMAIN_HOST="${DOMAIN_HOST%%/*}"
+          HEALTHCHECK_URL="https://${DOMAIN_HOST}/api/health"
+
+          if [ -z "${DOMAIN_HOST}" ]; then
+            echo "BLOG_DOMAIN is empty or invalid: ${BLOG_DOMAIN}" >&2
+            exit 1
+          fi
+
+          if ! curl -fsS "${HEALTHCHECK_URL}" > /dev/null; then
             ssh "${VM_USER}@${VM_HOST}" "bash -s" <<'REMOTE'
               set -euo pipefail
 

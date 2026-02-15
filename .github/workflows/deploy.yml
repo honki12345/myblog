@@ -120,6 +120,8 @@ jobs:
 
           # Keep /opt/blog/server.js compatible with the planned systemd layout.
           sudo cp -a "${RELEASE_PATH}/.next/standalone/." "${RELEASE_PATH}/"
+          sudo install -d -m 755 -o blog -g blog "${RELEASE_PATH}/data" "${RELEASE_PATH}/uploads"
+          sudo chown -R blog:blog "${RELEASE_PATH}"
 
           sudo ln -sfn "${RELEASE_PATH}" /opt/blog
           sudo systemctl restart blog
@@ -167,6 +169,9 @@ jobs:
 
             ssh "${VM_USER}@${VM_HOST}" "bash -s" <<'REMOTE'
               set -euo pipefail
+
+              echo "Diagnostic: recent blog logs before rollback"
+              sudo journalctl -u blog -n 80 --no-pager || true
 
               PREVIOUS_RELEASE=""
               if [ -f /tmp/blog-deploy-state ]; then

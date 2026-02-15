@@ -42,7 +42,7 @@ Sources: `AGENTS.md`, `src/app/layout.tsx`, `src/app/page.tsx`, `src/app/posts/p
 ### Data/control flow
 
 - 읽기 경로: Server Component가 `getDb()`로 SQLite 조회 -> 게시 상태(`published`) 중심 필터 -> JSX 렌더링
-- 작성 경로: `/write`에서 API Key 확인(`/api/health`) -> `POST /api/posts` 또는 `PATCH /api/posts/:id` -> DB 트랜잭션 -> `revalidatePath`로 홈/목록/상세/태그 갱신
+- 작성 경로: `/write`에서 API Key 확인(`/api/health`) -> `POST /api/posts` 또는 `PATCH /api/posts/:id` -> DB 트랜잭션 -> `revalidatePath`로 홈/목록/상세/태그 갱신 -> 상태 기반 라우팅(`published`는 `/posts/{slug}`, `draft`는 `/write?id={id}`)
 - 렌더링 경로: 상세 페이지에서 `renderMarkdown()` 호출 -> Mermaid 블록은 base64 placeholder로 출력 -> 클라이언트에서 `mermaid` 동적 import 후 SVG 변환
 - 업로드 경로: `/api/uploads`가 MIME + 매직바이트 검증 후 `uploads/YYYY/MM/uuid.ext` 저장 -> URL 반환
 
@@ -105,6 +105,8 @@ Sources: `src/lib/db.ts`, `src/app/api/posts/route.ts`, `src/app/api/posts/[id]/
 - 공개 페이지(`/`, `/posts`, `/posts/[slug]`, `/tags/[tag]`)는 `status='published'`만 노출한다.
 - `/write` 페이지는 클라이언트에서 `/api/health`를 호출해 API Key를 검증한다.
 - 생성/수정 API는 `revalidatePath`로 홈/목록/상세/태그 캐시 갱신을 트리거한다.
+- 상세 페이지 slug 조회는 decode-safe + `NFKC` 정규화를 적용한다.
+- malformed 퍼센트 인코딩 slug(`%E0%A4%A`)는 Next.js 라우팅 레벨에서 `400`으로 처리된다.
 - `POST /api/posts`는 토큰 기준 10회/60초 레이트 리밋을 적용한다(프로세스 메모리 기준).
 
 Sources: `src/app/api/health/route.ts`, `src/app/api/posts/route.ts`, `src/app/api/posts/check/route.ts`, `src/app/api/posts/[id]/route.ts`, `src/app/api/uploads/route.ts`, `src/lib/auth.ts`, `src/lib/rate-limit.ts`, `src/app/page.tsx`, `src/app/posts/page.tsx`, `src/app/posts/[slug]/page.tsx`, `src/app/tags/[tag]/page.tsx`, `src/app/write/page.tsx`, `scripts/test-step-3.mjs`, `scripts/test-step-5.mjs`

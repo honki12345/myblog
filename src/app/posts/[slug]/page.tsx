@@ -4,6 +4,7 @@ import PostContent from "@/components/PostContent";
 import TagList from "@/components/TagList";
 import { getDb } from "@/lib/db";
 import { formatDate } from "@/lib/date";
+import { normalizeSlugParam } from "@/lib/slug";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -79,7 +80,14 @@ function createCanonicalUrl(slug: string): string | null {
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
-  const { slug } = await params;
+  const { slug: rawSlug } = await params;
+  const slug = normalizeSlugParam(rawSlug);
+  if (!slug) {
+    return {
+      title: "글을 찾을 수 없습니다",
+    };
+  }
+
   const post = loadPublishedPostBySlug(slug);
 
   if (!post) {
@@ -102,7 +110,12 @@ export async function generateMetadata({
 }
 
 export default async function PostDetailPage({ params }: PageProps) {
-  const { slug } = await params;
+  const { slug: rawSlug } = await params;
+  const slug = normalizeSlugParam(rawSlug);
+  if (!slug) {
+    notFound();
+  }
+
   const post = loadPublishedPostBySlug(slug);
 
   if (!post) {

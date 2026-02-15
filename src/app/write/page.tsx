@@ -25,6 +25,13 @@ type PostDetailResponse = {
   tags: string[];
 };
 
+type SavePostSuccessResponse = {
+  id?: number;
+  slug?: string;
+  status?: PostStatus;
+  error?: { message?: string };
+};
+
 const API_KEY_STORAGE_KEY = "honki12345.blog.api_key";
 
 const previewRenderer = new marked.Renderer();
@@ -320,11 +327,12 @@ export default function WritePage() {
     setEditorError("");
 
     try {
+      const nextStatus = status;
       const payload = {
         title: normalizedTitle,
         content,
         tags: parseTags(tagsInput),
-        status,
+        status: nextStatus,
       };
 
       const endpoint = editPostId ? `/api/posts/${editPostId}` : "/api/posts";
@@ -339,9 +347,7 @@ export default function WritePage() {
         body: JSON.stringify(payload),
       });
 
-      const data = (await response.json()) as
-        | { slug?: string; error?: { message?: string } }
-        | { error: { message?: string } };
+      const data = (await response.json()) as SavePostSuccessResponse;
 
       if (!response.ok) {
         const message =
@@ -357,7 +363,21 @@ export default function WritePage() {
         throw new Error("저장 응답에 slug가 없습니다.");
       }
 
-      router.push(`/posts/${slug}`);
+      const nextId =
+        typeof data.id === "number" && Number.isInteger(data.id) && data.id > 0
+          ? data.id
+          : editPostId;
+
+      if (nextStatus === "published") {
+        router.push(`/posts/${slug}`);
+      } else {
+        if (!nextId) {
+          throw new Error("저장 응답에 id가 없습니다.");
+        }
+        setEditPostId(nextId);
+        router.push(`/write?id=${nextId}`);
+      }
+
       router.refresh();
     } catch (error) {
       const message =

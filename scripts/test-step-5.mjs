@@ -283,8 +283,44 @@ async function runChecks(apiKey) {
   assert(detailResponse.text.includes(markdownTitle), "detail title missing");
   assert(detailResponse.text.includes("<h2"), "detail markdown h2 missing");
 
+  const koreanTitle = `한글-상세-${seed}`;
+  const koreanCreated = await createPost(apiKey, {
+    title: koreanTitle,
+    content: "한글 slug 본문",
+    status: "published",
+    sourceUrl: `https://step5.test/korean/${seed}`,
+  });
+
+  const koreanDetailPlain = await requestText(`/posts/${koreanCreated.slug}`);
+  assert(
+    koreanDetailPlain.status === 200,
+    "korean slug detail should return 200",
+  );
+  assert(
+    koreanDetailPlain.text.includes(koreanTitle),
+    "korean slug detail title missing",
+  );
+
+  const koreanDetailEncoded = await requestText(
+    `/posts/${encodeURIComponent(koreanCreated.slug)}`,
+  );
+  assert(
+    koreanDetailEncoded.status === 200,
+    "encoded korean slug detail should return 200",
+  );
+  assert(
+    koreanDetailEncoded.text.includes(koreanTitle),
+    "encoded korean slug detail title missing",
+  );
+
   const detail404 = await requestText("/posts/this-slug-does-not-exist-12345");
   assert(detail404.status === 404, "missing slug should return 404");
+
+  const malformedSlug = await requestText("/posts/%E0%A4%A");
+  assert(
+    malformedSlug.status === 400,
+    "malformed encoded slug should return 400",
+  );
 
   const tagResponse = await requestText("/tags/frontend");
   assert(tagResponse.status === 200, "tag page should return 200");
@@ -301,7 +337,7 @@ async function runChecks(apiKey) {
   );
 
   const draftTitle = `STEP5-DRAFT-${seed}`;
-  await createPost(apiKey, {
+  const draftCreated = await createPost(apiKey, {
     title: draftTitle,
     content: "draft content",
     status: "draft",
@@ -319,6 +355,9 @@ async function runChecks(apiKey) {
     !postsAfterDraft.text.includes(draftTitle),
     "draft should not be visible on posts list",
   );
+
+  const draftDetail = await requestText(`/posts/${draftCreated.slug}`);
+  assert(draftDetail.status === 404, "draft detail should return 404");
 
   const paginationPrefix = `STEP5-PAGINATION-${seed}-`;
   const paginationTitles = [];

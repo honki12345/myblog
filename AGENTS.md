@@ -18,9 +18,14 @@ AI(크론잡)가 웹 스크래핑한 정보를 자동으로 올리고, 사용자
 ```
 .
 ├── CLAUDE.md
+├── docs/
+│   ├── codebase.md              # 코드베이스 설명/운영 메모
+│   └── runbooks/
+│       └── deploy-log.md        # 배포/운영 로그
 ├── plans/
 │   ├── blog-architecture.md      # 아키텍처 설계
-│   └── implementation-plan.md    # 구현+테스트+결정 통합 계획
+│   ├── implementation-plan.md    # 구현+테스트+결정 통합 계획
+│   └── issue-<번호>-plan.md      # 이슈별 작업 계획(계획 문서 단일 위치)
 ├── src/
 │   ├── app/                      # App Router 페이지 & API
 │   ├── lib/                      # DB, 인증, 마크다운 등 유틸
@@ -38,8 +43,16 @@ AI(크론잡)가 웹 스크래핑한 정보를 자동으로 올리고, 사용자
 
 - **아키텍처**: @plans/blog-architecture.md
 - **구현 계획**: @plans/implementation-plan.md
+- **이슈 계획**: @plans/issue-<번호>-plan.md
+- **코드베이스 문서**: @docs/codebase.md
+- **런북/운영 로그**: @docs/runbooks/deploy-log.md
 - **이슈 템플릿**: @.github/ISSUE_TEMPLATE/feature.md, @.github/ISSUE_TEMPLATE/bug.md
 - **PR 템플릿**: @.github/pull_request_template.md
+
+### 문서 디렉토리 규칙
+
+- 계획 문서는 `plans/`에만 저장한다. (`docs/plan` 사용 금지)
+- 일반 문서/운영 기록은 `docs/`에 저장한다.
 
 ---
 

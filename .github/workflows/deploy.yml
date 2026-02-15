@@ -150,7 +150,21 @@ jobs:
             exit 1
           fi
 
-          if ! curl -fsS "${HEALTHCHECK_URL}" > /dev/null; then
+          echo "BLOG_DOMAIN(raw): ${BLOG_DOMAIN}"
+          echo "BLOG_DOMAIN(normalized host): ${DOMAIN_HOST}"
+          echo "Healthcheck URL: ${HEALTHCHECK_URL}"
+
+          if ! getent hosts "${DOMAIN_HOST}" > /dev/null; then
+            echo "DNS lookup failed for ${DOMAIN_HOST}" >&2
+          fi
+
+          if ! curl -fsS --connect-timeout 10 --max-time 20 "${HEALTHCHECK_URL}" > /dev/null; then
+            echo "Health check failed for ${HEALTHCHECK_URL}" >&2
+            echo "Diagnostic: getent hosts ${DOMAIN_HOST}" >&2
+            getent hosts "${DOMAIN_HOST}" || true
+            echo "Diagnostic: curl -v ${HEALTHCHECK_URL}" >&2
+            curl -v --connect-timeout 10 --max-time 20 "${HEALTHCHECK_URL}" || true
+
             ssh "${VM_USER}@${VM_HOST}" "bash -s" <<'REMOTE'
               set -euo pipefail
 

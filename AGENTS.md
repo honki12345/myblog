@@ -9,6 +9,7 @@ AI(크론잡)가 웹 스크래핑한 정보를 자동으로 올리고, 사용자
 - **스타일링**: Tailwind CSS v4
 - **마크다운**: unified + remark-gfm + remark-math + rehype-shiki + rehype-katex + rehype-sanitize
 - **배포**: GitHub Actions → Oracle Free Tier AMD VM (1/8 OCPU, 1GB RAM)
+- **배포 주소**: https://honki12345.me/
 - **리버스 프록시**: Caddy (자동 HTTPS)
 - **프로세스 관리**: systemd
 

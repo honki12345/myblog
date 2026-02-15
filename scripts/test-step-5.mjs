@@ -1,11 +1,12 @@
 import { spawn } from "node:child_process";
 import { access, readFile, rm, stat } from "node:fs/promises";
+import net from "node:net";
 import path from "node:path";
 import process from "node:process";
 
 const ROOT = process.cwd();
-const PORT = 3000;
-const API_BASE = `http://127.0.0.1:${PORT}`;
+const DEFAULT_PORT = 3000;
+let apiBase = `http://127.0.0.1:${DEFAULT_PORT}`;
 const TEST_DB_PATH = path.join(ROOT, "data", "test-step5.db");
 const TEST_DB_WAL_PATH = `${TEST_DB_PATH}-wal`;
 const TEST_DB_SHM_PATH = `${TEST_DB_PATH}-shm`;
@@ -20,6 +21,79 @@ function assert(condition, message) {
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function parsePositiveIntegerEnv(envValue, fallback, { minimum = 1 } = {}) {
+  if (!envValue) {
+    return fallback;
+  }
+
+  const parsed = Number(envValue);
+  if (!Number.isFinite(parsed) || parsed < minimum) {
+    return fallback;
+  }
+
+  return Math.floor(parsed);
+}
+
+function isNetworkError(error) {
+  return (
+    error instanceof Error &&
+    /fetch failed|ECONNRESET|ECONNREFUSED|EPIPE|socket hang up/i.test(
+      error.message,
+    )
+  );
+}
+
+async function fetchWithRetry(url, options = {}, retryOptions = {}) {
+  const retries = retryOptions.retries ?? 0;
+  const baseDelayMs = retryOptions.baseDelayMs ?? 250;
+
+  let lastError = null;
+
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    try {
+      return await fetch(url, options);
+    } catch (error) {
+      lastError = error;
+      if (!isNetworkError(error) || attempt === retries) {
+        throw error;
+      }
+      await sleep(baseDelayMs * (attempt + 1));
+    }
+  }
+
+  throw lastError ?? new Error("fetch failed");
+}
+
+function getRetryCountForMethod(method) {
+  const normalizedMethod = method.toUpperCase();
+  return normalizedMethod === "GET" || normalizedMethod === "HEAD" ? 3 : 0;
+}
+
+function canBindPort(port) {
+  return new Promise((resolve) => {
+    const server = net.createServer();
+    server.unref();
+
+    server.once("error", () => {
+      resolve(false);
+    });
+
+    server.listen({ port, host: "127.0.0.1" }, () => {
+      server.close(() => resolve(true));
+    });
+  });
+}
+
+async function findAvailablePort(startPort = DEFAULT_PORT, maxAttempts = 100) {
+  for (let port = startPort; port < startPort + maxAttempts; port += 1) {
+    if (await canBindPort(port)) {
+      return port;
+    }
+  }
+
+  throw new Error(`unable to find available port from ${startPort}`);
 }
 
 function assertErrorResponse(response, expectedStatus, expectedCode) {
@@ -79,7 +153,7 @@ async function resolveApiKey() {
 async function waitForServer(url, retries = 60, delayMs = 500) {
   for (let index = 0; index < retries; index += 1) {
     try {
-      const response = await fetch(url);
+      const response = await fetchWithRetry(url, {}, { retries: 1 });
       if (response.ok) {
         return;
       }
@@ -94,16 +168,31 @@ async function waitForServer(url, retries = 60, delayMs = 500) {
 }
 
 async function startServer(apiKey) {
+  const startPort = parsePositiveIntegerEnv(
+    process.env.STEP5_PORT_BASE,
+    DEFAULT_PORT,
+  );
+  const port = await findAvailablePort(startPort);
+  apiBase = `http://127.0.0.1:${port}`;
+
   const child = spawn(
     "node",
-    ["node_modules/next/dist/bin/next", "dev", "--port", String(PORT)],
+    ["node_modules/next/dist/bin/next", "dev", "--port", String(port)],
     {
       cwd: ROOT,
       env: {
         ...process.env,
         BLOG_API_KEY: apiKey,
         DATABASE_PATH: TEST_DB_PATH,
-        NEXT_PUBLIC_SITE_URL: API_BASE,
+        NEXT_PUBLIC_SITE_URL: apiBase,
+        RATE_LIMIT_MAX_REQUESTS:
+          process.env.STEP5_RATE_LIMIT_MAX_REQUESTS ??
+          process.env.RATE_LIMIT_MAX_REQUESTS ??
+          "100",
+        RATE_LIMIT_WINDOW_MS:
+          process.env.STEP5_RATE_LIMIT_WINDOW_MS ??
+          process.env.RATE_LIMIT_WINDOW_MS ??
+          "1000",
         NEXT_TELEMETRY_DISABLED: "1",
       },
       stdio: ["ignore", "pipe", "pipe"],
@@ -113,8 +202,13 @@ async function startServer(apiKey) {
   child.stdout.on("data", (chunk) => process.stdout.write(chunk.toString()));
   child.stderr.on("data", (chunk) => process.stderr.write(chunk.toString()));
 
-  await waitForServer(`${API_BASE}/api/health`);
-  return child;
+  try {
+    await waitForServer(`${apiBase}/api/health`);
+    return child;
+  } catch (error) {
+    await stopServer(child);
+    throw error;
+  }
 }
 
 async function stopServer(child) {
@@ -140,17 +234,24 @@ async function stopServer(child) {
 
 async function requestText(pathname, options = {}) {
   const { method = "GET", apiKey, body, headers = {} } = options;
+  const requestMethod = method.toUpperCase();
   const requestHeaders = { ...headers };
 
   if (apiKey) {
     requestHeaders.Authorization = `Bearer ${apiKey}`;
   }
 
-  const response = await fetch(`${API_BASE}${pathname}`, {
-    method,
-    headers: requestHeaders,
-    body,
-  });
+  const response = await fetchWithRetry(
+    `${apiBase}${pathname}`,
+    {
+      method: requestMethod,
+      headers: requestHeaders,
+      body,
+    },
+    {
+      retries: getRetryCountForMethod(requestMethod),
+    },
+  );
 
   return {
     status: response.status,
@@ -161,6 +262,7 @@ async function requestText(pathname, options = {}) {
 
 async function requestJson(pathname, options = {}) {
   const { method = "GET", apiKey, body, headers = {} } = options;
+  const requestMethod = method.toUpperCase();
   const requestHeaders = { ...headers };
 
   if (apiKey) {
@@ -173,11 +275,17 @@ async function requestJson(pathname, options = {}) {
     payload = JSON.stringify(body);
   }
 
-  const response = await fetch(`${API_BASE}${pathname}`, {
-    method,
-    headers: requestHeaders,
-    body: payload,
-  });
+  const response = await fetchWithRetry(
+    `${apiBase}${pathname}`,
+    {
+      method: requestMethod,
+      headers: requestHeaders,
+      body: payload,
+    },
+    {
+      retries: getRetryCountForMethod(requestMethod),
+    },
+  );
 
   const text = await response.text();
   let data = null;
@@ -449,7 +557,7 @@ async function runChecks(apiKey) {
   );
   assertErrorResponse(unauthorizedPatchById, 401, "UNAUTHORIZED");
 
-  const unauthorizedUpload = await fetch(`${API_BASE}/api/uploads`, {
+  const unauthorizedUpload = await fetchWithRetry(`${apiBase}/api/uploads`, {
     method: "POST",
     body: new FormData(),
   });
@@ -473,7 +581,7 @@ async function runChecks(apiKey) {
     new File([pngBytes], `step5-${seed}.png`, { type: "image/png" }),
   );
 
-  const uploadSuccessResponse = await fetch(`${API_BASE}/api/uploads`, {
+  const uploadSuccessResponse = await fetchWithRetry(`${apiBase}/api/uploads`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -506,7 +614,7 @@ async function runChecks(apiKey) {
     new File(["not-image"], `step5-${seed}.txt`, { type: "text/plain" }),
   );
 
-  const uploadUnsupported = await fetch(`${API_BASE}/api/uploads`, {
+  const uploadUnsupported = await fetchWithRetry(`${apiBase}/api/uploads`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -529,7 +637,7 @@ async function runChecks(apiKey) {
     }),
   );
 
-  const uploadLarge = await fetch(`${API_BASE}/api/uploads`, {
+  const uploadLarge = await fetchWithRetry(`${apiBase}/api/uploads`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -543,16 +651,28 @@ async function runChecks(apiKey) {
 
 async function main() {
   const apiKey = await resolveApiKey();
+  const maxAttempts = 2;
 
-  await cleanupTestDb();
-  const child = await startServer(apiKey);
-
-  try {
-    await runChecks(apiKey);
-    assert(await fileExists(TEST_DB_PATH), "test db should be created");
-  } finally {
-    await stopServer(child);
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     await cleanupTestDb();
+    const child = await startServer(apiKey);
+
+    try {
+      await runChecks(apiKey);
+      assert(await fileExists(TEST_DB_PATH), "test db should be created");
+      return;
+    } catch (error) {
+      const canRetry = attempt < maxAttempts && isNetworkError(error);
+      if (!canRetry) {
+        throw error;
+      }
+      console.warn(
+        `Step 5 transient network error (attempt ${attempt}/${maxAttempts}), retrying...`,
+      );
+    } finally {
+      await stopServer(child);
+      await cleanupTestDb();
+    }
   }
 }
 

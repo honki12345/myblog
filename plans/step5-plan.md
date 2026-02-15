@@ -6,6 +6,38 @@
 
 ---
 
+## PR 리뷰 반영 내역 (2026-02-15)
+
+- 코멘트 ID: `INLINE-2809168495` (`scripts/test-all.mjs:26`)
+  - 요약: `stderr`를 `stdout`으로 쓰는 로그 혼합 문제
+  - 실제 변경 파일/함수: `scripts/test-all.mjs` `pipeWithPrefix`, `startScript`
+  - 검증 결과: `npm run test:all` 통과. `test:ui:err` 프리픽스로 stderr가 분리 출력됨.
+  - 후속 작업: 없음
+
+- 코멘트 ID: `INLINE-2809168505` (`scripts/test-step-5.mjs:49`)
+  - 요약: `fetchWithRetry` 기본 재시도로 비멱등 요청이 중복 실행될 수 있는 문제
+  - 실제 변경 파일/함수: `scripts/test-step-5.mjs` `fetchWithRetry`
+  - 검증 결과: `npm run test:all` 통과. 기본 재시도는 0으로 동작.
+  - 후속 작업: 없음
+
+- 코멘트 ID: `INLINE-2809168508` (`scripts/test-step-5.mjs:242`)
+  - 요약: `requestText`/`requestJson`의 non-GET 재시도로 POST/PATCH 중복 가능성
+  - 실제 변경 파일/함수: `scripts/test-step-5.mjs` `getRetryCountForMethod`, `requestText`, `requestJson`
+  - 검증 결과: `npm run test:all` 통과. GET/HEAD만 재시도, 쓰기 메서드는 재시도 0회.
+  - 후속 작업: 없음
+
+- 코멘트 ID: `INLINE-2809168510` (`scripts/test-all.mjs:109`)
+  - 요약: 병렬 스텝 실패 시 `SIGTERM`만으로 종료 대기하면 hang 가능
+  - 실제 변경 파일/함수: `scripts/test-all.mjs` `stopProcess`, `runParallelGroup`
+  - 검증 결과: `npm run test:all` 통과. 실패 정리 경로에 TERM→KILL 에스컬레이션 추가.
+  - 후속 작업: 없음
+
+- 코멘트 ID: `PRREVIEW-coderabbitai-2026-02-15T12:17:43Z` (`scripts/test-step-5.mjs:165-201`)
+  - 요약: 서버 시작 대기 실패 시 `next dev` orphan 프로세스 잔류 가능
+  - 실제 변경 파일/함수: `scripts/test-step-5.mjs` `startServer`
+  - 검증 결과: `npm run test:all` 통과. `waitForServer` 실패 경로에서 `stopServer(child)` 후 재throw.
+  - 후속 작업: 없음
+
 ## Step 5: 프론트엔드 페이지 (SSR)
 
 #### 사전 결정 사항

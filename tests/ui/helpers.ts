@@ -205,6 +205,7 @@ export async function seedVisualPosts(
   request: APIRequestContext,
 ): Promise<{ detailSlug: string }> {
   runCleanupScript();
+  const seededPosts: Array<SeededPost & { id: number; slug: string }> = [];
 
   const homeSeed: SeededPost = {
     title: "PW-SEED-홈 화면 글",
@@ -214,35 +215,45 @@ export async function seedVisualPosts(
     sourceUrl: "https://playwright.seed/home",
   };
   const postA = await insertPostDirect(request, homeSeed);
+  seededPosts.push({ ...homeSeed, ...postA });
 
-  await insertPostDirect(request, {
+  const listSeed: SeededPost = {
     title: "PW-SEED-목록 화면 글",
     content: "시각 회귀 테스트용 목록 콘텐츠",
     tags: ["sample"],
     status: "published",
     sourceUrl: "https://playwright.seed/list",
-  });
+  };
+  const postB = await insertPostDirect(request, listSeed);
+  seededPosts.push({ ...listSeed, ...postB });
 
-  await insertPostDirect(request, {
+  const tagSeed: SeededPost = {
     title: "PW-SEED-태그 화면 글",
     content: "sample 태그를 가진 글",
     tags: ["sample", "react"],
     status: "published",
     sourceUrl: "https://playwright.seed/tag",
-  });
+  };
+  const postC = await insertPostDirect(request, tagSeed);
+  seededPosts.push({ ...tagSeed, ...postC });
 
-  await insertPostDirect(request, {
+  const draftSeed: SeededPost = {
     title: "PW-SEED-비공개 초안",
     content: "보이면 안 됩니다",
     tags: ["sample"],
     status: "draft",
     sourceUrl: "https://playwright.seed/draft",
-  });
+  };
+  const draftPost = await insertPostDirect(request, draftSeed);
+  seededPosts.push({ ...draftSeed, ...draftPost });
 
-  await triggerRevalidationForSeededPost(request, {
-    ...homeSeed,
-    id: postA.id,
-  });
+  for (const seededPost of seededPosts) {
+    if (seededPost.status !== "published") {
+      continue;
+    }
+
+    await triggerRevalidationForSeededPost(request, seededPost);
+  }
 
   return { detailSlug: postA.slug };
 }

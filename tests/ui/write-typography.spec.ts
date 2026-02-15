@@ -1,38 +1,14 @@
+import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
-import { resolveApiKey, runCleanupScript } from "./helpers";
-
-const apiKey = resolveApiKey();
+import { authenticateWriteEditor, runCleanupScript } from "./helpers";
 
 test.beforeEach(() => {
   runCleanupScript();
 });
 
-async function authenticate(
-  page: import("@playwright/test").Page,
-): Promise<void> {
-  await page
-    .locator('main[data-hydrated="true"]')
-    .waitFor({ state: "visible" });
-  await page.getByLabel("API Key").fill(apiKey);
-
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    await page.getByRole("button", { name: "인증 후 편집기 열기" }).click();
-    try {
-      await expect(
-        page.getByRole("heading", { name: /새 글 작성|글 수정 #\d+/ }),
-      ).toBeVisible({ timeout: 4_000 });
-      return;
-    } catch {
-      await page.waitForTimeout(300);
-    }
-  }
-
-  throw new Error("API Key authentication did not transition to editor mode");
-}
-
 test("write preview applies typography styles", async ({ page }) => {
   await page.goto("/write", { waitUntil: "networkidle" });
-  await authenticate(page);
+  await authenticateWriteEditor(page);
 
   await page
     .getByPlaceholder("마크다운 본문을 입력하세요")
@@ -43,6 +19,18 @@ test("write preview applies typography styles", async ({ page }) => {
   await expect(preview.locator("p").first()).toBeVisible();
   await expect(preview.locator("ul")).toBeVisible();
   await expect(preview.locator("pre")).toBeVisible();
+  await expect(preview).toHaveScreenshot("write-preview-typography.png");
+
+  const accessibility = await new AxeBuilder({ page })
+    .include("article.markdown-preview")
+    .analyze();
+  const blockingViolations = accessibility.violations.filter((violation) => {
+    return violation.impact === "critical" || violation.impact === "serious";
+  });
+  expect(
+    blockingViolations,
+    "write preview has serious/critical accessibility violations",
+  ).toEqual([]);
 
   const styles = await preview.evaluate((node) => {
     const h1 = node.querySelector("h1");

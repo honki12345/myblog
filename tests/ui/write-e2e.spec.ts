@@ -1,7 +1,9 @@
 import { expect, test } from "@playwright/test";
-import { insertPostDirect, resolveApiKey, runCleanupScript } from "./helpers";
-
-const apiKey = resolveApiKey();
+import {
+  authenticateWriteEditor,
+  insertPostDirect,
+  runCleanupScript,
+} from "./helpers";
 
 const TINY_PNG = Buffer.from([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49,
@@ -16,35 +18,12 @@ test.beforeEach(() => {
   runCleanupScript();
 });
 
-async function authenticate(
-  page: import("@playwright/test").Page,
-): Promise<void> {
-  await page
-    .locator('main[data-hydrated="true"]')
-    .waitFor({ state: "visible" });
-  await page.getByLabel("API Key").fill(apiKey);
-
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    await page.getByRole("button", { name: "인증 후 편집기 열기" }).click();
-    try {
-      await expect(
-        page.getByRole("heading", { name: /새 글 작성|글 수정 #\d+/ }),
-      ).toBeVisible({ timeout: 4000 });
-      return;
-    } catch {
-      await page.waitForTimeout(300);
-    }
-  }
-
-  throw new Error("API Key authentication did not transition to editor mode");
-}
-
 test("write page creates a post and redirects to detail", async ({ page }) => {
   const seed = Date.now();
   const title = `UI-E2E-CREATE-${seed}`;
 
   await page.goto("/write", { waitUntil: "networkidle" });
-  await authenticate(page);
+  await authenticateWriteEditor(page);
 
   await expect(page.getByRole("heading", { name: "새 글 작성" })).toBeVisible();
 
@@ -79,7 +58,7 @@ test("write page saves draft and redirects back to editor", async ({
   const title = `UI-E2E-DRAFT-${seed}`;
 
   await page.goto("/write", { waitUntil: "networkidle" });
-  await authenticate(page);
+  await authenticateWriteEditor(page);
 
   await page.getByLabel("제목").fill(title);
   await page.getByLabel("상태").selectOption("draft");
@@ -98,7 +77,7 @@ test("write page creates published post with Korean slug", async ({ page }) => {
   const title = `UI-E2E-한글-${seed}`;
 
   await page.goto("/write", { waitUntil: "networkidle" });
-  await authenticate(page);
+  await authenticateWriteEditor(page);
 
   await page.getByLabel("제목").fill(title);
   await page.getByLabel("상태").selectOption("published");
@@ -129,7 +108,7 @@ test("write page edits an existing post", async ({ page, request }) => {
   const updatedTitle = `UI-E2E-EDIT-AFTER-${seed}`;
 
   await page.goto(`/write?id=${created.id}`, { waitUntil: "networkidle" });
-  await authenticate(page);
+  await authenticateWriteEditor(page);
 
   await expect(
     page.getByRole("heading", { name: `글 수정 #${created.id}` }),

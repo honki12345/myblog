@@ -18,41 +18,6 @@ function assert(condition, message) {
   }
 }
 
-function run(command, args, options = {}) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
-      stdio: ["ignore", "pipe", "pipe"],
-      ...options,
-    });
-
-    let stdout = "";
-    let stderr = "";
-
-    child.stdout.on("data", (chunk) => {
-      const text = chunk.toString();
-      stdout += text;
-      process.stdout.write(text);
-    });
-
-    child.stderr.on("data", (chunk) => {
-      const text = chunk.toString();
-      stderr += text;
-      process.stderr.write(text);
-    });
-
-    child.on("error", reject);
-    child.on("close", (code) => {
-      if (code === 0) {
-        resolve({ stdout, stderr });
-        return;
-      }
-      reject(
-        new Error(`${command} ${args.join(" ")} failed with code ${code}`),
-      );
-    });
-  });
-}
-
 function assertErrorResponse(response, expectedStatus, expectedCode) {
   assert(
     response.status === expectedStatus,

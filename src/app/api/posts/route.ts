@@ -155,6 +155,31 @@ function revalidatePostRelatedPaths(slug: string, tags: string[]) {
 
 export const dynamic = "force-dynamic";
 
+function parsePositiveIntegerEnv(
+  envValue: string | undefined,
+  fallback: number,
+): number {
+  if (!envValue) {
+    return fallback;
+  }
+
+  const parsed = Number(envValue);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+
+  return Math.floor(parsed);
+}
+
+const RATE_LIMIT_MAX_REQUESTS = parsePositiveIntegerEnv(
+  process.env.RATE_LIMIT_MAX_REQUESTS,
+  10,
+);
+const RATE_LIMIT_WINDOW_MS = parsePositiveIntegerEnv(
+  process.env.RATE_LIMIT_WINDOW_MS,
+  60_000,
+);
+
 export async function GET() {
   const db = getDb();
   const rows = db
@@ -177,7 +202,11 @@ export async function POST(request: Request) {
     return errorResponse(401, "UNAUTHORIZED", "Invalid or missing API key.");
   }
 
-  const rate = checkRateLimit(token);
+  const rate = checkRateLimit(
+    token,
+    RATE_LIMIT_MAX_REQUESTS,
+    RATE_LIMIT_WINDOW_MS,
+  );
   if (!rate.allowed) {
     const response = errorResponse(
       429,

@@ -1,1 +1,142 @@
-console.log("Run each step test script as implementation progresses.");
+import { spawn } from "node:child_process";
+import process from "node:process";
+
+const ROOT = process.cwd();
+const NPM_COMMAND = process.platform === "win32" ? "npm.cmd" : "npm";
+
+function formatDuration(ms) {
+  const totalSeconds = Math.round(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}m ${seconds}s`;
+}
+
+function pipeWithPrefix(stream, prefix) {
+  let buffer = "";
+  stream.on("data", (chunk) => {
+    buffer += chunk.toString();
+    const lines = buffer.split(/\r?\n/);
+    buffer = lines.pop() ?? "";
+
+    for (const line of lines) {
+      if (line.length === 0) {
+        process.stdout.write("\n");
+      } else {
+        process.stdout.write(`[${prefix}] ${line}\n`);
+      }
+    }
+  });
+
+  stream.on("end", () => {
+    if (buffer.length > 0) {
+      process.stdout.write(`[${prefix}] ${buffer}\n`);
+      buffer = "";
+    }
+  });
+}
+
+function startScript(scriptName, options = {}) {
+  const label = options.label ?? scriptName;
+  const child = spawn(NPM_COMMAND, ["run", scriptName], {
+    cwd: ROOT,
+    env: {
+      ...process.env,
+      ...(options.env ?? {}),
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+
+  pipeWithPrefix(child.stdout, label);
+  pipeWithPrefix(child.stderr, `${label}:err`);
+
+  const done = new Promise((resolve, reject) => {
+    child.on("error", reject);
+    child.on("close", (code, signal) => {
+      if (code === 0) {
+        resolve();
+        return;
+      }
+
+      reject(
+        new Error(
+          `${label} failed with code ${code ?? "null"}${signal ? ` (signal: ${signal})` : ""}`,
+        ),
+      );
+    });
+  });
+
+  return { child, done, label };
+}
+
+async function runSingle(scriptName, options = {}) {
+  const startedAt = Date.now();
+  const { done, label } = startScript(scriptName, options);
+  await done;
+  const durationMs = Date.now() - startedAt;
+  console.log(`[test:all] ${label} done in ${formatDuration(durationMs)}`);
+  return durationMs;
+}
+
+async function runParallelGroup(groupName, entries) {
+  const startedAt = Date.now();
+  const processes = entries.map((entry) =>
+    startScript(entry.script, {
+      label: entry.label ?? entry.script,
+      env: entry.env,
+    }),
+  );
+
+  let firstError = null;
+
+  const wrapped = processes.map((proc) =>
+    proc.done.catch((error) => {
+      if (!firstError) {
+        firstError = error;
+      }
+      throw error;
+    }),
+  );
+
+  try {
+    await Promise.all(wrapped);
+  } catch {
+    for (const proc of processes) {
+      if (proc.child.exitCode === null && proc.child.signalCode === null) {
+        proc.child.kill("SIGTERM");
+      }
+    }
+    await Promise.allSettled(processes.map((proc) => proc.done));
+    throw firstError ?? new Error(`${groupName} failed`);
+  }
+
+  const durationMs = Date.now() - startedAt;
+  console.log(`[test:all] ${groupName} done in ${formatDuration(durationMs)}`);
+  return durationMs;
+}
+
+async function main() {
+  const totalStartedAt = Date.now();
+
+  console.log("[test:all] start");
+  await runSingle("test:step1");
+  await runParallelGroup("group-a(step2+step4)", [
+    { script: "test:step2", label: "step2" },
+    { script: "test:step4", label: "step4" },
+  ]);
+  await runSingle("test:step3");
+  await runSingle("test:step5", {
+    env: { STEP5_PORT_BASE: "3100" },
+  });
+  await runSingle("test:ui");
+
+  const totalDurationMs = Date.now() - totalStartedAt;
+  console.log(
+    `[test:all] total done in ${formatDuration(totalDurationMs)} (${totalDurationMs}ms)`,
+  );
+}
+
+main().catch((error) => {
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(`[test:all] failed: ${message}`);
+  process.exitCode = 1;
+});

@@ -137,14 +137,15 @@ Sources: `src/app/api/health/route.ts`, `src/app/api/posts/route.ts`, `src/app/a
 - SQLite PRAGMA: `journal_mode=WAL`, `foreign_keys=ON`, `busy_timeout=5000`, `synchronous=NORMAL`, `cache_size=-2000`
 - 헬스체크 엔드포인트: `GET /api/health`
 - 업로드 파일은 `uploads/`에 저장되며 `.gitignore` 대상이다.
-- 저장소에는 Caddy/systemd/Oracle 배포 자동화 파일이 없고, CI는 검증 파이프라인만 제공한다.
+- 저장소에는 Oracle VM 배포용 GitHub Actions 워크플로우(`.github/workflows/deploy.yml`)가 포함된다.
 
 ### CI summary
 
 - `verify` job: `npm ci` -> `lint` -> `format:check` -> `build` -> `test:step3`
 - `ui-visual` job(verify 이후): Playwright Chromium 설치 -> `npm run test:ui` -> 아티팩트 업로드
+- `deploy` workflow: `push(main + paths filter)` 또는 `workflow_dispatch` -> `npm ci/build` -> standalone tar 패키징 -> SCP/SSH 배포 -> `systemctl` + `/api/health` 점검 -> 실패 시 롤백
 
-Sources: `package.json`, `.env.example`, `next.config.ts`, `src/lib/db.ts`, `src/app/posts/[slug]/page.tsx`, `.gitignore`, `playwright.config.ts`, `.github/workflows/ci.yml`, `scripts/test-step-1.mjs`, `scripts/test-step-2.mjs`, `AGENTS.md`
+Sources: `package.json`, `.env.example`, `next.config.ts`, `src/lib/db.ts`, `src/app/posts/[slug]/page.tsx`, `.gitignore`, `playwright.config.ts`, `.github/workflows/ci.yml`, `.github/workflows/deploy.yml`, `scripts/test-step-1.mjs`, `scripts/test-step-2.mjs`, `AGENTS.md`
 
 ## 5. Development and Testing
 
@@ -163,6 +164,7 @@ Sources: `package.json`, `.env.example`, `next.config.ts`, `src/lib/db.ts`, `src
   - `npm run test:step3`: API 인증/검증/중복/레이트리밋/업로드 검증
   - `npm run test:step4`: markdown 렌더링/XSS/Mermaid 제한 검증
   - `npm run test:step5`: 페이지 라우팅/SSR 출력/캐시 갱신/업로드 검증
+  - `npm run test:step6`: CI/CD 게이트(클린 빌드, standalone 패키징/무결성, better-sqlite3 바인딩, 워크플로우 정책) 검증
   - `npm run test:ui`: Playwright 시각 회귀 + 접근성 + 작성 E2E
 - 전체 회귀: `npm run test:all` (`step1~5 + ui`)
 - UI 테스트 특징:
@@ -173,10 +175,11 @@ Sources: `package.json`, `.env.example`, `next.config.ts`, `src/lib/db.ts`, `src
 
 ### CI/CD workflow summary
 
-- PR/지정 브랜치 push에서 자동 검증
-- 현재 CI는 `test:all` 전체 대신 `test:step3` + `test:ui` 조합으로 실행
+- `ci.yml`: PR/지정 브랜치 push에서 검증 전용(`lint`, `format:check`, `build`, `test:step3`, `test:ui`)
+- `deploy.yml`: `main` push + 경로 필터(`src/**`, `package*.json`, `next.config.*`) 또는 `workflow_dispatch`에서 배포 전용 실행
+- 배포 워크플로우는 필수 Secrets(`BLOG_DOMAIN`, `VM_HOST`, `VM_USER`, `VM_SSH_KEY`) fail-fast 검증과 롤백 단계를 포함한다
 
-Sources: `package.json`, `scripts/test-step-1.mjs`, `scripts/test-step-2.mjs`, `scripts/test-step-3.mjs`, `scripts/test-step-4.mjs`, `scripts/test-step-5.mjs`, `scripts/test-all.mjs`, `playwright.config.ts`, `tests/ui/visual-regression.spec.ts`, `tests/ui/accessibility.spec.ts`, `tests/ui/write-e2e.spec.ts`, `tests/ui/helpers.ts`, `.github/workflows/ci.yml`
+Sources: `package.json`, `scripts/test-step-1.mjs`, `scripts/test-step-2.mjs`, `scripts/test-step-3.mjs`, `scripts/test-step-4.mjs`, `scripts/test-step-5.mjs`, `scripts/test-step-6.mjs`, `scripts/test-all.mjs`, `playwright.config.ts`, `tests/ui/visual-regression.spec.ts`, `tests/ui/accessibility.spec.ts`, `tests/ui/write-e2e.spec.ts`, `tests/ui/helpers.ts`, `.github/workflows/ci.yml`, `.github/workflows/deploy.yml`, `docs/runbooks/deploy-log.md`
 
 ## 6. Extension Points
 

@@ -59,7 +59,7 @@
 
 - 운영 기준 고정:
   - `WorkingDirectory=/opt/blog`
-  - `ExecStart=/home/blog/.nvm/versions/node/v22.x/bin/node server.js`
+  - `ExecStart=/home/blog/.nvm/versions/node/<node-version>/bin/node server.js` (`<node-version>`은 `nvm which 22` 결과로 치환)
   - 배포 시 `.next/standalone` 산출물을 릴리즈 루트(`/opt/blog-v{N}`)에 복사해 `/opt/blog/server.js` 경로를 유지한다.
 
 **7-3. Caddy 설정**
@@ -117,7 +117,8 @@ honki12345.me {
   - `systemctl is-active blog` 결과가 `active`
   - `https://$BLOG_DOMAIN/api/health`가 HTTP `200`
   - 테스트 6(API 인증)과 테스트 7(페이지 접근)의 핵심 검증이 통과
-  - `docs/runbooks/deploy-log.md`에 `run-id | deployed-at(UTC/KST) | release-path | result`가 기록됨
+  - GitHub Actions `GITHUB_STEP_SUMMARY`에 `run-id | deployed-at(UTC/KST) | release-path | result`가 기록됨
+  - `docs/runbooks/deploy-log.md`는 배포 실행자가 동일 포맷으로 수동 기록함
 - 배포 실패(즉시 롤백 트리거):
   - `systemctl is-active blog != active`
   - `/api/health` 비정상 응답(타임아웃 포함)

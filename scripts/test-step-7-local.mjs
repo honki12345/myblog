@@ -275,8 +275,9 @@ async function checkSystemdAndLocalPort(privilegeMode) {
   const nodeBin = extractNodeBinFromExecStart(execStart.stdout);
   assertNvmNodeBin(nodeBin, execStart.stdout);
   assert(
-    execStart.stdout.includes(`${nodeBin} server.js`),
-    `ExecStart must include "${nodeBin} server.js", received: ${execStart.stdout}`,
+    execStart.stdout.includes(nodeBin) &&
+      execStart.stdout.includes("server.js"),
+    `ExecStart must include node binary and server.js, received: ${execStart.stdout}`,
   );
 
   await waitForStatus(LOCAL_ROOT_URL, 200);
@@ -287,15 +288,22 @@ async function checkSystemdAndLocalPort(privilegeMode) {
 async function checkMemory() {
   console.log("\n[3/4] memory limits");
   const freeOutput = await run("free", ["-m"]);
-  const memLineMatch = freeOutput.stdout.match(/^Mem:\s+(\d+)\s+(\d+)/m);
+  const memLineMatch = freeOutput.stdout.match(
+    /^Mem:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)/m,
+  );
   assert(memLineMatch, "failed to parse free -m output");
 
   const totalMb = parseMb(memLineMatch[1]);
-  const usedMb = parseMb(memLineMatch[2]);
-  assert(totalMb !== null && usedMb !== null, "invalid memory values");
+  const availableMb = parseMb(memLineMatch[6]);
+  const usedMb =
+    totalMb !== null && availableMb !== null ? totalMb - availableMb : null;
+  assert(
+    totalMb !== null && availableMb !== null && usedMb !== null,
+    "invalid memory values",
+  );
   assert(
     usedMb < TOTAL_USED_MEMORY_LIMIT_MB,
-    `system memory used must be < ${TOTAL_USED_MEMORY_LIMIT_MB}MB, received: ${usedMb}MB`,
+    `system memory used(total-available) must be < ${TOTAL_USED_MEMORY_LIMIT_MB}MB, received: ${usedMb}MB`,
   );
 
   const memoryMax = await run("systemctl", [

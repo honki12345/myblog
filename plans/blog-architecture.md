@@ -664,7 +664,8 @@ After=network.target
 Type=simple
 User=blog
 WorkingDirectory=/opt/blog
-ExecStart=/home/blog/.nvm/versions/node/v22.x/bin/node server.js
+ExecStart=/home/blog/.nvm/versions/node/<node-version>/bin/node server.js
+# <node-version>은 `nvm which 22` 결과의 버전 디렉터리로 치환
 Restart=always
 RestartSec=5
 

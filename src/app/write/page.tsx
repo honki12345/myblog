@@ -1,6 +1,7 @@
 "use client";
 
 import { marked } from "marked";
+import DOMPurify from "isomorphic-dompurify";
 import {
   useMemo,
   useRef,
@@ -59,7 +60,8 @@ function buildPreviewHtml(markdown: string): string {
     renderer: previewRenderer,
   });
 
-  return typeof parsed === "string" ? parsed : "";
+  const html = typeof parsed === "string" ? parsed : "";
+  return DOMPurify.sanitize(html);
 }
 
 export default function WritePage() {

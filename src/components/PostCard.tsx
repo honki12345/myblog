@@ -1,5 +1,6 @@
 import Link from "next/link";
 import TagList from "@/components/TagList";
+import { formatDate } from "@/lib/date";
 
 export type PostCardData = {
   id: number;
@@ -15,13 +16,7 @@ type PostCardProps = {
 };
 
 export default function PostCard({ post }: PostCardProps) {
-  const publishedDate = post.publishedAt
-    ? new Intl.DateTimeFormat("ko-KR", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      }).format(new Date(post.publishedAt))
-    : null;
+  const publishedDate = formatDate(post.publishedAt);
 
   return (
     <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">

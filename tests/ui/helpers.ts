@@ -74,6 +74,10 @@ export function resolveApiKey(): string {
     return fromProcess.trim();
   }
 
+  if (process.env.CI) {
+    throw new Error("BLOG_API_KEY (or API_KEY) must be set in CI for UI tests");
+  }
+
   return parseApiKeyFromEnvFile();
 }
 
@@ -108,65 +112,68 @@ export async function insertPostDirect(
   const db = openDb();
   db.pragma("foreign_keys = ON");
 
-  const inserted = db.transaction(() => {
-    const baseSlug = normalizeSlug(post.title);
-    let slug = baseSlug;
-    let suffix = 2;
+  try {
+    return db.transaction(() => {
+      const baseSlug = normalizeSlug(post.title);
+      let slug = baseSlug;
+      let suffix = 2;
 
-    while (db.prepare("SELECT 1 FROM posts WHERE slug = ? LIMIT 1").get(slug)) {
-      slug = `${baseSlug}-${suffix}`;
-      suffix += 1;
-    }
+      while (
+        db.prepare("SELECT 1 FROM posts WHERE slug = ? LIMIT 1").get(slug)
+      ) {
+        slug = `${baseSlug}-${suffix}`;
+        suffix += 1;
+      }
 
-    const now = "2026-01-01 00:00:00";
+      const now = "2026-01-01 00:00:00";
 
-    const postResult = db
-      .prepare(
-        `
-        INSERT INTO posts (title, slug, content, status, source_url, created_at, updated_at, published_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, CASE WHEN ? = 'published' THEN ? ELSE NULL END)
-        `,
-      )
-      .run(
-        post.title,
-        slug,
-        post.content,
-        post.status,
-        post.sourceUrl,
-        now,
-        now,
-        post.status,
-        now,
-      );
+      const postResult = db
+        .prepare(
+          `
+          INSERT INTO posts (title, slug, content, status, source_url, created_at, updated_at, published_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, CASE WHEN ? = 'published' THEN ? ELSE NULL END)
+          `,
+        )
+        .run(
+          post.title,
+          slug,
+          post.content,
+          post.status,
+          post.sourceUrl,
+          now,
+          now,
+          post.status,
+          now,
+        );
 
-    const postId = Number(postResult.lastInsertRowid);
+      const postId = Number(postResult.lastInsertRowid);
 
-    for (const tag of Array.from(new Set(post.tags))) {
-      db.prepare(
-        "INSERT INTO tags (name) VALUES (?) ON CONFLICT(name) DO NOTHING",
-      ).run(tag);
-      const tagRow = db
-        .prepare("SELECT id FROM tags WHERE name = ?")
-        .get(tag) as { id: number } | undefined;
+      for (const tag of Array.from(new Set(post.tags))) {
+        db.prepare(
+          "INSERT INTO tags (name) VALUES (?) ON CONFLICT(name) DO NOTHING",
+        ).run(tag);
+        const tagRow = db
+          .prepare("SELECT id FROM tags WHERE name = ?")
+          .get(tag) as { id: number } | undefined;
 
-      if (!tagRow) {
-        throw new Error(`missing tag id for ${tag}`);
+        if (!tagRow) {
+          throw new Error(`missing tag id for ${tag}`);
+        }
+
+        db.prepare(
+          "INSERT OR IGNORE INTO post_tags (post_id, tag_id) VALUES (?, ?)",
+        ).run(postId, tagRow.id);
       }
 
       db.prepare(
-        "INSERT OR IGNORE INTO post_tags (post_id, tag_id) VALUES (?, ?)",
-      ).run(postId, tagRow.id);
-    }
+        "INSERT OR IGNORE INTO sources (url, post_id) VALUES (?, ?)",
+      ).run(post.sourceUrl, postId);
 
-    db.prepare(
-      "INSERT OR IGNORE INTO sources (url, post_id) VALUES (?, ?)",
-    ).run(post.sourceUrl, postId);
-
-    return { id: postId, slug };
-  })();
-
-  db.close();
-  return inserted;
+      return { id: postId, slug };
+    })();
+  } finally {
+    db.close();
+  }
 }
 
 export async function seedVisualPosts(

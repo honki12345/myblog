@@ -7,7 +7,7 @@ type PostContentProps = {
 
 export default async function PostContent({ content }: PostContentProps) {
   const html = await renderMarkdown(content);
-  const hasMermaid = content.includes("```mermaid");
+  const hasMermaid = /(?:```|~~~)\s*mermaid\b/i.test(content);
 
   return (
     <>

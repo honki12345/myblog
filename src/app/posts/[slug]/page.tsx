@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import PostContent from "@/components/PostContent";
 import TagList from "@/components/TagList";
 import { getDb } from "@/lib/db";
+import { formatDate } from "@/lib/date";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -64,23 +65,6 @@ function loadPublishedPostBySlug(slug: string): PostDetailRow | null {
     .get(slug) as PostDetailRow | undefined;
 
   return row ?? null;
-}
-
-function formatDate(value: string | null): string | null {
-  if (!value) {
-    return null;
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-
-  return new Intl.DateTimeFormat("ko-KR", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
 }
 
 function createCanonicalUrl(slug: string): string | null {

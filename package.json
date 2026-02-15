@@ -26,6 +26,7 @@
   "dependencies": {
     "@shikijs/rehype": "^3.22.0",
     "better-sqlite3": "^12.6.2",
+    "isomorphic-dompurify": "^2.36.0",
     "katex": "^0.16.28",
     "marked": "^17.0.2",
     "mermaid": "^11.12.2",

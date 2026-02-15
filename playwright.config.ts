@@ -28,7 +28,7 @@ export default defineConfig({
     video: "retain-on-failure",
   },
   webServer: {
-    command: `set -a && . ./.env.local && set +a && DATABASE_PATH=${PLAYWRIGHT_DB_PATH} NEXT_PUBLIC_SITE_URL=http://127.0.0.1:3000 npm run build && mkdir -p .next/standalone/.next && cp -R .next/static .next/standalone/.next/static && cp -R public .next/standalone/public && DATABASE_PATH=${PLAYWRIGHT_DB_PATH} NEXT_PUBLIC_SITE_URL=http://127.0.0.1:3000 PORT=3000 node .next/standalone/server.js`,
+    command: `set -a; [ -z \"\${BLOG_API_KEY:-}\" ] && [ -f ./.env.local ] && . ./.env.local; set +a; DATABASE_PATH=${PLAYWRIGHT_DB_PATH} NEXT_PUBLIC_SITE_URL=http://127.0.0.1:3000 npm run build && mkdir -p .next/standalone/.next && cp -R .next/static .next/standalone/.next/static && cp -R public .next/standalone/public && DATABASE_PATH=${PLAYWRIGHT_DB_PATH} NEXT_PUBLIC_SITE_URL=http://127.0.0.1:3000 PORT=3000 node .next/standalone/server.js`,
     url: "http://127.0.0.1:3000",
     timeout: 180_000,
     reuseExistingServer: !process.env.CI,

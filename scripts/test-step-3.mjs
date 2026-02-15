@@ -18,6 +18,39 @@ function assert(condition, message) {
   }
 }
 
+function run(command, args, options = {}) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      stdio: ["ignore", "pipe", "pipe"],
+      ...options,
+    });
+
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.on("data", (chunk) => {
+      const text = chunk.toString();
+      stdout += text;
+      process.stdout.write(text);
+    });
+
+    child.stderr.on("data", (chunk) => {
+      const text = chunk.toString();
+      stderr += text;
+      process.stderr.write(text);
+    });
+
+    child.on("error", reject);
+    child.on("close", (code) => {
+      if (code === 0) {
+        resolve({ stdout, stderr });
+        return;
+      }
+      reject(new Error(`${command} ${args.join(" ")} failed with code ${code}`));
+    });
+  });
+}
+
 function assertErrorResponse(response, expectedStatus, expectedCode) {
   assert(
     response.status === expectedStatus,
@@ -149,6 +182,13 @@ async function stopServer(child) {
       resolve();
     });
   });
+
+  const script = [
+    "set -euo pipefail",
+    `pids=$(ss -ltnp | sed -n "s/.*:${PORT} .*pid=\\([0-9]\\+\\).*/\\1/p" | sort -u)`,
+    'if [ -n "${pids:-}" ]; then kill ${pids} 2>/dev/null || true; fi',
+  ].join("; ");
+  await run("bash", ["-lc", script]);
 }
 
 async function callJson(pathname, options = {}) {

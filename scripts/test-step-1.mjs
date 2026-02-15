@@ -120,6 +120,15 @@ async function stopProcess(child) {
   });
 }
 
+async function killListenersOnPort(port) {
+  const script = [
+    "set -euo pipefail",
+    `pids=$(ss -ltnp | sed -n "s/.*:${port} .*pid=\\([0-9]\\+\\).*/\\1/p" | sort -u)`,
+    'if [ -n "${pids:-}" ]; then kill ${pids} 2>/dev/null || true; fi',
+  ].join("; ");
+  await run("bash", ["-lc", script]);
+}
+
 async function testBuildArtifacts() {
   console.log("\n[1/6] npm run build");
   await run("npm", ["run", "build"]);
@@ -148,6 +157,7 @@ async function testStandaloneServer() {
     await waitForHttpOk("http://localhost:3001");
   } finally {
     await stopProcess(standalone);
+    await killListenersOnPort(3001);
   }
 }
 
@@ -169,6 +179,7 @@ async function testDevServer() {
     await waitForHttpOk("http://localhost:3000");
   } finally {
     await stopProcess(dev);
+    await killListenersOnPort(3000);
   }
 }
 

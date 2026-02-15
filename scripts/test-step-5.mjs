@@ -46,7 +46,7 @@ function isNetworkError(error) {
 }
 
 async function fetchWithRetry(url, options = {}, retryOptions = {}) {
-  const retries = retryOptions.retries ?? 3;
+  const retries = retryOptions.retries ?? 0;
   const baseDelayMs = retryOptions.baseDelayMs ?? 250;
 
   let lastError = null;
@@ -64,6 +64,11 @@ async function fetchWithRetry(url, options = {}, retryOptions = {}) {
   }
 
   throw lastError ?? new Error("fetch failed");
+}
+
+function getRetryCountForMethod(method) {
+  const normalizedMethod = method.toUpperCase();
+  return normalizedMethod === "GET" || normalizedMethod === "HEAD" ? 3 : 0;
 }
 
 function canBindPort(port) {
@@ -197,8 +202,13 @@ async function startServer(apiKey) {
   child.stdout.on("data", (chunk) => process.stdout.write(chunk.toString()));
   child.stderr.on("data", (chunk) => process.stderr.write(chunk.toString()));
 
-  await waitForServer(`${apiBase}/api/health`);
-  return child;
+  try {
+    await waitForServer(`${apiBase}/api/health`);
+    return child;
+  } catch (error) {
+    await stopServer(child);
+    throw error;
+  }
 }
 
 async function stopServer(child) {
@@ -224,6 +234,7 @@ async function stopServer(child) {
 
 async function requestText(pathname, options = {}) {
   const { method = "GET", apiKey, body, headers = {} } = options;
+  const requestMethod = method.toUpperCase();
   const requestHeaders = { ...headers };
 
   if (apiKey) {
@@ -233,12 +244,12 @@ async function requestText(pathname, options = {}) {
   const response = await fetchWithRetry(
     `${apiBase}${pathname}`,
     {
-      method,
+      method: requestMethod,
       headers: requestHeaders,
       body,
     },
     {
-      retries: method === "GET" ? 3 : 1,
+      retries: getRetryCountForMethod(requestMethod),
     },
   );
 
@@ -251,6 +262,7 @@ async function requestText(pathname, options = {}) {
 
 async function requestJson(pathname, options = {}) {
   const { method = "GET", apiKey, body, headers = {} } = options;
+  const requestMethod = method.toUpperCase();
   const requestHeaders = { ...headers };
 
   if (apiKey) {
@@ -266,12 +278,12 @@ async function requestJson(pathname, options = {}) {
   const response = await fetchWithRetry(
     `${apiBase}${pathname}`,
     {
-      method,
+      method: requestMethod,
       headers: requestHeaders,
       body: payload,
     },
     {
-      retries: method === "GET" ? 3 : 1,
+      retries: getRetryCountForMethod(requestMethod),
     },
   );
 

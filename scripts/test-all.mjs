@@ -4,6 +4,10 @@ import process from "node:process";
 const ROOT = process.cwd();
 const NPM_COMMAND = process.platform === "win32" ? "npm.cmd" : "npm";
 
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function formatDuration(ms) {
   const totalSeconds = Math.round(ms / 1000);
   const minutes = Math.floor(totalSeconds / 60);
@@ -11,7 +15,7 @@ function formatDuration(ms) {
   return `${minutes}m ${seconds}s`;
 }
 
-function pipeWithPrefix(stream, prefix) {
+function pipeWithPrefix(stream, prefix, output = process.stdout) {
   let buffer = "";
   stream.on("data", (chunk) => {
     buffer += chunk.toString();
@@ -20,19 +24,44 @@ function pipeWithPrefix(stream, prefix) {
 
     for (const line of lines) {
       if (line.length === 0) {
-        process.stdout.write("\n");
+        output.write("\n");
       } else {
-        process.stdout.write(`[${prefix}] ${line}\n`);
+        output.write(`[${prefix}] ${line}\n`);
       }
     }
   });
 
   stream.on("end", () => {
     if (buffer.length > 0) {
-      process.stdout.write(`[${prefix}] ${buffer}\n`);
+      output.write(`[${prefix}] ${buffer}\n`);
       buffer = "";
     }
   });
+}
+
+function isRunning(child) {
+  return child.exitCode === null && child.signalCode === null;
+}
+
+async function stopProcess(child, { termTimeoutMs = 5000, killWaitMs = 2000 } = {}) {
+  if (!child || !isRunning(child)) {
+    return;
+  }
+
+  const closed = new Promise((resolve) => {
+    child.once("close", () => resolve());
+  });
+
+  child.kill("SIGTERM");
+  const terminated = await Promise.race([
+    closed.then(() => true),
+    delay(termTimeoutMs).then(() => false),
+  ]);
+
+  if (!terminated && isRunning(child)) {
+    child.kill("SIGKILL");
+    await Promise.race([closed, delay(killWaitMs)]);
+  }
 }
 
 function startScript(scriptName, options = {}) {
@@ -46,8 +75,8 @@ function startScript(scriptName, options = {}) {
     stdio: ["ignore", "pipe", "pipe"],
   });
 
-  pipeWithPrefix(child.stdout, label);
-  pipeWithPrefix(child.stderr, `${label}:err`);
+  pipeWithPrefix(child.stdout, label, process.stdout);
+  pipeWithPrefix(child.stderr, `${label}:err`, process.stderr);
 
   const done = new Promise((resolve, reject) => {
     child.on("error", reject);
@@ -100,12 +129,9 @@ async function runParallelGroup(groupName, entries) {
   try {
     await Promise.all(wrapped);
   } catch {
-    for (const proc of processes) {
-      if (proc.child.exitCode === null && proc.child.signalCode === null) {
-        proc.child.kill("SIGTERM");
-      }
-    }
-    await Promise.allSettled(processes.map((proc) => proc.done));
+    await Promise.allSettled(
+      processes.map((proc) => stopProcess(proc.child)),
+    );
     throw firstError ?? new Error(`${groupName} failed`);
   }
 

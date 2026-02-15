@@ -46,7 +46,9 @@ function run(command, args, options = {}) {
         resolve({ stdout, stderr });
         return;
       }
-      reject(new Error(`${command} ${args.join(" ")} failed with code ${code}`));
+      reject(
+        new Error(`${command} ${args.join(" ")} failed with code ${code}`),
+      );
     });
   });
 }

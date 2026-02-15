@@ -113,12 +113,12 @@ Sources: `src/app/api/health/route.ts`, `src/app/api/posts/route.ts`, `src/app/a
 
 ### Environment variables
 
-| Name                   | Required   | Used by                             | Description                                          |
-| ---------------------- | ---------- | ----------------------------------- | ---------------------------------------------------- |
-| `BLOG_API_KEY`         | Yes (운영) | API routes, write auth, tests       | 보호 API 인증 키                                     |
+| Name                   | Required   | Used by                             | Description                                                                                      |
+| ---------------------- | ---------- | ----------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `BLOG_API_KEY`         | Yes (운영) | API routes, write auth, tests       | 보호 API 인증 키                                                                                 |
 | `DATABASE_PATH`        | No         | DB layer, tests                     | SQLite 파일 경로 오버라이드. 기본값은 `data/blog.db`, 운영 권장값은 `/var/lib/blog/data/blog.db` |
-| `NEXT_PUBLIC_SITE_URL` | No         | post metadata, Playwright webServer | 상세 페이지 canonical URL 생성 기준                  |
-| `API_KEY`              | No         | UI 테스트 헬퍼                      | 테스트 시 `BLOG_API_KEY` 대체 입력값                 |
+| `NEXT_PUBLIC_SITE_URL` | No         | post metadata, Playwright webServer | 상세 페이지 canonical URL 생성 기준                                                              |
+| `API_KEY`              | No         | UI 테스트 헬퍼                      | 테스트 시 `BLOG_API_KEY` 대체 입력값                                                             |
 
 ### Build/deploy paths
 

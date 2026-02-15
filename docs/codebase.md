@@ -164,9 +164,12 @@ Sources: `package.json`, `.env.example`, `next.config.ts`, `src/lib/db.ts`, `src
   - `npm run test:step3`: API 인증/검증/중복/레이트리밋/업로드 검증
   - `npm run test:step4`: markdown 렌더링/XSS/Mermaid 제한 검증
   - `npm run test:step5`: 페이지 라우팅/SSR 출력/캐시 갱신/업로드 검증
+    - 동적 포트 탐색 + 네트워크 오류 재시도로 `next dev` 충돌/일시적 fetch 실패를 완화한다.
   - `npm run test:step6`: CI/CD 게이트(클린 빌드, standalone 패키징/무결성, better-sqlite3 바인딩, 워크플로우 정책) 검증
   - `npm run test:ui`: Playwright 시각 회귀 + 접근성 + 작성 E2E
 - 전체 회귀: `npm run test:all` (`step1~5 + ui`)
+  - 실행 오케스트레이션: `step1` -> (`step2` + `step4` 병렬) -> `step3` -> `step5` -> `ui`
+  - 각 단계/그룹의 소요 시간과 총 소요 시간을 로그로 출력한다.
 - UI 테스트 특징:
   - 뷰포트 고정: `360`, `768`, `1440`
   - `toHaveScreenshot` 비교(애니메이션 비활성화)
@@ -198,6 +201,7 @@ Sources: `package.json`, `scripts/test-step-1.mjs`, `scripts/test-step-2.mjs`, `
 - `source_url` 중복은 409로 처리하며 경합 상황에서도 단일 성공을 보장한다
 - 글 생성/수정 시 홈/목록/상세/태그 경로 revalidate를 누락하지 않는다
 - 레이트 리밋이 메모리 기반이므로 인스턴스 수평 확장 시 별도 저장소(예: Redis) 설계가 필요하다
+- 글 생성 API 레이트 리밋은 기본값 `10 req / 60s`이며, 필요 시 `RATE_LIMIT_MAX_REQUESTS`/`RATE_LIMIT_WINDOW_MS` 환경변수로 조정할 수 있다
 - `/uploads` URL 서빙 경로는 앱 외부 설정(Caddy 등)과 맞춰야 한다
 - Shiki 언어 수 증가는 메모리 사용량 증가와 직결되므로 운영 제약(1GB RAM)을 고려해야 한다
 

@@ -24,3 +24,49 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), sans-serif;
 }
+
+@layer components {
+  .markdown-preview {
+    @apply text-base leading-7 text-slate-800;
+  }
+
+  .markdown-preview h1 {
+    @apply mt-8 mb-4 text-3xl font-bold tracking-tight text-slate-900;
+  }
+
+  .markdown-preview h2 {
+    @apply mt-7 mb-3 text-2xl font-semibold tracking-tight text-slate-900;
+  }
+
+  .markdown-preview h3 {
+    @apply mt-6 mb-3 text-lg font-semibold text-slate-900;
+  }
+
+  .markdown-preview p {
+    @apply my-4;
+  }
+
+  .markdown-preview ul {
+    @apply my-4 list-disc pl-6;
+  }
+
+  .markdown-preview ol {
+    @apply my-4 list-decimal pl-6;
+  }
+
+  .markdown-preview li {
+    @apply my-1;
+  }
+
+  .markdown-preview pre {
+    @apply my-4 overflow-x-auto rounded-lg bg-slate-900 p-4 text-sm text-slate-100;
+  }
+
+  .markdown-preview code {
+    @apply rounded bg-slate-100 px-1 py-0.5 font-mono text-sm text-slate-800;
+  }
+
+  .markdown-preview pre code {
+    @apply bg-transparent p-0 text-inherit;
+  }
+}

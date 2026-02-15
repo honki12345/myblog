@@ -531,7 +531,7 @@ export default function WritePage() {
               실시간 프리뷰
             </h2>
             <article
-              className="prose min-h-[420px] max-w-none rounded-xl border border-slate-200 bg-white p-4"
+              className="markdown-preview min-h-[420px] rounded-xl border border-slate-200 bg-white p-4"
               dangerouslySetInnerHTML={{
                 __html:
                   previewHtml.length > 0

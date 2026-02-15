@@ -5,7 +5,7 @@
 - Issue 번호: 22
 - 기준 브랜치: main
 - 작업 브랜치: issue-22-fix-write-markdown-typography
-- Worktree 경로: /home/fpg123/Workspace/honki12345/.worktrees/issue-22-fix-write-markdown-typography
+- Worktree 경로: .../.worktrees/issue-22-fix-write-markdown-typography
 - 작성일: 2026-02-15
 
 ## 배경/문제
@@ -61,3 +61,25 @@
 - [ ] 테스트 데이터/환경 고정: 기존 Playwright 설정(`locale/timezone/reduced motion`) 준수
 - [ ] 통과 기준: 신규 assertion 전부 통과 + 기존 `write` E2E/visual/accessibility 스펙 회귀 없음
 - [ ] PR 전 `npm run test:all` 실행 및 실패 시 수정 후 전체 재실행
+
+## PR 리뷰 반영 내역 (2026-02-15)
+- 코멘트 ID: 2809371257 (Copilot)
+  - 요약: `write-e2e`와 `write-typography`의 API Key 인증 로직 중복 제거
+  - 실제 변경: `tests/ui/helpers.ts`에 `authenticateWriteEditor()` 공용 헬퍼 추가, `tests/ui/write-e2e.spec.ts`/`tests/ui/write-typography.spec.ts`에서 재사용
+  - 검증: `npx playwright test tests/ui/write-e2e.spec.ts` 통과 (12 passed), `npm run test:all` 통과
+  - 후속 작업: 없음
+- 코멘트 ID: 2809371291 (Copilot)
+  - 요약: 계획 문서의 로컬 절대 경로 제거
+  - 실제 변경: `plans/issue-22-plan.md`의 Worktree 경로를 `.../.worktrees/issue-22-fix-write-markdown-typography`로 일반화
+  - 검증: 문서 변경 확인 완료
+  - 후속 작업: 없음
+- 코멘트 ID: 2809371309 (Copilot)
+  - 요약: Playwright 웹서버 커맨드 fail-fast 보장
+  - 실제 변경: `playwright.config.ts`의 `PLAYWRIGHT_WEB_SERVER_COMMAND`에 `set -eu` 추가, `.worktrees` 디렉터리 유무 가드 추가
+  - 검증: `npx playwright test tests/ui/write-e2e.spec.ts` 통과, `npx playwright test tests/ui/write-typography.spec.ts` 통과, `npm run test:all` 통과
+  - 후속 작업: 없음
+- 코멘트 ID: 2809378736 (CodeRabbit)
+  - 요약: typography 테스트에 시각 회귀/접근성 검사 추가
+  - 실제 변경: `tests/ui/write-typography.spec.ts`에 `toHaveScreenshot("write-preview-typography.png")` 및 `AxeBuilder` 기반 serious/critical 위반 검사 추가, 스냅샷 파일 생성
+  - 검증: `npx playwright test tests/ui/write-typography.spec.ts` 통과 (3 passed), `npm run test:all` 통과
+  - 후속 작업: 없음

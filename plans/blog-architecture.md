@@ -664,7 +664,7 @@ After=network.target
 Type=simple
 User=blog
 WorkingDirectory=/opt/blog
-ExecStart=/usr/bin/node server.js
+ExecStart=/home/blog/.nvm/versions/node/v22.x/bin/node server.js
 Restart=always
 RestartSec=5
 

@@ -26,7 +26,7 @@
 | 리버스 프록시 | **Caddy** | 자동 HTTPS |
 | 프로세스 관리 | **systemd** | |
 | 빌드/배포 | **GitHub Actions → Oracle VM** | |
-| 관리자 인증 (웹 UI) | **단일 admin 계정 + 비밀번호 + TOTP(2FA) + HttpOnly Session 쿠키 (Phase 3 적용)** | AI API Key와 분리 운영 |
+| 관리자 인증 (웹 UI) | **단일 admin 계정 + 비밀번호 + TOTP(2FA) + HttpOnly Session 쿠키 (Phase 2 Step 9 적용)** | AI API Key와 분리 운영 |
 
 ---
 
@@ -44,7 +44,7 @@ AI 자동 포스팅은 기존 `BLOG_API_KEY`를 계속 사용하고, 브라우�
 
 **적용 시점**
 - Phase 1 Step 5: 기존 `/write` MVP(API Key 방식) 유지
-- Phase 3: `/admin/login`(비밀번호 1차 + TOTP 2차) + `/admin/*`로 전환하고 `/write`는 `/admin/write`로 리다이렉트
+- Phase 2 Step 9: `/admin/login`(비밀번호 1차 + TOTP 2차) + `/admin/*`로 전환하고 `/write`는 `/admin/write`로 리다이렉트
 
 ---
 
@@ -97,7 +97,7 @@ mermaid                   # 클라이언트에서 다이어그램 렌더링
 
 ## 3. 구현 순서 개요
 
-전체 구현을 **4개 Phase + 후속 Step 8**로 나눈다.
+전체 구현을 **4개 Phase (Step 1~11)**로 나눈다.
 
 ```
 Phase 1: MVP (Step 1~7) — 로컬 개발 + 배포까지 완전한 블로그
@@ -115,30 +115,32 @@ Phase 1: MVP (Step 1~7) — 로컬 개발 + 배포까지 완전한 블로그
     ↓
   Step 7: Oracle VM 배포 설정
 
-Phase 2: AI 친화 기능
-  - 벌크 포스팅 API (최대 10건: 1GB VM 메모리 예산과 SQLite 트랜잭션 시간 고려)
-  - 이미지 포함 포스팅 E2E 흐름 테스트
-  - sources 테이블 활용 (ai_model, prompt_hint 기록)
-  - 로깅 개선 (API 요청 JSON 로그)
+Phase 2: 운영 확장 (Step 8~9)
+  Step 8: AI 친화 기능
+    - 벌크 포스팅 API (최대 10건: 1GB VM 메모리 예산과 SQLite 트랜잭션 시간 고려)
+    - 이미지 포함 포스팅 E2E 흐름 테스트
+    - sources 테이블 활용 (ai_model, prompt_hint 기록)
+    - 로깅 개선 (API 요청 JSON 로그)
+  Step 9: 관리자 워크스페이스 (Step 5 이후)
+    - 관리자 로그인 도입 (단일 admin 계정 + 비밀번호 + TOTP 2FA + HttpOnly 세션)
+    - 글쓰기/수정 UI를 admin 인증 기반으로 전환 (`/write` → `/admin/write`)
+    - 메모 관리 기능 (`/admin/notes`, CRUD)
+    - 일정/TODO 관리 기능 (`/admin/todos`, `/admin/schedules`, CRUD)
 
-Step 8: 관리자 워크스페이스 (Step 5 이후 신규)
-  - 관리자 로그인 도입 (단일 admin 계정 + 비밀번호 + TOTP 2FA + HttpOnly 세션)
-  - 글쓰기/수정 UI를 admin 인증 기반으로 전환 (`/write` → `/admin/write`)
-  - 메모 관리 기능 (`/admin/notes`, CRUD)
-  - 일정/TODO 관리 기능 (`/admin/todos`, `/admin/schedules`, CRUD)
+Phase 3: 사용자 편의 (Step 10)
+  Step 10: 사용자 편의 기능
+    - 전문 검색 UI (FTS5 연동)
+    - 커서 기반 페이지네이션
+    - 반응형 디자인 개선
+    - RSS/Atom 피드
 
-Phase 3: 사용자 편의
-  - 전문 검색 UI (FTS5 연동)
-  - 커서 기반 페이지네이션
-  - 반응형 디자인 개선
-  - RSS/Atom 피드
-
-Phase 4: 고급 기능
-  - 조회수 통계
-  - 북마크/읽음 표시
-  - 구독 메일링 (일간/주간 다이제스트 발송, 비MVP)
-  - DB 자동 백업 (cron, 7일 보관, 오래된 백업 자동 삭제)
-  - 디스크 사용량 모니터링 (80% 이상 알림)
+Phase 4: 고급 기능 (Step 11)
+  Step 11: 고급 기능
+    - 조회수 통계
+    - 북마크/읽음 표시
+    - 구독 메일링 (일간/주간 다이제스트 발송, 비MVP)
+    - DB 자동 백업 (cron, 7일 보관, 오래된 백업 자동 삭제)
+    - 디스크 사용량 모니터링 (80% 이상 알림)
 ```
 
 ### 전체 의존성 맵
@@ -162,7 +164,7 @@ Step 3 (API)
   ├─ 업로드 경로 (uploads/YYYY/MM/) ─→ Step 7 (Caddy root 설정)
   ├─ 헬스체크 (/api/health) ─────────→ Step 7 (UptimeRobot 모니터링)
   ├─ published_at 전이 규칙 ─────────→ Phase 4 (중복 메일 방지)
-  └─ AI API Key 인증(BLOG_API_KEY) ──→ Phase 3 (admin 2FA 세션 인증과 분리)
+  └─ AI API Key 인증(BLOG_API_KEY) ──→ Phase 2 Step 9 (admin 2FA 세션 인증과 분리)
 
 Step 4 (마크다운)
   ├─ sanitize 스키마 ────────────────→ Step 5 (렌더링 품질)
@@ -175,11 +177,6 @@ Step 5 (프론트엔드)
   └─ 고정 permalink (/posts/[slug]) ─→ Phase 4 (메일 본문 링크 안정성)
        ※ 역방향 의존성: Step 5 설계 후 Step 3 코드에 반영 필요
 
-Step 8 (관리자 워크스페이스, Step 5 이후)
-  ├─ admin 2FA 세션 인증 + CSRF 방어
-  ├─ admin 전용 스키마(`admin_notes`, `admin_todos`, `admin_schedules`) 신규 마이그레이션
-  └─ `/api/admin/*` 권한 분리로 AI API 권한 최소화
-
 Step 6 (CI/CD)
   ├─ 전송 방식 (SSH) ────────────────→ Step 7 (OCI Security List + ufw 규칙)
   └─ 빌드 환경 ──────────────────────→ Step 7 (바이너리 호환성)
@@ -188,6 +185,16 @@ Step 7 (배포)
   ├─ 보안 하드닝 (OCI + ufw + fail2ban)
   ├─ DB 백업 (sqlite3 .backup)
   └─ 최종 배포 설정
+
+Step 8 (AI 친화 기능)
+  ├─ bulk insert 정책 (최대 10건) + 트랜잭션 처리 시간 관리
+  ├─ sources 메타데이터(`ai_model`, `prompt_hint`) 기록
+  └─ API 요청 JSON 구조화 로그 표준화
+
+Step 9 (관리자 워크스페이스, Step 5 이후)
+  ├─ admin 2FA 세션 인증 + CSRF 방어
+  ├─ admin 전용 스키마(`admin_notes`, `admin_todos`, `admin_schedules`) 신규 마이그레이션
+  └─ `/api/admin/*` 권한 분리로 AI API 권한 최소화
 ```
 
 ---
@@ -463,11 +470,13 @@ npm run test:step1
 > 분리일: 2026-02-15
 
 ---
-## Phase 2: AI 친화 기능
+## Phase 2: 운영 확장 (Step 8~9)
 
 > Phase 1 MVP 완료 후 진행.
 
-### 구현 항목
+### Step 8: AI 친화 기능
+
+#### 구현 항목
 
 - **POST /api/posts/bulk** — 벌크 포스팅 (최대 10건, 단일 트랜잭션 / 1GB VM 메모리와 처리 시간 고려)
   - 요청: `{ posts: [{ title, content, tags, sourceUrl, status }] }`
@@ -476,7 +485,7 @@ npm run test:step1
 - **sources 테이블 활용** — ai_model, prompt_hint 필드를 POST /api/posts에서 선택적으로 수신
 - **로깅 개선** — API 요청 JSON 구조화 로그 (`console.log` + systemd journal)
 
-### 예정 테스트
+#### 예정 테스트
 
 1. **벌크 포스팅 → 201**
    ```bash
@@ -511,12 +520,12 @@ npm run test:step1
 
 ---
 
-## Step 8: 관리자 워크스페이스 (Step 5 이후 신규)
+### Step 9: 관리자 워크스페이스 (Step 5 이후 신규)
 
 > Step 5 완료 이후에만 진행한다.  
 > 완료된 Step 1~5 범위는 변경하지 않고, 신규 라우트/테이블/인증 흐름으로 추가 구현한다.
 
-### 구현 항목
+#### 구현 항목
 
 - **관리자 인증 도입 (옵션 D: 비밀번호 + TOTP 2FA 적용)**  
   - `/admin/login` 페이지 + `POST /api/admin/auth/login`(1차) + `POST /api/admin/auth/verify`(2차) 구현
@@ -535,7 +544,7 @@ npm run test:step1
   - 일정: 날짜/시간 범위, 메모, 완료 여부
   - 캘린더/리스트 혼합 UI (모바일 우선 반응형)
 
-### 예정 테스트
+#### 예정 테스트
 
 1. **관리자 로그인 1차 성공 → 2차 인증 챌린지 발급**
    ```bash
@@ -591,18 +600,20 @@ npm run test:step1
 
 ---
 
-## Phase 3: 사용자 편의
+## Phase 3: 사용자 편의 (Step 10)
 
-> Step 8 완료 후 진행.
+> Phase 2 Step 9 완료 후 진행.
 
-### 구현 항목
+### Step 10: 사용자 편의 기능
+
+#### 구현 항목
 
 - **전문 검색 UI (FTS5)** — `/posts?q=검색어` 파라미터, SearchBar 컴포넌트 추가
 - **커서 기반 페이지네이션** — 오프셋 기반에서 커서 기반으로 전환
 - **반응형 디자인 개선** — 모바일 최적화
 - **RSS/Atom 피드** — 카테고리별, 태그별 동적 피드 생성
 
-### 예정 테스트
+#### 예정 테스트
 
 1. **검색 기능 테스트 (FTS5)**
    ```bash
@@ -623,11 +634,13 @@ npm run test:step1
 
 ---
 
-## Phase 4: 고급 기능
+## Phase 4: 고급 기능 (Step 11)
 
 > Phase 3 완료 후 진행.
 
-### 구현 항목
+### Step 11: 고급 기능
+
+#### 구현 항목
 
 - **조회수 통계** — 인기 글, 카테고리별 통계, AI 글 vs 직접 쓴 글 구분
 - **북마크/읽음 표시** — 사용자 읽은 글 추적, "안 읽은 글만 보기"
@@ -703,34 +716,36 @@ npm run test:step1
   - [ ] 롤백 테스트
   - [ ] 엔드투엔드 테스트
 
-### Phase 2: AI 친화 기능
+### Phase 2: 운영 확장 (Step 8~9)
 
-- [ ] POST /api/posts/bulk (최대 10건, 메모리/처리시간 기준)
-- [ ] 이미지 포함 포스팅 E2E 흐름 테스트
-- [ ] sources 테이블 ai_model, prompt_hint 활용
-- [ ] 로깅 개선 (JSON 구조화 로그)
+- [ ] **Step 8**: AI 친화 기능
+  - [ ] POST /api/posts/bulk (최대 10건, 메모리/처리시간 기준)
+  - [ ] 이미지 포함 포스팅 E2E 흐름 테스트
+  - [ ] sources 테이블 ai_model, prompt_hint 활용
+  - [ ] 로깅 개선 (JSON 구조화 로그)
 
-### Step 8: 관리자 워크스페이스 (Step 5 이후 신규)
+- [ ] **Step 9**: 관리자 워크스페이스 (Step 5 이후 신규)
+  - [ ] 관리자 로그인 (단일 계정 + 비밀번호 + TOTP 2FA + HttpOnly 세션, CSRF 방어)
+  - [ ] 관리자 글쓰기/수정 페이지 전환 (`/admin/write`)
+  - [ ] 메모 관리 CRUD (`/admin/notes`)
+  - [ ] 일정/TODO 관리 CRUD (`/admin/schedules`, `/admin/todos`)
 
-- [ ] 관리자 로그인 (단일 계정 + 비밀번호 + TOTP 2FA + HttpOnly 세션, CSRF 방어)
-- [ ] 관리자 글쓰기/수정 페이지 전환 (`/admin/write`)
-- [ ] 메모 관리 CRUD (`/admin/notes`)
-- [ ] 일정/TODO 관리 CRUD (`/admin/schedules`, `/admin/todos`)
+### Phase 3: 사용자 편의 (Step 10)
 
-### Phase 3: 사용자 편의
+- [ ] **Step 10**: 사용자 편의 기능
+  - [ ] 전문 검색 UI (FTS5, SearchBar 컴포넌트)
+  - [ ] 커서 기반 페이지네이션
+  - [ ] 반응형 디자인 개선
+  - [ ] RSS/Atom 피드
 
-- [ ] 전문 검색 UI (FTS5, SearchBar 컴포넌트)
-- [ ] 커서 기반 페이지네이션
-- [ ] 반응형 디자인 개선
-- [ ] RSS/Atom 피드
+### Phase 4: 고급 기능 (Step 11)
 
-### Phase 4: 고급 기능
-
-- [ ] 조회수 통계
-- [ ] 북마크/읽음 표시
-- [ ] 구독 메일링 (일간/주간 다이제스트, 비MVP)
-- [ ] DB 자동 백업 (cron, 7일 보관, 자동 삭제)
-- [ ] 디스크 사용량 모니터링 (80% 이상 알림)
+- [ ] **Step 11**: 고급 기능
+  - [ ] 조회수 통계
+  - [ ] 북마크/읽음 표시
+  - [ ] 구독 메일링 (일간/주간 다이제스트, 비MVP)
+  - [ ] DB 자동 백업 (cron, 7일 보관, 자동 삭제)
+  - [ ] 디스크 사용량 모니터링 (80% 이상 알림)
 
 ---
 

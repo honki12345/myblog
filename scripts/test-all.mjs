@@ -43,7 +43,10 @@ function isRunning(child) {
   return child.exitCode === null && child.signalCode === null;
 }
 
-async function stopProcess(child, { termTimeoutMs = 5000, killWaitMs = 2000 } = {}) {
+async function stopProcess(
+  child,
+  { termTimeoutMs = 5000, killWaitMs = 2000 } = {},
+) {
   if (!child || !isRunning(child)) {
     return;
   }
@@ -129,9 +132,7 @@ async function runParallelGroup(groupName, entries) {
   try {
     await Promise.all(wrapped);
   } catch {
-    await Promise.allSettled(
-      processes.map((proc) => stopProcess(proc.child)),
-    );
+    await Promise.allSettled(processes.map((proc) => stopProcess(proc.child)));
     throw firstError ?? new Error(`${groupName} failed`);
   }
 

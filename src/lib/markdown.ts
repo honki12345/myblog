@@ -62,7 +62,10 @@ const markdownSanitizeSchema: Schema = {
   ),
   attributes: {
     ...(defaultSchema.attributes ?? {}),
-    pre: [...(defaultSchema.attributes?.pre ?? []), ["className", CLASS_NAME_PATTERN]],
+    pre: [
+      ...(defaultSchema.attributes?.pre ?? []),
+      ["className", CLASS_NAME_PATTERN],
+    ],
     code: [
       ...(defaultSchema.attributes?.code ?? []),
       ["className", CLASS_NAME_PATTERN],
@@ -133,7 +136,9 @@ function getTextContent(node: RootContent): string {
   }
 
   if ("children" in node && Array.isArray(node.children)) {
-    return node.children.map((child) => getTextContent(child as RootContent)).join("");
+    return node.children
+      .map((child) => getTextContent(child as RootContent))
+      .join("");
   }
 
   return "";
@@ -145,7 +150,8 @@ function extractMermaidChart(preNode: Element): string | null {
   }
 
   const codeNode = preNode.children.find(
-    (child): child is Element => child.type === "element" && child.tagName === "code",
+    (child): child is Element =>
+      child.type === "element" && child.tagName === "code",
   );
 
   if (!codeNode) {

@@ -127,11 +127,7 @@ async function testTier4MermaidPlaceholder() {
     'class="mermaid-container"',
     "TIER 4-2 실패: Mermaid container 누락",
   );
-  assertIncludes(
-    html,
-    "data-chart=",
-    "TIER 4-2 실패: Mermaid data-chart 누락",
-  );
+  assertIncludes(html, "data-chart=", "TIER 4-2 실패: Mermaid data-chart 누락");
 
   const match = html.match(/data-chart="([^"]+)"/);
   assert(match?.[1], "TIER 4-2 실패: data-chart 추출 실패");
@@ -196,8 +192,7 @@ async function testShikiStylePreservedAfterSanitize() {
 async function testMermaidLimits() {
   const manyBlocks = Array.from(
     { length: MERMAID_MAX_BLOCKS + 1 },
-    (_, index) =>
-      `\`\`\`mermaid\ngraph TD\n  A${index} --> B${index}\n\`\`\``,
+    (_, index) => `\`\`\`mermaid\ngraph TD\n  A${index} --> B${index}\n\`\`\``,
   ).join("\n\n");
 
   const manyBlocksHtml = await renderMarkdown(manyBlocks);

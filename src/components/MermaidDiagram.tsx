@@ -13,7 +13,9 @@ export default function MermaidDiagram() {
 
     const render = async () => {
       const containers = Array.from(
-        document.querySelectorAll<HTMLElement>(".mermaid-container[data-chart]"),
+        document.querySelectorAll<HTMLElement>(
+          ".mermaid-container[data-chart]",
+        ),
       );
 
       if (containers.length === 0) {

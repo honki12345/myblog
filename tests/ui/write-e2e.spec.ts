@@ -72,7 +72,9 @@ test("write page creates a post and redirects to detail", async ({ page }) => {
   await expect(page.getByRole("link", { name: "#e2e" })).toBeVisible();
 });
 
-test("write page saves draft and redirects back to editor", async ({ page }) => {
+test("write page saves draft and redirects back to editor", async ({
+  page,
+}) => {
   const seed = Date.now();
   const title = `UI-E2E-DRAFT-${seed}`;
 
@@ -85,7 +87,9 @@ test("write page saves draft and redirects back to editor", async ({ page }) => 
   await page.getByRole("button", { name: "초안 저장" }).click();
 
   await expect(page).toHaveURL(/\/write\?id=\d+$/, { timeout: 20_000 });
-  await expect(page.getByRole("heading", { name: /글 수정 #\d+/ })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /글 수정 #\d+/ }),
+  ).toBeVisible();
   await expect(page.getByLabel("제목")).toHaveValue(title);
 });
 

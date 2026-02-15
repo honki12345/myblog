@@ -16,6 +16,8 @@
     "test:step4": "node --import tsx scripts/test-step-4.mjs",
     "test:step5": "node scripts/test-step-5.mjs",
     "test:step6": "node scripts/test-step-6.mjs",
+    "test:step7-local": "node scripts/test-step-7-local.mjs",
+    "test:step7-remote": "node scripts/test-step-7-remote.mjs",
     "test:ui": "playwright test",
     "test:ui:update": "playwright test --update-snapshots",
     "test:all": "node scripts/test-all.mjs",

@@ -73,6 +73,7 @@ const markdownSanitizeSchema: Schema = {
     span: [
       ...(defaultSchema.attributes?.span ?? []),
       ["className", CLASS_NAME_PATTERN],
+      // Preserve Shiki/KaTeX inline styles from trusted plugins.
       "style",
       "ariaHidden",
     ],
@@ -218,6 +219,7 @@ const markdownProcessor = unified()
   .use(remarkParse)
   .use(remarkGfm)
   .use(remarkMath)
+  // Keep allowDangerousHtml as default(false) so raw HTML is not passed through.
   .use(remarkRehype)
   .use(rehypeShiki, {
     theme: "github-dark",

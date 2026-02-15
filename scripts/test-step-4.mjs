@@ -15,6 +15,20 @@ function assertIncludes(html, fragment, message) {
   assert(html.includes(fragment), `${message} (${fragment})`);
 }
 
+function readPositiveIntegerEnv(name, fallback) {
+  const rawValue = process.env[name];
+  if (!rawValue) {
+    return fallback;
+  }
+
+  const parsed = Number(rawValue);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+
+  return Math.floor(parsed);
+}
+
 async function testTier1BasicMarkdown() {
   const input = `# 제목
 
@@ -175,6 +189,32 @@ async function testXssSanitize() {
   console.log("XSS SANITIZE PASSED");
 }
 
+async function testRawHtmlStyleInjectionBlocked() {
+  const input =
+    '<span style="background-image:url(javascript:alert(1))">스타일공격</span>';
+  const html = await renderMarkdown(input);
+
+  assert(
+    !html.includes("<span"),
+    "RAW HTML 필터 실패: span 태그가 남아있습니다",
+  );
+  assert(
+    !html.includes("background-image"),
+    "RAW HTML 필터 실패: style 속성이 남아있습니다",
+  );
+  assert(
+    !html.includes("javascript:"),
+    "RAW HTML 필터 실패: javascript 스킴이 남아있습니다",
+  );
+  assertIncludes(
+    html,
+    "스타일공격",
+    "RAW HTML 필터 실패: 정상 텍스트가 제거되었습니다",
+  );
+
+  console.log("RAW HTML STYLE INJECTION PASSED");
+}
+
 async function testShikiStylePreservedAfterSanitize() {
   const input = '```python\ndef hello():\n    print("world")\n```';
   const html = await renderMarkdown(input);
@@ -223,8 +263,14 @@ async function testMermaidLimits() {
 }
 
 async function testPerformanceWarning() {
+  const sectionCount = readPositiveIntegerEnv("STEP4_PERF_SECTIONS", 500);
+  const warningThresholdMs = readPositiveIntegerEnv(
+    "STEP4_PERF_THRESHOLD_MS",
+    10000,
+  );
+
   let bigContent = "# 대용량 테스트\n\n";
-  for (let index = 0; index < 500; index += 1) {
+  for (let index = 0; index < sectionCount; index += 1) {
     bigContent += `## 섹션 ${index}\n\n${"이것은 테스트 문단입니다. ".repeat(10)}\n\n`;
     bigContent += '```javascript\nconsole.log("test");\n```\n\n';
   }
@@ -236,9 +282,9 @@ async function testPerformanceWarning() {
   assert(html.length > 0, "PERFORMANCE TEST 실패: HTML 결과가 비었습니다");
   console.log(`렌더링 시간: ${elapsedMs}ms, HTML 크기: ${html.length} bytes`);
 
-  if (elapsedMs > 10000) {
+  if (elapsedMs > warningThresholdMs) {
     console.warn(
-      "PERFORMANCE WARNING: 렌더링 시간이 경고 임계값(10000ms)을 초과했습니다.",
+      `PERFORMANCE WARNING: 렌더링 시간이 경고 임계값(${warningThresholdMs}ms)을 초과했습니다.`,
     );
   } else {
     console.log("PERFORMANCE TEST PASSED");
@@ -252,6 +298,7 @@ async function main() {
   await testTier4Katex();
   await testTier4MermaidPlaceholder();
   await testXssSanitize();
+  await testRawHtmlStyleInjectionBlocked();
   await testShikiStylePreservedAfterSanitize();
   await testMermaidLimits();
   await testPerformanceWarning();

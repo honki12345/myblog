@@ -57,14 +57,16 @@ export default function MermaidDiagram() {
 
           container.innerHTML = svg;
           container.dataset.mermaidRendered = "true";
-        } catch {
+        } catch (error) {
+          console.error("Mermaid diagram render failed", error);
           container.textContent = "Mermaid diagram could not be rendered.";
           container.dataset.mermaidRendered = "error";
         }
       }
     };
 
-    render().catch(() => {
+    render().catch((error) => {
+      console.error("Mermaid diagrams initialization failed", error);
       const containers = document.querySelectorAll<HTMLElement>(
         ".mermaid-container[data-chart]",
       );

@@ -75,8 +75,9 @@ for (const route of routes) {
     }
 
     const maxDiffPixelRatio = getVisualDiffThreshold(testInfo.project.name);
-    const useFullPage =
-      !(testInfo.project.name === "mobile-360" && route.name === "home");
+    const useFullPage = !(
+      testInfo.project.name === "mobile-360" && route.name === "home"
+    );
 
     await expect(page).toHaveScreenshot(`${route.name}.png`, {
       fullPage: useFullPage,

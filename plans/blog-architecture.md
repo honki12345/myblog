@@ -11,7 +11,7 @@ AI(오픈클로 등)가 크론잡을 통해 웹 스크래핑한 정보를 자동
 |------|------|
 | **최소 토큰** | AI가 글 하나 올리는 데 필요한 토큰을 최소화 |
 | **안전성** | AI가 블로그 기능을 망가뜨릴 수 없는 구조 |
-| **보안** | 인증되지 않은 접근 차단, API 키 기반 인증 |
+| **보안** | 인증되지 않은 접근 차단 (AI: API Key, 관리자 UI: 비밀번호+TOTP 2FA) |
 | **확장성** | 단순 블로그에서 시작해 기능을 점진적으로 추가 가능 |
 
 ---
@@ -157,32 +157,36 @@ flowchart TD
 - **Step 2**: 반환된 URL을 마크다운에 삽입하여 `POST /api/posts` 호출
 - 또는 외부 이미지 URL(`https://...`)을 직접 사용 (로컬 업로드 없이)
 
-### 5-5. 수동 글쓰기 (사용자 직접 작성)
+### 5-5. 수동 글쓰기/관리자 워크스페이스 (Phase 3)
 
-AI뿐만 아니라 사용자도 웹 UI에서 직접 글을 쓸 수 있다.
+AI 외에 관리자도 웹 UI에서 글/메모/일정/TODO를 관리한다.
 
 ```mermaid
 flowchart TD
-    A["사용자: /write 접속"] --> B{"API Key 입력"}
-    B -->|"localStorage에 저장"| C["마크다운 에디터"]
-    C -->|"실시간 프리뷰"| D["글 작성"]
-    D -->|"POST /api/posts<br/>Authorization: Bearer {API_KEY}"| E["서버: 검증 & 저장"]
-    E -->|"201 Created"| F["/posts/[slug]로 리다이렉트"]
+    A["관리자: /admin/login 접속"] --> B["1차 인증: ID/PW"]
+    B -->|"POST /api/admin/auth/login"| C{"1차 통과?"}
+    C -->|No| X["401"]
+    C -->|Yes| D["2차 인증: TOTP 또는 복구코드"]
+    D -->|"POST /api/admin/auth/verify"| E{"2차 통과?"}
+    E -->|No| Y["401"]
+    E -->|Yes| F["HttpOnly 세션 쿠키 발급"]
+    F --> G["/admin/write, /admin/notes, /admin/todos, /admin/schedules"]
 ```
 
-- **인증**: 별도 로그인 시스템 없이 기존 API Key를 재활용. `/write` 접속 시 API Key 입력 → `localStorage`에 저장
-- **에디터**: `<textarea>` + 실시간 마크다운 프리뷰 (클라이언트에서 렌더링)
-- **API 호출**: 기존 `POST /api/posts`를 그대로 사용. 추가 엔드포인트 불필요
-- **글 수정**: `/write?id=N`으로 기존 글 수정. `GET /api/posts/[id]`로 데이터 로드 → `PATCH /api/posts/[id]`로 저장
-- **이미지**: `POST /api/uploads`로 이미지 업로드 → 반환된 URL을 에디터에 삽입
+- **인증**: 비밀번호 + TOTP(Authenticator 앱) 2단계 인증 후 세션 쿠키 발급
+- **세션**: `HttpOnly`, `Secure`, `SameSite=Lax` 쿠키 사용
+- **복구코드**: TOTP 분실 대비 1회용 복구코드 제공, 사용 즉시 폐기
+- **글쓰기**: `/admin/write`에서 글 생성/수정, 이미지 업로드 지원
+- **관리 기능**: `/admin/notes`(메모 CRUD), `/admin/todos`(상태 전이), `/admin/schedules`(일정 CRUD)
+- **하위 호환**: 기존 `/write`는 `/admin/write`로 리다이렉트
 
-> 관리자 대시보드나 글 삭제 UI는 제공하지 않는다. 글쓰기/수정 기능만 제공하여 복잡도를 최소화.
+> Phase 1 MVP의 `/write` API Key 방식은 유지하되, Phase 3에서 admin 2FA 워크스페이스로 전환한다.
 
 ---
 
 ## 6. 보안 설계
 
-### 6-1. API 인증
+### 6-1. AI API 인증 (서버-투-서버)
 
 ```mermaid
 flowchart LR
@@ -198,6 +202,15 @@ flowchart LR
 - **`crypto.timingSafeEqual`로 비교** (타이밍 공격 방지)
 - 잘못된 키 → 401 Unauthorized
 - Caddy 로그에서 Authorization 헤더 제외 설정
+
+### 6-1-2. 관리자 웹 인증 (비밀번호 + TOTP 2FA)
+
+- 1차: `ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH` 검증
+- 2차: TOTP 6자리 코드 검증(실패 횟수 제한)
+- 대체 수단: 1회용 복구코드(해시 저장, 사용 즉시 폐기)
+- 최종 인증 성공 시 세션 쿠키 발급(`HttpOnly`, `Secure`, `SameSite=Lax`)
+- `/api/admin/*`는 admin 세션 없으면 401
+- CSRF 방어: `SameSite=Lax` + 상태 변경 요청은 CSRF 토큰(Double Submit Cookie) 검증
 
 ### 6-2. 입력 검증 & 안전장치
 
@@ -245,7 +258,7 @@ DB 파일과 이미지를 **물리적으로 분리**하여 웹 노출 방지:
 | `/api/posts/[id]` | GET | O | 글 조회 |
 | `/api/posts/[id]` | PATCH | O | 글 수정 (status 변경 등) |
 | `/api/posts/[id]` | DELETE | **X** | 삭제 불가 — API 미구현 |
-| 설정/관리 | * | **X** | 관리 API 없음 |
+| `/api/admin/*` | * | **X** | 관리자 2FA 세션 전용 API |
 
 > AI는 생성과 수정만 가능. 삭제/설정 변경 API는 아예 구현하지 않아 원천 차단.
 
@@ -258,8 +271,8 @@ DB 파일과 이미지를 **물리적으로 분리**하여 웹 노출 방지:
 ### 6-7. CORS 정책
 
 - AI 크론잡은 **서버-to-서버** 호출이므로 CORS 불필요
-- 브라우저에서 API를 직접 호출하지 않음
-- Next.js API Routes의 기본 same-origin 정책 유지
+- 브라우저 admin UI는 same-origin으로 `/api/admin/*`를 호출
+- 외부 도메인 오리진 허용은 기본 비활성 (필요 시 allowlist 기반으로 제한)
 
 ---
 
@@ -317,6 +330,82 @@ CREATE TABLE sources (
   scraped_at  TEXT NOT NULL DEFAULT (datetime('now')),
   ai_model    TEXT,                     -- 사용된 AI 모델명
   prompt_hint TEXT                      -- 어떤 지시로 생성했는지 메모
+);
+```
+
+### (Phase 3 예정) admin_auth
+```sql
+CREATE TABLE admin_auth (
+  id                     INTEGER PRIMARY KEY CHECK (id = 1),
+  username               TEXT NOT NULL UNIQUE,
+  password_hash          TEXT NOT NULL,     -- Argon2id 또는 bcrypt 해시
+  totp_secret_encrypted  TEXT NOT NULL,     -- TOTP 시크릿(암호화 저장)
+  created_at             TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at             TEXT NOT NULL DEFAULT (datetime('now'))
+);
+```
+
+### (Phase 3 예정) admin_sessions
+```sql
+CREATE TABLE admin_sessions (
+  id          TEXT PRIMARY KEY,             -- 세션 토큰 식별자(난수)
+  user_id     INTEGER NOT NULL DEFAULT 1,
+  created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  expires_at  TEXT NOT NULL,
+  last_seen_at TEXT NOT NULL DEFAULT (datetime('now')),
+  ip_hash     TEXT,
+  user_agent  TEXT
+);
+```
+
+### (Phase 3 예정) admin_recovery_codes
+```sql
+CREATE TABLE admin_recovery_codes (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  code_hash   TEXT NOT NULL UNIQUE,
+  used_at     TEXT,
+  created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+```
+
+### (Phase 3 예정) admin_notes
+```sql
+CREATE TABLE admin_notes (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  title       TEXT NOT NULL,
+  content     TEXT NOT NULL,
+  is_pinned   INTEGER NOT NULL DEFAULT 0,
+  created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+```
+
+### (Phase 3 예정) admin_todos
+```sql
+CREATE TABLE admin_todos (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  title        TEXT NOT NULL,
+  description  TEXT,
+  status       TEXT NOT NULL DEFAULT 'todo',    -- todo | doing | done
+  priority     TEXT NOT NULL DEFAULT 'medium',  -- low | medium | high
+  due_at       TEXT,
+  completed_at TEXT,
+  created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+```
+
+### (Phase 3 예정) admin_schedules
+```sql
+CREATE TABLE admin_schedules (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  title       TEXT NOT NULL,
+  description TEXT,
+  start_at    TEXT NOT NULL,
+  end_at      TEXT NOT NULL,
+  is_done     INTEGER NOT NULL DEFAULT 0,
+  created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 ```
 
@@ -391,7 +480,18 @@ CREATE VIRTUAL TABLE posts_fts USING fts5(
 │   │   │   └── [tag]/
 │   │   │       └── page.tsx     # 태그별 글 목록
 │   │   ├── write/
-│   │   │   └── page.tsx         # 글 작성/수정 페이지 (API Key 인증)
+│   │   │   └── page.tsx         # MVP 글 작성/수정 (Phase 3에서 /admin/write로 리다이렉트)
+│   │   ├── admin/
+│   │   │   ├── login/
+│   │   │   │   └── page.tsx     # 관리자 로그인(1차/2차 인증)
+│   │   │   ├── write/
+│   │   │   │   └── page.tsx     # 관리자 글 작성/수정
+│   │   │   ├── notes/
+│   │   │   │   └── page.tsx     # 관리자 메모
+│   │   │   ├── todos/
+│   │   │   │   └── page.tsx     # 관리자 TODO
+│   │   │   └── schedules/
+│   │   │       └── page.tsx     # 관리자 일정
 │   │   └── api/
 │   │       ├── posts/
 │   │       │   ├── route.ts     # POST: 글 생성 / GET: 목록
@@ -401,11 +501,28 @@ CREATE VIRTUAL TABLE posts_fts USING fts5(
 │   │       │       └── route.ts # GET/PATCH: 개별 글 조회/수정
 │   │       ├── uploads/
 │   │       │   └── route.ts     # POST: 이미지 업로드
+│   │       ├── admin/
+│   │       │   ├── auth/
+│   │       │   │   ├── login/
+│   │       │   │   │   └── route.ts # POST: 관리자 1차 인증
+│   │       │   │   ├── verify/
+│   │       │   │   │   └── route.ts # POST: 관리자 2차 인증(TOTP/복구코드)
+│   │       │   │   ├── logout/
+│   │       │   │   │   └── route.ts # POST: 로그아웃
+│   │       │   │   └── session/
+│   │       │   │       └── route.ts # GET: 세션 확인
+│   │       │   ├── notes/
+│   │       │   │   └── route.ts # GET/POST
+│   │       │   ├── todos/
+│   │       │   │   └── route.ts # GET/POST
+│   │       │   └── schedules/
+│   │       │       └── route.ts # GET/POST
 │   │       └── health/
 │   │           └── route.ts     # GET: 헬스체크 (DB SELECT 1)
 │   ├── lib/
 │   │   ├── db.ts               # SQLite 연결 & 초기화 & 마이그레이션
 │   │   ├── auth.ts             # API Key 검증 (crypto.timingSafeEqual)
+│   │   ├── admin-auth.ts       # admin 2FA 세션/권한 검증
 │   │   └── markdown.ts         # 마크다운 → HTML 변환
 │   └── components/
 │       ├── PostCard.tsx         # 글 카드 컴포넌트
@@ -638,7 +755,7 @@ blog.example.com {
 | 1 | ORM | **better-sqlite3 직접 사용** | 의존성 최소, 메모리 절약, raw SQL |
 | 2 | 커스텀 도메인 | **사용** | Caddy 자동 HTTPS 적용 |
 | 3 | 이미지 저장 | **로컬 디스크** | 50GB 부트 볼륨 활용 |
-| 4 | 관리자 페이지 | **글쓰기 페이지만** | 글 작성/수정 UI 제공. 인증은 API Key 재활용 |
+| 4 | 관리자 페이지 | **관리자 워크스페이스(글/메모/일정/TODO)** | 인증은 비밀번호 + TOTP 2FA + 세션 |
 | 5 | 마크다운 기능 | **Tier 1~4 전부** | GFM + shiki + KaTeX + Mermaid(클라이언트) |
 | 6 | 다크모드 | **미지원** | MVP에서 제외 |
 | 7 | 패키지 매니저 | **npm** | Node.js 기본 내장 |

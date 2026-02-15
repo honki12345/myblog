@@ -5,6 +5,10 @@ type TagListProps = {
 };
 
 export default function TagList({ tags }: TagListProps) {
+  if (tags.length === 0) {
+    return null;
+  }
+
   return (
     <ul className="flex flex-wrap gap-2">
       {tags.map((tag) => (

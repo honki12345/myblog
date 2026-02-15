@@ -14,9 +14,10 @@
     "test:step2": "node scripts/test-step-2.mjs",
     "test:step3": "node scripts/test-step-3.mjs",
     "test:step4": "node --import tsx scripts/test-step-4.mjs",
+    "test:step5": "node scripts/test-step-5.mjs",
     "test:ui": "playwright test",
     "test:ui:update": "playwright test --update-snapshots",
-    "test:all": "npm run test:step1 && npm run test:step2 && npm run test:step3 && npm run test:step4 && npm run test:ui",
+    "test:all": "npm run test:step1 && npm run test:step2 && npm run test:step3 && npm run test:step4 && npm run test:step5 && npm run test:ui",
     "lint": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --fix",
     "format": "prettier . --write",
@@ -25,7 +26,9 @@
   "dependencies": {
     "@shikijs/rehype": "^3.22.0",
     "better-sqlite3": "^12.6.2",
+    "isomorphic-dompurify": "^2.36.0",
     "katex": "^0.16.28",
+    "marked": "^17.0.2",
     "mermaid": "^11.12.2",
     "next": "16.1.6",
     "react": "19.2.3",
@@ -41,6 +44,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.1",
     "@playwright/test": "^1.58.2",
     "@tailwindcss/postcss": "^4",
     "@types/better-sqlite3": "^7.6.13",

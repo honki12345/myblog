@@ -78,8 +78,6 @@ function loadPostsByTag(tag: string) {
   }));
 }
 
-export const dynamic = "force-dynamic";
-
 export default async function TagPage({ params }: PageProps) {
   const { tag } = await params;
   const decodedTag = decodeURIComponent(tag);

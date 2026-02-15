@@ -158,6 +158,17 @@ function validateApiKey(request: Request): NextResponse | null {
   return null;
 }
 
+function revalidatePostRelatedPaths(slug: string, tags: string[]) {
+  const paths = new Set<string>(["/", "/posts", `/posts/${slug}`]);
+  for (const tag of tags) {
+    paths.add(`/tags/${encodeURIComponent(tag)}`);
+  }
+
+  for (const path of paths) {
+    revalidatePath(path);
+  }
+}
+
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request, context: RouteContext) {
@@ -236,6 +247,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     if (!current) {
       return errorResponse(404, "NOT_FOUND", "Post not found.");
     }
+    const currentTags = loadTagsForPost(postId);
 
     const nextTitle = parsed.data.title?.trim() ?? current.title;
     const nextContent = parsed.data.content ?? current.content;
@@ -292,10 +304,8 @@ export async function PATCH(request: Request, context: RouteContext) {
     }
 
     const tags = loadTagsForPost(postId);
-
-    revalidatePath("/");
-    revalidatePath("/posts");
-    revalidatePath(`/posts/${updatedPost.slug}`);
+    const tagsToRevalidate = new Set<string>([...currentTags, ...tags]);
+    revalidatePostRelatedPaths(updatedPost.slug, Array.from(tagsToRevalidate));
 
     return NextResponse.json({ ...updatedPost, tags });
   } catch (error) {

@@ -142,6 +142,17 @@ function isDuplicateSourceError(error: unknown): boolean {
   return error.message.includes("sources.url");
 }
 
+function revalidatePostRelatedPaths(slug: string, tags: string[]) {
+  const paths = new Set<string>(["/", "/posts", `/posts/${slug}`]);
+  for (const tag of tags) {
+    paths.add(`/tags/${encodeURIComponent(tag)}`);
+  }
+
+  for (const path of paths) {
+    revalidatePath(path);
+  }
+}
+
 export const dynamic = "force-dynamic";
 
 export async function GET() {
@@ -274,9 +285,7 @@ export async function POST(request: Request) {
       return { postId };
     })();
 
-    revalidatePath("/");
-    revalidatePath("/posts");
-    revalidatePath(`/posts/${slug}`);
+    revalidatePostRelatedPaths(slug, tags);
 
     return NextResponse.json({ id: created.postId, slug }, { status: 201 });
   } catch (error) {

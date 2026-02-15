@@ -73,8 +73,6 @@ function loadLatestPublishedPosts(limit = 10): PostCardData[] {
   return rows.map(toPostCardData);
 }
 
-export const dynamic = "force-dynamic";
-
 export default function Home() {
   const posts = loadLatestPublishedPosts(10);
 

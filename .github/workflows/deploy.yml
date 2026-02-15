@@ -1,0 +1,179 @@
+name: Build & Deploy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "src/**"
+      - "package*.json"
+      - "next.config.*"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BLOG_DOMAIN: ${{ secrets.BLOG_DOMAIN }}
+      VM_HOST: ${{ secrets.VM_HOST }}
+      VM_USER: ${{ secrets.VM_USER }}
+      VM_SSH_KEY: ${{ secrets.VM_SSH_KEY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate required secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in BLOG_DOMAIN VM_HOST VM_USER VM_SSH_KEY; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing required secret: ${name}"
+              exit 1
+            fi
+          done
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Create release metadata
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          RELEASE_ID="$(date -u +%Y%m%d%H%M%S)"
+          RELEASE_PATH="/opt/blog-v${RELEASE_ID}"
+          ARCHIVE_NAME="blog-standalone-${RELEASE_ID}.tar.gz"
+
+          echo "release_id=${RELEASE_ID}" >> "$GITHUB_OUTPUT"
+          echo "release_path=${RELEASE_PATH}" >> "$GITHUB_OUTPUT"
+          echo "archive_name=${ARCHIVE_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Package standalone artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -czf "${{ steps.release.outputs.archive_name }}" \
+            .next/standalone/ \
+            .next/static/ \
+            public/
+
+      - name: Configure SSH
+        shell: bash
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${VM_SSH_KEY}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "${VM_HOST}" >> ~/.ssh/known_hosts
+
+      - name: Upload artifact to VM
+        shell: bash
+        run: |
+          set -euo pipefail
+          scp "${{ steps.release.outputs.archive_name }}" \
+            "${VM_USER}@${VM_HOST}:/tmp/${{ steps.release.outputs.archive_name }}"
+
+      - name: Deploy release on VM
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ssh "${VM_USER}@${VM_HOST}" \
+            "RELEASE_PATH='${{ steps.release.outputs.release_path }}' ARCHIVE_NAME='${{ steps.release.outputs.archive_name }}' bash -s" <<'REMOTE'
+          set -euo pipefail
+
+          RELEASE_PATH="${RELEASE_PATH}"
+          ARCHIVE_PATH="/tmp/${ARCHIVE_NAME}"
+          PREVIOUS_RELEASE=""
+
+          if [ -L /opt/blog ]; then
+            PREVIOUS_RELEASE="$(readlink -f /opt/blog || true)"
+          fi
+
+          if [ -d /opt/blog ] && [ ! -L /opt/blog ]; then
+            if [ -z "$(ls -A /opt/blog)" ]; then
+              sudo rmdir /opt/blog
+            else
+              echo "/opt/blog exists as a real directory. Convert it to symlink strategy before deploy."
+              exit 1
+            fi
+          fi
+
+          sudo mkdir -p "${RELEASE_PATH}"
+          sudo tar -xzf "${ARCHIVE_PATH}" -C "${RELEASE_PATH}"
+
+          # Keep /opt/blog/server.js compatible with the planned systemd layout.
+          sudo cp -a "${RELEASE_PATH}/.next/standalone/." "${RELEASE_PATH}/"
+
+          sudo ln -sfn "${RELEASE_PATH}" /opt/blog
+          sudo systemctl restart blog
+
+          if ! sudo systemctl is-active --quiet blog; then
+            if [ -n "${PREVIOUS_RELEASE}" ]; then
+              sudo ln -sfn "${PREVIOUS_RELEASE}" /opt/blog
+              sudo systemctl restart blog || true
+            fi
+            exit 1
+          fi
+
+          echo "PREVIOUS_RELEASE=${PREVIOUS_RELEASE}" > /tmp/blog-deploy-state
+          REMOTE
+
+      - name: Health check and rollback on failure
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if ! curl -fsS "https://${BLOG_DOMAIN}/api/health" > /dev/null; then
+            ssh "${VM_USER}@${VM_HOST}" "bash -s" <<'REMOTE'
+            set -euo pipefail
+
+            PREVIOUS_RELEASE=""
+            if [ -f /tmp/blog-deploy-state ]; then
+              . /tmp/blog-deploy-state
+            fi
+
+            if [ -n "${PREVIOUS_RELEASE}" ]; then
+              sudo ln -sfn "${PREVIOUS_RELEASE}" /opt/blog
+              sudo systemctl restart blog
+              sudo systemctl is-active --quiet blog
+            else
+              echo "No previous release available for rollback."
+              exit 1
+            fi
+            REMOTE
+
+            exit 1
+          fi
+
+      - name: Append runbook summary row
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          UTC_NOW="$(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          KST_NOW="$(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M:%S KST')"
+          echo "${{ github.run_id }} | ${UTC_NOW} / ${KST_NOW} | ${{ steps.release.outputs.release_path }} | success" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Cleanup uploaded archive
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh "${VM_USER}@${VM_HOST}" "rm -f /tmp/${{ steps.release.outputs.archive_name }} /tmp/blog-deploy-state"

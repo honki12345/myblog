@@ -142,22 +142,22 @@ jobs:
 
           if ! curl -fsS "https://${BLOG_DOMAIN}/api/health" > /dev/null; then
             ssh "${VM_USER}@${VM_HOST}" "bash -s" <<'REMOTE'
-            set -euo pipefail
+set -euo pipefail
 
-            PREVIOUS_RELEASE=""
-            if [ -f /tmp/blog-deploy-state ]; then
-              . /tmp/blog-deploy-state
-            fi
+PREVIOUS_RELEASE=""
+if [ -f /tmp/blog-deploy-state ]; then
+  . /tmp/blog-deploy-state
+fi
 
-            if [ -n "${PREVIOUS_RELEASE}" ]; then
-              sudo ln -sfn "${PREVIOUS_RELEASE}" /opt/blog
-              sudo systemctl restart blog
-              sudo systemctl is-active --quiet blog
-            else
-              echo "No previous release available for rollback."
-              exit 1
-            fi
-            REMOTE
+if [ -n "${PREVIOUS_RELEASE}" ]; then
+  sudo ln -sfn "${PREVIOUS_RELEASE}" /opt/blog
+  sudo systemctl restart blog
+  sudo systemctl is-active --quiet blog
+else
+  echo "No previous release available for rollback."
+  exit 1
+fi
+REMOTE
 
             exit 1
           fi

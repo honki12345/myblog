@@ -104,11 +104,30 @@ async function stopProcess(child) {
     return;
   }
 
-  child.kill("SIGTERM");
+  const processGroup = child.pid ? -child.pid : null;
+  try {
+    if (processGroup !== null) {
+      process.kill(processGroup, "SIGTERM");
+    } else {
+      child.kill("SIGTERM");
+    }
+  } catch {
+    child.kill("SIGTERM");
+  }
 
   await new Promise((resolve) => {
     const timeout = setTimeout(() => {
-      if (child.exitCode === null && child.signalCode === null) {
+      if (child.exitCode !== null || child.signalCode !== null) {
+        return;
+      }
+
+      try {
+        if (processGroup !== null) {
+          process.kill(processGroup, "SIGKILL");
+        } else {
+          child.kill("SIGKILL");
+        }
+      } catch {
         child.kill("SIGKILL");
       }
     }, 5000);
@@ -134,6 +153,7 @@ async function testStandaloneServer() {
   const standalone = spawn("node", ["server.js"], {
     cwd: ".next/standalone",
     env: { ...process.env, PORT: "3001" },
+    detached: true,
     stdio: ["ignore", "pipe", "pipe"],
   });
 
@@ -158,6 +178,7 @@ async function testDevServer() {
     ["node_modules/next/dist/bin/next", "dev", "--port", "3000"],
     {
       env: { ...process.env },
+      detached: true,
       stdio: ["ignore", "pipe", "pipe"],
     },
   );

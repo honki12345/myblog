@@ -613,8 +613,8 @@ NODE_OPTIONS="--max-old-space-size=256"
 graph LR
     VM["Oracle AMD VM<br/>1/8 OCPU / 1GB RAM"] --> Caddy["Caddy<br/>:443 자동 HTTPS<br/>:80 리다이렉트<br/>rate_limit"]
     VM --> Node["Node.js 22 LTS<br/>Next.js standalone<br/>systemd (MemoryMax=400M)"]
-    VM --> DB["SQLite<br/>/opt/blog/data/blog.db"]
-    VM --> Uploads["Uploads<br/>/opt/blog/uploads/<br/>Caddy 직접 서빙"]
+    VM --> DB["SQLite<br/>/var/lib/blog/data/blog.db"]
+    VM --> Uploads["Uploads<br/>/var/lib/blog/uploads/<br/>Caddy 직접 서빙"]
     VM --> Cron["Cron<br/>DB 백업 (매일, 7일 보관)"]
     VM --> FW["iptables / firewalld<br/>22, 80, 443만 허용"]
 ```
@@ -642,9 +642,10 @@ flowchart LR
 
 **배포 절차**:
 1. 새 빌드를 `/opt/blog-v{N}/`에 압축 해제
-2. `/opt/blog` 심볼릭 링크를 새 버전으로 전환: `ln -sfn /opt/blog-v{N} /opt/blog`
-3. `systemctl restart blog`
-4. 이전 버전 2-3개 보관 (롤백용)
+2. 영속 데이터 경로(`/var/lib/blog/data`, `/var/lib/blog/uploads`)를 유지하고, 릴리즈 내부 `data/uploads`는 심볼릭 링크로 연결
+3. `/opt/blog` 심볼릭 링크를 새 버전으로 전환: `ln -sfn /opt/blog-v{N} /opt/blog`
+4. `systemctl restart blog`
+5. 이전 버전 2-3개 보관 (롤백용)
 
 **롤백 절차**:
 1. `ln -sfn /opt/blog-v{N-1} /opt/blog`
@@ -678,6 +679,7 @@ MemoryHigh=300M
 Environment=NODE_ENV=production
 Environment=NODE_OPTIONS=--max-old-space-size=256
 Environment=PORT=3000
+Environment=DATABASE_PATH=/var/lib/blog/data/blog.db
 
 [Install]
 WantedBy=multi-user.target

@@ -101,9 +101,20 @@ jobs:
           RELEASE_PATH="${RELEASE_PATH}"
           ARCHIVE_PATH="/tmp/${ARCHIVE_NAME}"
           PREVIOUS_RELEASE=""
+          PERSIST_ROOT="/var/lib/blog"
+          PERSIST_DATA_DIR="${PERSIST_ROOT}/data"
+          PERSIST_UPLOADS_DIR="${PERSIST_ROOT}/uploads"
+          PERSIST_DB_PATH="${PERSIST_DATA_DIR}/blog.db"
+          PREVIOUS_DB_PATH=""
+          PREVIOUS_UPLOADS_PATH=""
 
           if [ -L /opt/blog ]; then
             PREVIOUS_RELEASE="$(readlink -f /opt/blog || true)"
+          fi
+
+          if [ -n "${PREVIOUS_RELEASE}" ]; then
+            PREVIOUS_DB_PATH="${PREVIOUS_RELEASE}/data/blog.db"
+            PREVIOUS_UPLOADS_PATH="${PREVIOUS_RELEASE}/uploads"
           fi
 
           if [ -d /opt/blog ] && [ ! -L /opt/blog ]; then
@@ -120,7 +131,32 @@ jobs:
 
           # Keep /opt/blog/server.js compatible with the planned systemd layout.
           sudo cp -a "${RELEASE_PATH}/.next/standalone/." "${RELEASE_PATH}/"
-          sudo install -d -m 755 -o blog -g blog "${RELEASE_PATH}/data" "${RELEASE_PATH}/uploads"
+          sudo install -d -m 755 -o blog -g blog "${PERSIST_DATA_DIR}" "${PERSIST_UPLOADS_DIR}"
+
+          # First migration only: move DB from the previous release to persistent storage.
+          if [ ! -f "${PERSIST_DB_PATH}" ] && [ -n "${PREVIOUS_DB_PATH}" ] && [ -f "${PREVIOUS_DB_PATH}" ]; then
+            if ! command -v sqlite3 > /dev/null 2>&1; then
+              echo "sqlite3 is required for WAL-safe .backup migration." >&2
+              exit 1
+            fi
+            sudo sqlite3 "${PREVIOUS_DB_PATH}" ".backup ${PERSIST_DB_PATH}"
+            sudo chown blog:blog "${PERSIST_DB_PATH}"
+          fi
+
+          # First migration only: move uploads when the persistent directory is still empty.
+          if [ -n "${PREVIOUS_UPLOADS_PATH}" ] && [ -d "${PREVIOUS_UPLOADS_PATH}" ]; then
+            PREVIOUS_UPLOADS_REALPATH="$(readlink -f "${PREVIOUS_UPLOADS_PATH}" || true)"
+            PERSIST_UPLOADS_REALPATH="$(readlink -f "${PERSIST_UPLOADS_DIR}" || true)"
+            if [ "${PREVIOUS_UPLOADS_REALPATH}" != "${PERSIST_UPLOADS_REALPATH}" ] && [ -z "$(sudo find "${PERSIST_UPLOADS_DIR}" -mindepth 1 -print -quit)" ]; then
+              sudo cp -a "${PREVIOUS_UPLOADS_PATH}/." "${PERSIST_UPLOADS_DIR}/"
+              sudo chown -R blog:blog "${PERSIST_UPLOADS_DIR}"
+            fi
+          fi
+
+          sudo rm -rf "${RELEASE_PATH}/data" "${RELEASE_PATH}/uploads"
+          sudo ln -sfn "${PERSIST_DATA_DIR}" "${RELEASE_PATH}/data"
+          sudo ln -sfn "${PERSIST_UPLOADS_DIR}" "${RELEASE_PATH}/uploads"
+          sudo chown -R blog:blog "${PERSIST_ROOT}"
           sudo chown -R blog:blog "${RELEASE_PATH}"
 
           sudo ln -sfn "${RELEASE_PATH}" /opt/blog

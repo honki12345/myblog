@@ -119,6 +119,7 @@ async function startServer(apiKey) {
         DATABASE_PATH: TEST_DB_PATH,
         NEXT_TELEMETRY_DISABLED: "1",
       },
+      detached: true,
       stdio: ["ignore", "pipe", "pipe"],
     },
   );
@@ -135,11 +136,30 @@ async function stopServer(child) {
     return;
   }
 
-  child.kill("SIGTERM");
+  const processGroup = child.pid ? -child.pid : null;
+  try {
+    if (processGroup !== null) {
+      process.kill(processGroup, "SIGTERM");
+    } else {
+      child.kill("SIGTERM");
+    }
+  } catch {
+    child.kill("SIGTERM");
+  }
 
   await new Promise((resolve) => {
     const timeout = setTimeout(() => {
-      if (child.exitCode === null && child.signalCode === null) {
+      if (child.exitCode !== null || child.signalCode !== null) {
+        return;
+      }
+
+      try {
+        if (processGroup !== null) {
+          process.kill(processGroup, "SIGKILL");
+        } else {
+          child.kill("SIGKILL");
+        }
+      } catch {
         child.kill("SIGKILL");
       }
     }, 5000);

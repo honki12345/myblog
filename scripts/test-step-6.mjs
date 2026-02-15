@@ -148,6 +148,29 @@ async function testWorkflowPolicy() {
     );
   }
 
+  const requiredPersistentDataFragments = [
+    'PERSIST_ROOT="/var/lib/blog"',
+    'PERSIST_DB_PATH="${PERSIST_DATA_DIR}/blog.db"',
+    'sudo install -d -m 755 -o blog -g blog "${PERSIST_DATA_DIR}" "${PERSIST_UPLOADS_DIR}"',
+    'sudo sqlite3 "${PREVIOUS_DB_PATH}" ".backup ${PERSIST_DB_PATH}"',
+    'sudo ln -sfn "${PERSIST_DATA_DIR}" "${RELEASE_PATH}/data"',
+    'sudo ln -sfn "${PERSIST_UPLOADS_DIR}" "${RELEASE_PATH}/uploads"',
+  ];
+
+  for (const fragment of requiredPersistentDataFragments) {
+    assert(
+      deployYaml.includes(fragment),
+      `deploy.yml missing persistent data deploy fragment: ${fragment}`,
+    );
+  }
+
+  assert(
+    !deployYaml.includes(
+      'sudo install -d -m 755 -o blog -g blog "${RELEASE_PATH}/data" "${RELEASE_PATH}/uploads"',
+    ),
+    "deploy.yml must not create release-local data/uploads directories",
+  );
+
   const forbiddenInCi = [
     /workflow_dispatch\s*:/,
     /\bscp\b/,

@@ -7,6 +7,32 @@
 
 ---
 
+## PR 리뷰 반영 내역 (2026-02-15)
+
+- 코멘트: `2809432417` (Copilot) — 배포 성공 기준의 `deploy-log.md` 자동 기록 주장과 `deploy.yml` 실제 동작 불일치
+  - 변경 파일/함수: `plans/step7-plan.md` (운영 판정 기준 문구)
+  - 반영 내용: 성공 기준을 `GITHUB_STEP_SUMMARY` 기록 기준으로 수정하고, `docs/runbooks/deploy-log.md`는 수동 기록으로 명시
+  - 검증 결과: `.github/workflows/deploy.yml`의 `Append runbook summary row` 단계(`$GITHUB_STEP_SUMMARY`)와 문구 일치 확인
+  - 후속 작업: deploy-log 자동 기록이 필요하면 별도 이슈로 워크플로우 구현
+
+- 코멘트: `2809444477` (CodeRabbit) — `v22.x` 경로는 systemd에서 확장되지 않아 오해 소지
+  - 변경 파일/함수: `plans/blog-architecture.md`, `plans/step7-plan.md` (systemd `ExecStart` 예시)
+  - 반영 내용: `v22.x`를 `<node-version>` 자리표시자로 교체하고 `nvm which 22`로 치환하라는 가이드 추가
+  - 검증 결과: 두 문서의 `ExecStart` 표기 일관성 확인
+  - 후속 작업: 실제 운영 서버 유닛 반영 시 절대 경로 최종값 재확인
+
+- 코멘트: `2809444487` (CodeRabbit) — `ExecStart` 문자열 검증이 과도하게 엄격해 false negative 가능
+  - 변경 파일/함수: `scripts/test-step-7-local.mjs` (`checkSystemdAndLocalPort`)
+  - 반영 내용: `includes(\`${nodeBin} server.js\`)`를 `includes(nodeBin) && includes("server.js")`로 완화
+  - 검증 결과: `npm run test:all` 통과
+  - 후속 작업: 없음
+
+- 코멘트: `3804983183` (CodeRabbit review, outside diff nitpick) — 메모리 예산 체크를 `available` 기반으로 전환 제안
+  - 변경 파일/함수: `scripts/test-step-7-local.mjs` (`checkMemory`)
+  - 반영 내용: `free -m` 파싱을 `available` 포함 형식으로 변경하고 `used = total - available` 계산으로 오탐 가능성 완화
+  - 검증 결과: `npm run test:all` 통과
+  - 후속 작업: 운영 VM에서 Step 7 로컬 테스트 실행 시 메모리 임계값 재검증
+
 ### Step 7: Oracle VM 배포 설정
 
 > 이 단계는 VM 인스턴스가 준비된 후 진행.

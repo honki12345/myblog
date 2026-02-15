@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Geist, Geist_Mono } from "next/font/google";
 import "katex/dist/katex.min.css";
 import "./globals.css";
@@ -14,8 +15,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Honki Blog",
-  description: "Step 1 project scaffold for the blog service",
+  title: {
+    default: "honki12345 블로그",
+    template: "%s | honki12345 블로그",
+  },
+  description: "AI 수집 글과 직접 작성 글을 함께 발행하는 개인 블로그",
 };
 
 export default function RootLayout({
@@ -28,7 +32,45 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-slate-50 text-slate-900 antialiased`}
       >
-        {children}
+        <div className="flex min-h-screen flex-col">
+          <header className="border-b border-slate-200 bg-white/90 backdrop-blur">
+            <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+              <Link href="/" className="text-lg font-semibold tracking-tight">
+                honki12345 블로그
+              </Link>
+              <nav
+                aria-label="주요 메뉴"
+                className="flex items-center gap-2 text-sm font-medium"
+              >
+                <Link
+                  href="/"
+                  className="rounded-md px-3 py-2 text-slate-700 hover:bg-slate-100"
+                >
+                  홈
+                </Link>
+                <Link
+                  href="/posts"
+                  className="rounded-md px-3 py-2 text-slate-700 hover:bg-slate-100"
+                >
+                  글 목록
+                </Link>
+                <Link
+                  href="/tags/sample"
+                  className="rounded-md px-3 py-2 text-slate-700 hover:bg-slate-100"
+                >
+                  태그
+                </Link>
+                <Link
+                  href="/write"
+                  className="rounded-md px-3 py-2 text-slate-700 hover:bg-slate-100"
+                >
+                  글쓰기
+                </Link>
+              </nav>
+            </div>
+          </header>
+          <div className="flex-1">{children}</div>
+        </div>
       </body>
     </html>
   );

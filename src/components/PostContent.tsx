@@ -1,15 +1,20 @@
-import { markdownToHtml } from "@/lib/markdown";
+import MermaidDiagram from "@/components/MermaidDiagram";
+import { renderMarkdown } from "@/lib/markdown";
 
 type PostContentProps = {
   content: string;
 };
 
-export default function PostContent({ content }: PostContentProps) {
+export default async function PostContent({ content }: PostContentProps) {
+  const html = await renderMarkdown(content);
+
   return (
-    <article
-      className="prose prose-slate max-w-none"
-      // Step 1 uses escaped placeholder HTML from markdownToHtml only.
-      dangerouslySetInnerHTML={{ __html: markdownToHtml(content) }}
-    />
+    <>
+      <article
+        className="prose prose-slate max-w-none"
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
+      <MermaidDiagram />
+    </>
   );
 }

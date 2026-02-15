@@ -160,7 +160,21 @@ jobs:
             echo "DNS lookup failed for ${DOMAIN_HOST}" >&2
           fi
 
-          if ! curl -fsS --connect-timeout 10 --max-time 20 "${HEALTHCHECK_URL}" > /dev/null; then
+          HEALTHCHECK_PASSED=false
+          for attempt in {1..8}; do
+            if curl -fsS --connect-timeout 10 --max-time 20 "${HEALTHCHECK_URL}" > /dev/null; then
+              echo "Health check succeeded on attempt ${attempt}/8."
+              HEALTHCHECK_PASSED=true
+              break
+            fi
+
+            echo "Health check attempt ${attempt}/8 failed." >&2
+            if [ "${attempt}" -lt 8 ]; then
+              sleep 3
+            fi
+          done
+
+          if [ "${HEALTHCHECK_PASSED}" != "true" ]; then
             echo "Health check failed for ${HEALTHCHECK_URL}" >&2
             echo "Diagnostic: getent hosts ${DOMAIN_HOST}" >&2
             getent hosts "${DOMAIN_HOST}" || true

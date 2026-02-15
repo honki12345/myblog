@@ -57,8 +57,7 @@ const createPostSchema = z.object({
 
       const trimmed = value.trim();
       return trimmed === "" ? undefined : trimmed;
-    }, z.string().url("sourceUrl must be a valid URL").max(2048, "sourceUrl must be 2048 characters or fewer").optional())
-    .optional(),
+    }, z.string().url("sourceUrl must be a valid URL").max(2048, "sourceUrl must be 2048 characters or fewer").optional()),
   status: z.enum(["draft", "published"]).default("draft"),
 });
 
@@ -295,6 +294,10 @@ export async function POST(request: Request) {
           postId: duplicate?.id ?? null,
         },
       );
+    }
+
+    if (process.env.NODE_ENV !== "production") {
+      console.error("Failed to create post.", { error });
     }
 
     return errorResponse(500, "INTERNAL_ERROR", "Failed to create post.");

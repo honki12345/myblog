@@ -298,7 +298,11 @@ export async function PATCH(request: Request, context: RouteContext) {
     revalidatePath(`/posts/${updatedPost.slug}`);
 
     return NextResponse.json({ ...updatedPost, tags });
-  } catch {
+  } catch (error) {
+    if (process.env.NODE_ENV !== "production") {
+      console.error("Failed to update post.", { error, postId, payload });
+    }
+
     return errorResponse(500, "INTERNAL_ERROR", "Failed to update post.");
   }
 }

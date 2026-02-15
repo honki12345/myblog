@@ -6,7 +6,7 @@
 
 ---
 
-### Step 3: API Routes (AI 포스팅 API)
+## Step 3: API Routes (AI 포스팅 API)
 
 #### 사전 결정 사항
 

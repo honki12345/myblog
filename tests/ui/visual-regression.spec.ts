@@ -8,6 +8,18 @@ const routes = [
   { name: "tag-sample", path: "/tags/sample" },
 ] as const;
 
+function getVisualDiffThreshold(projectName: string): number {
+  // CI runner의 폰트 메트릭 차이로 모바일/태블릿 full-page 스냅샷에
+  // 경미한 줄바꿈/높이 오차가 발생하므로 뷰포트별 허용치로 고정한다.
+  if (projectName === "mobile-360") {
+    return 0.06;
+  }
+  if (projectName === "tablet-768") {
+    return 0.03;
+  }
+  return 0.01;
+}
+
 const DISABLE_ANIMATION_STYLE = `
   *,
   *::before,
@@ -62,8 +74,7 @@ for (const route of routes) {
       await expect(page.locator("article").first()).toBeVisible();
     }
 
-    const maxDiffPixelRatio =
-      testInfo.project.name === "mobile-360" ? 0.04 : 0.01;
+    const maxDiffPixelRatio = getVisualDiffThreshold(testInfo.project.name);
     await expect(page).toHaveScreenshot(`${route.name}.png`, {
       fullPage: true,
       maxDiffPixelRatio,

@@ -176,18 +176,44 @@ export async function insertPostDirect(
   }
 }
 
+async function triggerRevalidationForSeededPost(
+  request: APIRequestContext,
+  post: SeededPost & { id: number },
+): Promise<void> {
+  const apiKey = resolveApiKey();
+  const response = await request.patch(`/api/posts/${post.id}`, {
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    data: {
+      title: post.title,
+      content: post.content,
+      status: post.status,
+      tags: post.tags,
+    },
+  });
+
+  if (!response.ok()) {
+    throw new Error(
+      `failed to trigger route revalidation: ${response.status()} ${await response.text()}`,
+    );
+  }
+}
+
 export async function seedVisualPosts(
   request: APIRequestContext,
 ): Promise<{ detailSlug: string }> {
   runCleanupScript();
 
-  const postA = await insertPostDirect(request, {
+  const homeSeed: SeededPost = {
     title: "PW-SEED-홈 화면 글",
     content: "시각 회귀 테스트용 홈 콘텐츠",
     tags: ["sample", "visual"],
     status: "published",
     sourceUrl: "https://playwright.seed/home",
-  });
+  };
+  const postA = await insertPostDirect(request, homeSeed);
 
   await insertPostDirect(request, {
     title: "PW-SEED-목록 화면 글",
@@ -211,6 +237,11 @@ export async function seedVisualPosts(
     tags: ["sample"],
     status: "draft",
     sourceUrl: "https://playwright.seed/draft",
+  });
+
+  await triggerRevalidationForSeededPost(request, {
+    ...homeSeed,
+    id: postA.id,
   });
 
   return { detailSlug: postA.slug };

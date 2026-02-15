@@ -76,8 +76,6 @@ function createCanonicalUrl(slug: string): string | null {
   return `${base.replace(/\/+$/, "")}/posts/${slug}`;
 }
 
-export const dynamic = "force-dynamic";
-
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {

@@ -109,8 +109,6 @@ function loadPublishedPosts(page: number, perPage: number) {
   }));
 }
 
-export const dynamic = "force-dynamic";
-
 export default async function PostsPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const requestedPage = parsePositiveInteger(params.page, 1);

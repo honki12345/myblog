@@ -49,15 +49,14 @@ const createPostSchema = z.object({
     )
     .max(10, "tags must be 10 items or fewer")
     .optional(),
-  sourceUrl: z
-    .preprocess((value) => {
-      if (typeof value !== "string") {
-        return value;
-      }
+  sourceUrl: z.preprocess((value) => {
+    if (typeof value !== "string") {
+      return value;
+    }
 
-      const trimmed = value.trim();
-      return trimmed === "" ? undefined : trimmed;
-    }, z.string().url("sourceUrl must be a valid URL").max(2048, "sourceUrl must be 2048 characters or fewer").optional()),
+    const trimmed = value.trim();
+    return trimmed === "" ? undefined : trimmed;
+  }, z.string().url("sourceUrl must be a valid URL").max(2048, "sourceUrl must be 2048 characters or fewer").optional()),
   status: z.enum(["draft", "published"]).default("draft"),
 });
 

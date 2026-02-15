@@ -49,6 +49,8 @@ rehype-katex
 rehype-sanitize
 rehype-stringify
 shiki                     # 코드 하이라이팅 (서버 렌더링)
+marked                    # 글쓰기 프리뷰(클라이언트 경량 렌더링)
+isomorphic-dompurify      # 글쓰기 프리뷰 sanitize
 ```
 
 ### 개발 의존성
@@ -218,6 +220,7 @@ BLOG_API_KEY=your-api-key-here
 > - Step 1~6: 저장소 내 `.env.local`은 플레이스홀더/개인 로컬 키만 사용 (실운영 키 커밋 금지).
 > - Step 7 배포 직전: 대상 서버에서만 실운영 `BLOG_API_KEY` 주입 (`systemd` 환경변수 또는 서버 전용 env 파일).
 > - 배포 후 검증: `/api/health` 확인 뒤 인증이 필요한 API(`POST /api/posts`)를 실키 기준으로 점검.
+> - CI UI 테스트: 워크플로우 job env로 `BLOG_API_KEY`를 주입하고, 테스트 서버 실행 시 이미 설정된 키를 `.env.local`로 덮어쓰지 않는다.
 
 **1-4. 디렉토리 구조 생성**
 

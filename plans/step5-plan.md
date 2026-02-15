@@ -17,7 +17,7 @@
 | 5-3 | 글 요약(excerpt) | content에서 런타임 추출 (마크다운 문법 제거 후 첫 200자) | DB 변경 없이 가장 단순. 글 수 적어 성능 무관 |
 | 5-4 | SSR 캐싱 | On-Demand Revalidation (`revalidatePath` 호출) | 평상시 캐시 서빙(VM 부하↓), Route Handler 기준 다음 요청부터 반영(POST 후 리다이렉트 흐름에서는 체감상 즉시). **Step 3 API에 역방향 반영 필요** |
 | 5-5 | 글쓰기 인증 | API Key를 localStorage에 저장 | 개인 블로그 1인 사용. HTTPS + sanitize XSS 방지. 별도 세션 관리 불필요 |
-| 5-6 | 에디터 프리뷰 | `marked` 경량 파서(버전별 번들 크기 변동 가능) 클라이언트 렌더링 | 프리뷰 용도. 코드/수식은 placeholder. 실제 렌더링은 저장 후 확인 |
+| 5-6 | 에디터 프리뷰 | `marked` + `isomorphic-dompurify` 조합으로 클라이언트 렌더링 | 프리뷰는 빠른 피드백이 목적이지만 `dangerouslySetInnerHTML` 경로이므로 저장 전 XSS 방어를 동일하게 적용 |
 | 5-7 | permalink 안정성 | 외부 공유 링크는 `/posts/[slug]` 단일 규칙으로 고정 | RSS/추후 메일링 본문 링크를 장기적으로 깨지지 않게 유지 |
 
 > **의존성 영향**: 캐싱 → Step 7 메모리 / revalidation → Step 3 POST/PATCH에 `revalidatePath` 추가 (역방향) / permalink 규칙 → Phase 4 메일링 링크 생성 재사용
@@ -27,6 +27,7 @@
 
 - 의존성 설치:
   - `npm install marked`
+  - `npm install isomorphic-dompurify`
   - `npm install -D @axe-core/playwright`
 - 스크립트 등록:
   - `package.json`에 `"test:step5": "node scripts/test-step-5.mjs"` 추가
@@ -43,6 +44,7 @@
   - `src/components/PostContent.tsx`
   - `src/components/TagList.tsx`
   - `src/components/MermaidDiagram.tsx`
+  - `src/lib/date.ts`
   - `scripts/test-step-5.mjs`
   - `scripts/cleanup-test-data.mjs`
   - `tests/ui/*.spec.ts`
@@ -111,7 +113,7 @@
 - **글 생성**: `POST /api/posts` 호출 → 성공 시 `/posts/[slug]`로 리다이렉트
 - **글 수정**: URL에 `?id=N` 파라미터 → `GET /api/posts/[id]`로 기존 데이터 로드 → `PATCH /api/posts/[id]`로 저장
 - **이미지 업로드**: 드래그&드롭 또는 파일 선택 → `POST /api/uploads` → 반환된 URL을 textarea에 마크다운 형식으로 삽입
-- **클라이언트 마크다운 프리뷰**: 경량 마크다운 파서 사용 (서버 파이프라인과 100% 동일하지 않아도 됨. 프리뷰 용도)
+- **클라이언트 마크다운 프리뷰**: `marked` 렌더링 후 `isomorphic-dompurify`로 sanitize한 HTML만 반영
 
 **5-7. 컴포넌트 상세**
 
@@ -130,6 +132,7 @@
 - 페이지네이션이 올바르게 작동한다.
 - 네비게이션 링크가 모든 페이지에서 올바르게 동작한다.
 - `/write`에서 API Key 인증 후 글 작성/수정이 가능하다.
+- `/write` 프리뷰가 sanitize된 HTML로만 렌더링된다.
 - Playwright UI 테스트에서 최소 뷰포트 `360/768/1440` 스크린샷 비교가 통과한다.
 - Playwright 접근성 검사(`@axe-core/playwright`)가 주요 페이지에서 통과한다.
 
@@ -139,6 +142,7 @@
 export API_KEY="${API_KEY:-$BLOG_API_KEY}" # 테스트 Authorization 헤더용 키 별칭
 node scripts/cleanup-test-data.mjs   # 테스트 시작 전 데이터 정리/기준 상태 확보
 npm run test:step5             # HTTP 요청 기반 Step 5 검증 (SSR/라우팅/메타데이터)
+CI=1 BLOG_API_KEY=ci-ui-test-key npm run test:ui   # CI 재현 실행 (UI 테스트 키 강제 주입)
 npm run test:ui                # Playwright UI 회귀 (스크린샷+기능 assertion+접근성)
 npm run test:all               # Step 2 이후 회귀 규칙: PR 전 전체 재실행
 node scripts/cleanup-test-data.mjs   # 테스트 종료 후 데이터 정리
@@ -146,6 +150,7 @@ node scripts/cleanup-test-data.mjs   # 테스트 종료 후 데이터 정리
 
 > `scripts/test-step-5.mjs` — 페이지 응답, 빈 상태, 글 목록, slug 라우팅, 태그 필터, 페이지네이션, 네비게이션, 메타데이터 등을 HTTP 요청으로 자동 검증.
 > `tests/ui/*.spec.ts` — `/write` 생성/수정 E2E, 뷰포트(360/768/1440) 스크린샷 회귀, 접근성 검사까지 Playwright로 자동 검증.
+> `playwright.config.ts` — `BLOG_API_KEY`가 이미 설정된 경우 `.env.local`로 덮어쓰지 않고, 값이 없을 때만 `.env.local`을 로드한다.
 > Playwright 실패 시 `playwright-report/`, `test-results/`의 screenshot diff/trace/video 아티팩트를 확인한다.
 
 #### 테스트 목록

@@ -67,9 +67,11 @@
 
 ### 4-2. 런타임 DB 경로 고정
 
-- PR 범위: `deploy.yml`의 원격 실행 환경 변수에 `DATABASE_PATH=/var/lib/blog/data/blog.db`를 명시 전달
+- PR 범위: `deploy.yml`에서 릴리즈 경로의 `data`를 공유 경로로 심볼릭 링크 고정 (`/opt/blog/data -> /var/lib/blog/data`)
 - 운영 범위(Repo 외): systemd drop-in 또는 유닛 파일에 `Environment=DATABASE_PATH=/var/lib/blog/data/blog.db` 영구 반영
-- (필요 시) 배포 스크립트에서 실행 전 환경 검증 로그 추가
+- (선택) 배포 스크립트/운영 점검 시 환경 검증 로그 추가
+  - `readlink -f /opt/blog/data`
+  - `systemctl show blog -p Environment`
 
 ### 4-3. 배포 검증 게이트 강화
 

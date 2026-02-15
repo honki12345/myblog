@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
-import type { APIRequestContext } from "@playwright/test";
+import { expect, type APIRequestContext, type Page } from "@playwright/test";
 
 const ROOT = process.cwd();
 const ENV_PATH = path.join(ROOT, ".env.local");
@@ -79,6 +79,30 @@ export function resolveApiKey(): string {
   }
 
   return parseApiKeyFromEnvFile();
+}
+
+export async function authenticateWriteEditor(
+  page: Page,
+  apiKey = resolveApiKey(),
+): Promise<void> {
+  await page
+    .locator('main[data-hydrated="true"]')
+    .waitFor({ state: "visible" });
+  await page.getByLabel("API Key").fill(apiKey);
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await page.getByRole("button", { name: "인증 후 편집기 열기" }).click();
+    try {
+      await expect(
+        page.getByRole("heading", { name: /새 글 작성|글 수정 #\d+/ }),
+      ).toBeVisible({ timeout: 4_000 });
+      return;
+    } catch {
+      await page.waitForTimeout(300);
+    }
+  }
+
+  throw new Error("API Key authentication did not transition to editor mode");
 }
 
 export function runCleanupScript(): void {

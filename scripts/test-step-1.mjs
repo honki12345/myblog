@@ -1,6 +1,9 @@
 import { spawn } from "node:child_process";
-import { access, readFile, writeFile } from "node:fs/promises";
+import { access, readFile, readdir, writeFile } from "node:fs/promises";
 import process from "node:process";
+import path from "node:path";
+
+let standaloneServerDir = path.join(".next", "standalone");
 
 function run(command, args, options = {}) {
   return new Promise((resolve, reject) => {
@@ -61,6 +64,39 @@ async function assertFile(pathname) {
   } catch {
     throw new Error(`Missing expected path: ${pathname}`);
   }
+}
+
+async function resolveStandaloneServerDir() {
+  const primaryServerPath = path.join(".next", "standalone", "server.js");
+
+  try {
+    await access(primaryServerPath);
+    return path.dirname(primaryServerPath);
+  } catch {
+    // fallback to worktree-nested standalone layout
+  }
+
+  const worktreesDir = path.join(".next", "standalone", ".worktrees");
+  try {
+    const entries = await readdir(worktreesDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) {
+        continue;
+      }
+
+      const candidate = path.join(worktreesDir, entry.name, "server.js");
+      try {
+        await access(candidate);
+        return path.dirname(candidate);
+      } catch {
+        // continue searching
+      }
+    }
+  } catch {
+    // fall through to final error
+  }
+
+  throw new Error("Missing expected standalone server entry: server.js");
 }
 
 async function ensureLocalEnvFile() {
@@ -144,14 +180,15 @@ async function testBuildArtifacts() {
   await run("npm", ["run", "build"]);
 
   console.log("\n[2/6] standalone build outputs");
-  await assertFile(".next/standalone/server.js");
+  standaloneServerDir = await resolveStandaloneServerDir();
+  await assertFile(path.join(standaloneServerDir, "server.js"));
   await assertFile(".next/static");
 }
 
 async function testStandaloneServer() {
   console.log("\n[3/6] standalone server health check");
   const standalone = spawn("node", ["server.js"], {
-    cwd: ".next/standalone",
+    cwd: standaloneServerDir,
     env: { ...process.env, PORT: "3001" },
     detached: true,
     stdio: ["ignore", "pipe", "pipe"],
@@ -165,7 +202,7 @@ async function testStandaloneServer() {
   );
 
   try {
-    await waitForHttpOk("http://localhost:3001");
+    await waitForHttpOk("http://127.0.0.1:3001/api/health");
   } finally {
     await stopProcess(standalone);
   }
@@ -187,7 +224,7 @@ async function testDevServer() {
   dev.stderr.on("data", (chunk) => process.stderr.write(chunk.toString()));
 
   try {
-    await waitForHttpOk("http://localhost:3000");
+    await waitForHttpOk("http://127.0.0.1:3000/api/health");
   } finally {
     await stopProcess(dev);
   }

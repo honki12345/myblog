@@ -20,8 +20,9 @@ function sleep(ms) {
 
 function parseDomain(rawDomain) {
   const trimmed = rawDomain.trim();
-  const normalized =
-    /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  const normalized = /^https?:\/\//i.test(trimmed)
+    ? trimmed
+    : `https://${trimmed}`;
   const parsed = new URL(normalized);
   assert(parsed.hostname.length > 0, `invalid BLOG_DOMAIN: ${rawDomain}`);
 
@@ -62,7 +63,9 @@ async function parseJsonResponse(response) {
   try {
     return JSON.parse(text);
   } catch {
-    throw new Error(`expected JSON response but received: ${text.slice(0, 200)}`);
+    throw new Error(
+      `expected JSON response but received: ${text.slice(0, 200)}`,
+    );
   }
 }
 
@@ -134,7 +137,10 @@ async function testHttpsAndHsts(httpsBase) {
   const response = await fetchWithTimeout(`${httpsBase}/`, {
     headers: { "user-agent": "step7-remote-check" },
   });
-  assert(response.status === 200, `GET / must return 200, received ${response.status}`);
+  assert(
+    response.status === 200,
+    `GET / must return 200, received ${response.status}`,
+  );
 
   const hsts = response.headers.get("strict-transport-security");
   assert(hsts, "Strict-Transport-Security header must be present");
@@ -191,7 +197,7 @@ async function testApiAuthAndCreatePost(httpsBase, apiKey) {
     headers: authHeaders(apiKey),
     body: JSON.stringify({
       title,
-      content: "## 테스트\n\n```python\nprint(\"hello\")\n```\n\n$E=mc^2$",
+      content: '## 테스트\n\n```python\nprint("hello")\n```\n\n$E=mc^2$',
       tags: ["e2e", "production"],
       sourceUrl,
       status: "published",
@@ -231,7 +237,10 @@ async function testPageAccess(httpsBase, title) {
   const posts = await fetchWithTimeout(`${httpsBase}/posts`, {
     headers: { "user-agent": "step7-remote-check" },
   });
-  assert(posts.status === 200, `GET /posts must return 200, received ${posts.status}`);
+  assert(
+    posts.status === 200,
+    `GET /posts must return 200, received ${posts.status}`,
+  );
 
   await waitForHtmlContains(`${httpsBase}/`, title);
   console.log("PAGE ACCESS PASSED");
@@ -254,9 +263,12 @@ async function testDbFileBlocking(httpsBase) {
 
 async function testE2eScenario(httpsBase, apiKey, createdPost) {
   console.log("\n[6/7] remote E2E scenario");
-  const detail = await fetchWithTimeout(`${httpsBase}/posts/${createdPost.slug}`, {
-    headers: { "user-agent": "step7-remote-check" },
-  });
+  const detail = await fetchWithTimeout(
+    `${httpsBase}/posts/${createdPost.slug}`,
+    {
+      headers: { "user-agent": "step7-remote-check" },
+    },
+  );
   const detailHtml = await detail.text();
   assert(
     detail.status === 200,
@@ -266,7 +278,10 @@ async function testE2eScenario(httpsBase, apiKey, createdPost) {
     detailHtml.includes(createdPost.title),
     "detail page must include created post title",
   );
-  assert(detailHtml.includes("<pre"), "detail page must include rendered code block");
+  assert(
+    detailHtml.includes("<pre"),
+    "detail page must include rendered code block",
+  );
 
   const check = await requestJson(
     `${httpsBase}/api/posts/check?url=${encodeURIComponent(createdPost.sourceUrl)}`,
@@ -280,7 +295,10 @@ async function testE2eScenario(httpsBase, apiKey, createdPost) {
     check.status === 200,
     `GET /api/posts/check must return 200, received ${check.status}`,
   );
-  assert(check.data?.exists === true, "source URL check must return exists=true");
+  assert(
+    check.data?.exists === true,
+    "source URL check must return exists=true",
+  );
 
   const patch = await requestJson(`${httpsBase}/api/posts/${createdPost.id}`, {
     method: "PATCH",

@@ -67,7 +67,9 @@ async function run(command, args, options = {}) {
       };
 
       if (!allowFailure && result.code !== 0) {
-        const details = [result.stderr, result.stdout].filter(Boolean).join("\n");
+        const details = [result.stderr, result.stdout]
+          .filter(Boolean)
+          .join("\n");
         reject(
           new Error(
             `${formatCommand(command, args)} failed with code ${result.code}${details ? `\n${details}` : ""}`,
@@ -131,7 +133,12 @@ async function requestStatus(url) {
   return response.status;
 }
 
-async function waitForStatus(url, expectedStatus, retries = 15, delayMs = 1000) {
+async function waitForStatus(
+  url,
+  expectedStatus,
+  retries = 15,
+  delayMs = 1000,
+) {
   for (let attempt = 1; attempt <= retries; attempt += 1) {
     try {
       const status = await requestStatus(url);
@@ -387,13 +394,20 @@ async function checkBackupCronAndIntegrity(privilegeMode) {
     "find /opt/blog/backups",
   );
   assert(
-    hasPruneSchedule && cron.content.includes("-mtime +7") && cron.content.includes("-delete"),
+    hasPruneSchedule &&
+      cron.content.includes("-mtime +7") &&
+      cron.content.includes("-delete"),
     `missing 04:00 backup prune schedule in ${cron.source} crontab`,
   );
 
   const backupPath = makeBackupPath();
   try {
-    await runPrivileged(privilegeMode, "install", ["-d", "-m", "755", BACKUP_DIR]);
+    await runPrivileged(privilegeMode, "install", [
+      "-d",
+      "-m",
+      "755",
+      BACKUP_DIR,
+    ]);
     await runPrivileged(privilegeMode, "sqlite3", [
       DB_PATH,
       `.backup ${backupPath}`,
@@ -417,10 +431,7 @@ async function checkBackupCronAndIntegrity(privilegeMode) {
 }
 
 async function main() {
-  assert(
-    process.platform === "linux",
-    "test:step7-local must run on linux VM",
-  );
+  assert(process.platform === "linux", "test:step7-local must run on linux VM");
 
   const privilegeMode = await detectPrivilegeMode();
   console.log(`privilege mode: ${privilegeMode}`);

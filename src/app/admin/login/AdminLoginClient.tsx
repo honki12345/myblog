@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 type Stage = "primary" | "verify";
@@ -9,6 +10,14 @@ type ApiError = {
   error?: {
     message?: string;
   };
+};
+
+type TotpSetupResponse = {
+  issuer: string;
+  accountName: string;
+  secret: string;
+  otpauthUrl: string;
+  qrDataUrl: string;
 };
 
 type AdminLoginClientProps = {
@@ -22,7 +31,10 @@ export default function AdminLoginClient({ nextPath }: AdminLoginClientProps) {
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingTotpSetup, setIsLoadingTotpSetup] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [totpSetupError, setTotpSetupError] = useState("");
+  const [totpSetup, setTotpSetup] = useState<TotpSetupResponse | null>(null);
 
   const handlePrimarySubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -55,6 +67,8 @@ export default function AdminLoginClient({ nextPath }: AdminLoginClientProps) {
 
       setStage("verify");
       setCode("");
+      setTotpSetup(null);
+      setTotpSetupError("");
     } catch (error) {
       setErrorMessage(
         error instanceof Error
@@ -63,6 +77,53 @@ export default function AdminLoginClient({ nextPath }: AdminLoginClientProps) {
       );
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleLoadTotpSetup = async () => {
+    setTotpSetupError("");
+    setIsLoadingTotpSetup(true);
+
+    try {
+      const response = await fetch("/api/admin/auth/totp-setup", {
+        method: "GET",
+        credentials: "same-origin",
+      });
+
+      const data = (await response.json().catch(() => null)) as
+        | TotpSetupResponse
+        | ApiError
+        | null;
+
+      if (!response.ok) {
+        const message =
+          data && "error" in data && data.error?.message
+            ? data.error.message
+            : "QR 정보를 불러오지 못했습니다.";
+        throw new Error(message);
+      }
+
+      if (
+        !data ||
+        !("qrDataUrl" in data) ||
+        typeof data.qrDataUrl !== "string" ||
+        typeof data.secret !== "string" ||
+        typeof data.issuer !== "string" ||
+        typeof data.accountName !== "string" ||
+        typeof data.otpauthUrl !== "string"
+      ) {
+        throw new Error("QR 응답 형식이 올바르지 않습니다.");
+      }
+
+      setTotpSetup(data);
+    } catch (error) {
+      setTotpSetupError(
+        error instanceof Error
+          ? error.message
+          : "QR 정보를 준비하는 중 오류가 발생했습니다.",
+      );
+    } finally {
+      setIsLoadingTotpSetup(false);
     }
   };
 
@@ -179,11 +240,57 @@ export default function AdminLoginClient({ nextPath }: AdminLoginClientProps) {
               onClick={() => {
                 setStage("primary");
                 setCode("");
+                setTotpSetup(null);
+                setTotpSetupError("");
               }}
               disabled={isSubmitting}
             >
               이전 단계로
             </button>
+
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs text-slate-700">
+                Google Authenticator 등록이 아직 안 되어 있으면 QR을 먼저 스캔해
+                주세요.
+              </p>
+              <button
+                type="button"
+                className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+                onClick={handleLoadTotpSetup}
+                disabled={isSubmitting || isLoadingTotpSetup}
+              >
+                {isLoadingTotpSetup
+                  ? "QR 준비 중..."
+                  : "Authenticator 등록 QR 보기"}
+              </button>
+
+              {totpSetupError ? (
+                <p className="mt-2 text-xs text-red-700">{totpSetupError}</p>
+              ) : null}
+
+              {totpSetup ? (
+                <div className="mt-3 space-y-2">
+                  <Image
+                    src={totpSetup.qrDataUrl}
+                    alt="Authenticator 앱 등록 QR 코드"
+                    width={192}
+                    height={192}
+                    unoptimized
+                    className="mx-auto h-48 w-48 rounded border border-slate-300 bg-white p-2"
+                  />
+                  <p className="text-xs text-slate-700">
+                    수동 등록 키:{" "}
+                    <code className="rounded bg-slate-200 px-1 py-0.5">
+                      {totpSetup.secret}
+                    </code>
+                  </p>
+                  <p className="text-xs text-slate-600">
+                    Issuer: {totpSetup.issuer} / Account:{" "}
+                    {totpSetup.accountName}
+                  </p>
+                </div>
+              ) : null}
+            </div>
           </form>
         )}
       </section>

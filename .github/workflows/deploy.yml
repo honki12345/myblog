@@ -23,6 +23,13 @@ jobs:
       VM_HOST: ${{ secrets.VM_HOST }}
       VM_USER: ${{ secrets.VM_USER }}
       VM_SSH_KEY: ${{ secrets.VM_SSH_KEY }}
+      ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
+      ADMIN_PASSWORD_HASH: ${{ secrets.ADMIN_PASSWORD_HASH }}
+      ADMIN_SESSION_SECRET: ${{ secrets.ADMIN_SESSION_SECRET }}
+      ADMIN_TOTP_SECRET_ENCRYPTION_KEY: ${{ secrets.ADMIN_TOTP_SECRET_ENCRYPTION_KEY }}
+      ADMIN_CSRF_SECRET: ${{ secrets.ADMIN_CSRF_SECRET }}
+      ADMIN_TOTP_SECRET: ${{ secrets.ADMIN_TOTP_SECRET }}
+      ADMIN_TOTP_ISSUER: ${{ secrets.ADMIN_TOTP_ISSUER }}
 
     steps:
       - name: Checkout
@@ -32,7 +39,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for name in BLOG_DOMAIN VM_HOST VM_USER VM_SSH_KEY; do
+          for name in BLOG_DOMAIN VM_HOST VM_USER VM_SSH_KEY ADMIN_USERNAME ADMIN_PASSWORD_HASH ADMIN_SESSION_SECRET ADMIN_TOTP_SECRET_ENCRYPTION_KEY ADMIN_CSRF_SECRET ADMIN_TOTP_SECRET; do
             if [ -z "${!name:-}" ]; then
               echo "::error::Missing required secret: ${name}"
               exit 1
@@ -88,6 +95,32 @@ jobs:
           set -euo pipefail
           scp "${{ steps.release.outputs.archive_name }}" \
             "${VM_USER}@${VM_HOST}:/tmp/${{ steps.release.outputs.archive_name }}"
+
+      - name: Build admin environment file
+        shell: bash
+        run: |
+          set -euo pipefail
+          ADMIN_ENV_FILE="/tmp/blog-admin.env"
+          : > "${ADMIN_ENV_FILE}"
+
+          {
+            printf 'ADMIN_USERNAME=%s\n' "${ADMIN_USERNAME}"
+            printf 'ADMIN_PASSWORD_HASH=%s\n' "${ADMIN_PASSWORD_HASH}"
+            printf 'ADMIN_SESSION_SECRET=%s\n' "${ADMIN_SESSION_SECRET}"
+            printf 'ADMIN_TOTP_SECRET_ENCRYPTION_KEY=%s\n' "${ADMIN_TOTP_SECRET_ENCRYPTION_KEY}"
+            printf 'ADMIN_CSRF_SECRET=%s\n' "${ADMIN_CSRF_SECRET}"
+            printf 'ADMIN_TOTP_SECRET=%s\n' "${ADMIN_TOTP_SECRET}"
+            if [ -n "${ADMIN_TOTP_ISSUER:-}" ]; then
+              printf 'ADMIN_TOTP_ISSUER=%s\n' "${ADMIN_TOTP_ISSUER}"
+            fi
+          } > "${ADMIN_ENV_FILE}"
+          chmod 600 "${ADMIN_ENV_FILE}"
+
+      - name: Upload admin environment file to VM
+        shell: bash
+        run: |
+          set -euo pipefail
+          scp /tmp/blog-admin.env "${VM_USER}@${VM_HOST}:/tmp/blog-admin.env"
 
       - name: Deploy release on VM
         shell: bash
@@ -158,6 +191,15 @@ jobs:
           sudo ln -sfn "${PERSIST_UPLOADS_DIR}" "${RELEASE_PATH}/uploads"
           sudo chown -R blog:blog "${PERSIST_ROOT}"
           sudo chown -R blog:blog "${RELEASE_PATH}"
+
+          sudo install -d -m 755 /etc/blog
+          sudo install -m 600 -o root -g root /tmp/blog-admin.env /etc/blog/admin.env
+          sudo install -d -m 755 /etc/systemd/system/blog.service.d
+          sudo tee /etc/systemd/system/blog.service.d/10-admin-env.conf > /dev/null <<'OVERRIDE'
+          [Service]
+          EnvironmentFile=-/etc/blog/admin.env
+          OVERRIDE
+          sudo systemctl daemon-reload
 
           sudo ln -sfn "${RELEASE_PATH}" /opt/blog
           sudo systemctl restart blog
@@ -255,4 +297,5 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ssh "${VM_USER}@${VM_HOST}" "rm -f /tmp/${{ steps.release.outputs.archive_name }} /tmp/blog-deploy-state"
+          rm -f /tmp/blog-admin.env
+          ssh "${VM_USER}@${VM_HOST}" "rm -f /tmp/${{ steps.release.outputs.archive_name }} /tmp/blog-deploy-state /tmp/blog-admin.env"

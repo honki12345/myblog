@@ -48,6 +48,13 @@ type AdminAuthRow = {
   totp_secret_encrypted: string;
 };
 
+export type AdminTotpSetupInfo = {
+  issuer: string;
+  accountName: string;
+  secret: string;
+  otpauthUrl: string;
+};
+
 function shouldUseSecureCookies(): boolean {
   return process.env.NODE_ENV === "production";
 }
@@ -130,6 +137,31 @@ function loadAdminConfig(): AdminAuthConfig {
       DEFAULT_SESSION_MAX_AGE_SECONDS,
     ),
   };
+}
+
+function getTotpIssuer(): string {
+  const explicitIssuer = process.env.ADMIN_TOTP_ISSUER?.trim();
+  if (explicitIssuer && explicitIssuer.length > 0) {
+    return explicitIssuer;
+  }
+
+  return "Honki Blog";
+}
+
+function buildTotpOtpAuthUrl(
+  issuer: string,
+  accountName: string,
+  secret: string,
+): string {
+  const label = `${issuer}:${accountName}`;
+  const query = new URLSearchParams({
+    secret,
+    issuer,
+    algorithm: "SHA1",
+    digits: "6",
+    period: "30",
+  });
+  return `otpauth://totp/${encodeURIComponent(label)}?${query.toString()}`;
 }
 
 function extractClientIp(request: Request): string {
@@ -353,6 +385,33 @@ export function readAndVerifyLoginChallenge(
   }
 
   return Buffer.from(usernamePart, "base64url").toString("utf8");
+}
+
+export function getAdminTotpSetupInfoFromLoginChallenge(
+  request: Request | NextRequest,
+): AdminTotpSetupInfo | null {
+  const challengeUsername = readAndVerifyLoginChallenge(request);
+  if (!challengeUsername) {
+    return null;
+  }
+
+  const config = loadAdminConfig();
+  if (!safeEqualString(challengeUsername, config.username)) {
+    return null;
+  }
+
+  const issuer = getTotpIssuer();
+  const accountName = config.username;
+  return {
+    issuer,
+    accountName,
+    secret: config.normalizedTotpSecret,
+    otpauthUrl: buildTotpOtpAuthUrl(
+      issuer,
+      accountName,
+      config.normalizedTotpSecret,
+    ),
+  };
 }
 
 export async function verifyAdminSecondFactor(

@@ -327,6 +327,12 @@ async function runScenario() {
   const anonymous = await requestJson("/api/admin/notes");
   assert(anonymous.status === 401, "anonymous admin notes should return 401");
 
+  const anonymousTotpSetup = await requestJson("/api/admin/auth/totp-setup");
+  assert(
+    anonymousTotpSetup.status === 401,
+    "anonymous TOTP setup should return 401",
+  );
+
   const adminJar = new CookieJar();
   const loginStart = await requestJson("/api/admin/auth/login", {
     method: "POST",
@@ -337,6 +343,26 @@ async function runScenario() {
   assert(
     loginStart.data?.requiresTwoFactor === true,
     "admin login should require two-factor",
+  );
+
+  const totpSetup = await requestJson("/api/admin/auth/totp-setup", {
+    jar: adminJar,
+  });
+  assert(totpSetup.status === 200, "totp setup should return 200");
+  assert(
+    typeof totpSetup.data?.secret === "string" &&
+      totpSetup.data.secret.length >= 16,
+    "totp setup should include secret",
+  );
+  assert(
+    typeof totpSetup.data?.otpauthUrl === "string" &&
+      totpSetup.data.otpauthUrl.startsWith("otpauth://totp/"),
+    "totp setup should include otpauth url",
+  );
+  assert(
+    typeof totpSetup.data?.qrDataUrl === "string" &&
+      totpSetup.data.qrDataUrl.startsWith("data:image/png;base64,"),
+    "totp setup should include qr data url",
   );
 
   const invalidVerify = await requestJson("/api/admin/auth/verify", {

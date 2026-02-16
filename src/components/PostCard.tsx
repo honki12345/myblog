@@ -9,6 +9,7 @@ export type PostCardData = {
   excerpt: string;
   tags: string[];
   publishedAt: string | null;
+  status: "draft" | "published";
 };
 
 type PostCardProps = {
@@ -17,11 +18,15 @@ type PostCardProps = {
 
 export default function PostCard({ post }: PostCardProps) {
   const publishedDate = formatDate(post.publishedAt);
+  const href =
+    post.status === "draft"
+      ? `/admin/write?id=${post.id}`
+      : `/posts/${post.slug}`;
 
   return (
     <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
       <h2 className="text-lg font-semibold tracking-tight">
-        <Link href={`/posts/${post.slug}`} className="hover:underline">
+        <Link href={href} className="hover:underline">
           {post.title}
         </Link>
       </h2>

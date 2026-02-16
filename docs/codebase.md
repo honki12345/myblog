@@ -44,7 +44,7 @@ Sources: `AGENTS.md`, `src/app/layout.tsx`, `src/app/page.tsx`, `src/app/posts/p
 ### Data/control flow
 
 - 읽기 경로: Server Component가 `getDb()`로 SQLite 조회 -> 게시 상태(`published`) 중심 필터 -> JSX 렌더링
-- 작성 경로: `/write`에서 API Key 확인(`/api/health`) -> `POST /api/posts`, `POST /api/posts/bulk`, `PATCH /api/posts/:id` -> DB 트랜잭션 -> `revalidatePath`로 홈/목록/상세/태그 갱신 -> 상태 기반 라우팅(`published`는 `/posts/{slug}`, `draft`는 `/write?id={id}`)
+- 작성 경로: `/write`에서 API Key 확인(`/api/health`) -> `POST /api/posts`, `POST /api/posts/bulk`, `PATCH /api/posts/:id` -> DB 트랜잭션 -> `revalidatePath`로 홈/목록/상세/태그 갱신 -> 상태 기반 라우팅(`published`는 `/posts/{slug}`, 목록에서 `draft`는 `/admin/write?id={id}`)
 - 렌더링 경로: 상세 페이지에서 `renderMarkdown()` 호출 -> Mermaid 블록은 base64 placeholder로 출력 -> 클라이언트에서 `mermaid` 동적 import 후 SVG 변환
 - 업로드 경로: `/api/uploads`가 MIME + 매직바이트 검증 후 `uploads/YYYY/MM/uuid.ext` 저장 -> URL 반환
 - 관측 경로: `POST /api/posts`, `POST /api/posts/bulk`는 요청 요약(JSON) 로그를 stdout으로 출력하며 systemd journal에서 수집 가능
@@ -86,7 +86,7 @@ Sources: `src/lib/db.ts`, `src/app/api/posts/route.ts`, `src/app/api/posts/bulk/
 | `POST`  | `/api/inbox`               | 필수(`INBOX_TOKEN`)                      | iOS Shortcuts URL 인입. X/Twitter URL 검증/정규화 후 `queued`로 적재(중복은 200 duplicate)        | `UNAUTHORIZED`, `INVALID_INPUT`, `RATE_LIMITED`, `INTERNAL_ERROR`                       |
 | `GET`   | `/api/inbox`               | 필수(`INBOX_TOKEN`)                      | 수집 큐 조회. 기본 `status=queued`, `limit=50`(max 100), 오래된 순(`id ASC`)                      | `UNAUTHORIZED`, `INVALID_INPUT`, `INTERNAL_ERROR`                                       |
 | `PATCH` | `/api/inbox/:id`           | 필수(`INBOX_TOKEN`)                      | 수집 큐 상태 갱신. `queued`만 `processed`/`failed`로 전이 허용, `failed`에서 `error` 저장         | `UNAUTHORIZED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`                          |
-| `GET`   | `/api/posts`               | 없음                                     | 최신 100개 글 반환(현재 구현은 draft/published 모두 반환)                                         | -                                                                                       |
+| `GET`   | `/api/posts`               | 없음                                     | 최신 100개 공개 글(`published`)만 반환                                                            | -                                                                                       |
 | `POST`  | `/api/posts`               | 필수                                     | 단건 글 생성, slug 자동 생성, 태그/출처(ai metadata 포함) 저장, 구조화 로그 출력, 경로 revalidate | `UNAUTHORIZED`, `INVALID_INPUT`, `DUPLICATE_SOURCE`, `RATE_LIMITED`, `INTERNAL_ERROR`   |
 | `POST`  | `/api/posts/bulk`          | 필수                                     | 벌크 글 생성(최대 10건), 단일 트랜잭션(all-or-nothing), 구조화 로그 출력, 경로 revalidate         | `UNAUTHORIZED`, `INVALID_INPUT`, `DUPLICATE_SOURCE`, `RATE_LIMITED`, `INTERNAL_ERROR`   |
 | `GET`   | `/api/posts/check?url=...` | 필수                                     | `source_url` 중복 여부 확인                                                                       | `UNAUTHORIZED`, `INVALID_INPUT`, `INTERNAL_ERROR`                                       |
@@ -142,7 +142,10 @@ curl -i -sS -X POST "https://<host>/api/inbox" \
 
 ### Auth / permissions and cache behavior
 
-- 공개 페이지(`/`, `/posts`, `/posts/[slug]`, `/tags/[tag]`)는 `status='published'`만 노출한다.
+- 공개 페이지(`/`, `/posts`, `/tags/[tag]`)는 기본적으로 `status='published'`만 노출한다.
+  - 단, 관리자 세션(`admin_session` 쿠키)이 유효하면 목록 페이지에서 `draft`도 함께 노출한다.
+  - 목록에서 `draft` 클릭 시 편집기로 이동한다: `/admin/write?id={id}`
+- 상세 페이지(`/posts/[slug]`)는 `published`만 노출한다.
 - `/write` 페이지는 클라이언트에서 `/api/health`를 호출해 API Key를 검증한다.
 - 생성/수정 API는 `revalidatePath`로 홈/목록/상세/태그 캐시 갱신을 트리거한다.
 - 상세 페이지 slug 조회는 decode-safe + `NFKC` 정규화를 적용한다.

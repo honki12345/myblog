@@ -1,12 +1,16 @@
 import Link from "next/link";
 import PostCard, { type PostCardData } from "@/components/PostCard";
+import { getAdminSessionFromServerCookies } from "@/lib/admin-auth";
 import { getDb } from "@/lib/db";
+
+type PostStatus = "draft" | "published";
 
 type HomePostRow = {
   id: number;
   slug: string;
   title: string;
   content: string;
+  status: PostStatus;
   published_at: string | null;
   tags_csv: string;
 };
@@ -44,11 +48,27 @@ function toPostCardData(row: HomePostRow): PostCardData {
         ? row.tags_csv.split("\u001f").filter((tag) => tag.length > 0)
         : [],
     publishedAt: row.published_at,
+    status: row.status,
   };
 }
 
-function loadLatestPublishedPosts(limit = 10): PostCardData[] {
+function buildStatusFilter(statuses: readonly PostStatus[]): {
+  clause: string;
+  params: PostStatus[];
+} {
+  const placeholders = statuses.map(() => "?").join(", ");
+  return {
+    clause: `p.status IN (${placeholders})`,
+    params: [...statuses],
+  };
+}
+
+function loadLatestPosts(
+  statuses: readonly PostStatus[],
+  limit = 10,
+): PostCardData[] {
   const db = getDb();
+  const statusFilter = buildStatusFilter(statuses);
   const rows = db
     .prepare(
       `
@@ -57,24 +77,32 @@ function loadLatestPublishedPosts(limit = 10): PostCardData[] {
         p.slug,
         p.title,
         p.content,
+        p.status,
         p.published_at,
         COALESCE(GROUP_CONCAT(t.name, char(31)), '') AS tags_csv
       FROM posts p
       LEFT JOIN post_tags pt ON pt.post_id = p.id
       LEFT JOIN tags t ON t.id = pt.tag_id
-      WHERE p.status = 'published'
+      WHERE ${statusFilter.clause}
       GROUP BY p.id
       ORDER BY datetime(COALESCE(p.published_at, p.created_at)) DESC, p.id DESC
       LIMIT ?
       `,
     )
-    .all(limit) as HomePostRow[];
+    .all(...statusFilter.params, limit) as HomePostRow[];
 
   return rows.map(toPostCardData);
 }
 
-export default function Home() {
-  const posts = loadLatestPublishedPosts(10);
+export default async function Home() {
+  const session = await getAdminSessionFromServerCookies();
+  const isAdmin = Boolean(session);
+  const statuses: readonly PostStatus[] = session
+    ? ["draft", "published"]
+    : ["published"];
+  const posts = loadLatestPosts(statuses, 10);
+  const includesDraft =
+    isAdmin && posts.some((post) => post.status === "draft");
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-10 sm:px-6 lg:px-8">
@@ -83,7 +111,11 @@ export default function Home() {
           Latest Posts
         </p>
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-          최신 공개 글
+          {isAdmin
+            ? includesDraft
+              ? "최신 글 (초안 포함)"
+              : "최신 글"
+            : "최신 공개 글"}
         </h1>
         <p className="max-w-2xl text-sm text-slate-600 sm:text-base">
           AI 수집 글과 직접 작성한 글을 최신 순으로 보여줍니다.

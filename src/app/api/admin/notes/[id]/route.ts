@@ -151,13 +151,18 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       : current.is_pinned;
 
   const db = getDb();
-  db.prepare(
-    `
+  const result = db
+    .prepare(
+      `
     UPDATE admin_notes
     SET title = ?, content = ?, is_pinned = ?, updated_at = datetime('now')
     WHERE id = ?
     `,
-  ).run(nextTitle, nextContent, nextPinned, noteId);
+    )
+    .run(nextTitle, nextContent, nextPinned, noteId);
+  if (result.changes === 0) {
+    return adminErrorResponse(404, "NOT_FOUND", "Note not found.");
+  }
 
   const updated = loadNote(noteId);
   if (!updated) {

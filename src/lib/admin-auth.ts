@@ -166,7 +166,12 @@ function parseCookieHeader(rawCookie: string | null): Record<string, string> {
     if (!rawKey || rest.length === 0) {
       continue;
     }
-    result[rawKey] = decodeURIComponent(rest.join("="));
+    const rawValue = rest.join("=");
+    try {
+      result[rawKey] = decodeURIComponent(rawValue);
+    } catch {
+      result[rawKey] = rawValue;
+    }
   }
 
   return result;

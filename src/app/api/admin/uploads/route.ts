@@ -66,7 +66,16 @@ export async function POST(request: NextRequest) {
     return auth.response;
   }
 
-  const formData = await request.formData();
+  let formData: FormData;
+  try {
+    formData = await request.formData();
+  } catch {
+    return adminErrorResponse(
+      400,
+      "INVALID_INPUT",
+      "Request must be multipart/form-data.",
+    );
+  }
   const file = formData.get("file");
 
   if (!(file instanceof File)) {
@@ -118,4 +127,3 @@ export async function POST(request: NextRequest) {
     return adminErrorResponse(500, "INTERNAL_ERROR", "Failed to upload file.");
   }
 }
-

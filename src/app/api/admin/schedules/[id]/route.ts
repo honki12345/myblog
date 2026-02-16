@@ -188,8 +188,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   }
 
   const db = getDb();
-  db.prepare(
-    `
+  const result = db
+    .prepare(
+      `
     UPDATE admin_schedules
     SET
       title = ?,
@@ -200,14 +201,18 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       updated_at = datetime('now')
     WHERE id = ?
     `,
-  ).run(
-    nextTitle,
-    nextDescription,
-    nextStartAt,
-    nextEndAt,
-    nextIsDone,
-    scheduleId,
-  );
+    )
+    .run(
+      nextTitle,
+      nextDescription,
+      nextStartAt,
+      nextEndAt,
+      nextIsDone,
+      scheduleId,
+    );
+  if (result.changes === 0) {
+    return adminErrorResponse(404, "NOT_FOUND", "Schedule not found.");
+  }
 
   const updated = loadSchedule(scheduleId);
   if (!updated) {

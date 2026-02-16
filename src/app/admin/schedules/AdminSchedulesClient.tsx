@@ -30,6 +30,11 @@ type ScheduleForm = {
   endAt: string;
 };
 
+function toLocalDateTimeInputValue(date: Date): string {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
+}
+
 function createInitialForm(): ScheduleForm {
   const now = new Date();
   const start = new Date(now.getTime() + 30 * 60 * 1000);
@@ -38,8 +43,8 @@ function createInitialForm(): ScheduleForm {
   return {
     title: "",
     description: "",
-    startAt: start.toISOString().slice(0, 16),
-    endAt: end.toISOString().slice(0, 16),
+    startAt: toLocalDateTimeInputValue(start),
+    endAt: toLocalDateTimeInputValue(end),
   };
 }
 
@@ -52,7 +57,15 @@ function toIso(value: string): string | null {
 }
 
 function toDateKey(value: string): string {
-  return value.slice(0, 10);
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value.slice(0, 10);
+  }
+
+  const year = String(date.getFullYear());
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function createMonthCells(anchorDate: Date): Date[] {

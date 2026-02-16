@@ -48,7 +48,11 @@ function parseCookieHeader(rawHeader: string | null): Record<string, string> {
     if (!rawKey || rest.length === 0) {
       continue;
     }
-    map[rawKey] = decodeURIComponent(rest.join("="));
+    try {
+      map[rawKey] = decodeURIComponent(rest.join("="));
+    } catch {
+      continue;
+    }
   }
   return map;
 }

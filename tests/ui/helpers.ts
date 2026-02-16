@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { createHmac } from "node:crypto";
 import path from "node:path";
 import Database from "better-sqlite3";
 import { expect, type APIRequestContext, type Page } from "@playwright/test";
@@ -13,6 +14,10 @@ export const PLAYWRIGHT_DATABASE_PATH = path.join(
   "playwright-ui.db",
 );
 
+const DEFAULT_ADMIN_USERNAME = "admin";
+const DEFAULT_ADMIN_PASSWORD = "admin-password-1234";
+const DEFAULT_ADMIN_TOTP_SECRET = "JBSWY3DPEHPK3PXP";
+
 export type SeededPost = {
   title: string;
   content: string;
@@ -21,7 +26,7 @@ export type SeededPost = {
   sourceUrl: string;
 };
 
-function parseApiKeyFromEnvFile(): string {
+function parseEnvValueFromEnvFile(targetKey: string): string | null {
   const envRaw = readFileSync(ENV_PATH, "utf8");
 
   for (const line of envRaw.split(/\r?\n/)) {
@@ -31,7 +36,7 @@ function parseApiKeyFromEnvFile(): string {
     }
 
     const [key, ...rest] = trimmed.split("=");
-    if (key === "BLOG_API_KEY") {
+    if (key === targetKey) {
       const value = rest.join("=").trim();
       const normalized = value.replace(/^['\"]|['\"]$/g, "");
       if (normalized.length > 0) {
@@ -40,7 +45,85 @@ function parseApiKeyFromEnvFile(): string {
     }
   }
 
+  return null;
+}
+
+function parseApiKeyFromEnvFile(): string {
+  const apiKey = parseEnvValueFromEnvFile("BLOG_API_KEY");
+  if (apiKey) {
+    return apiKey;
+  }
   throw new Error("BLOG_API_KEY is missing in .env.local");
+}
+
+function decodeBase32(value: string): Buffer {
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  const normalized = value.toUpperCase().replace(/=+$/g, "").replace(/[\s-]/g, "");
+  let bits = 0;
+  let current = 0;
+  const output: number[] = [];
+
+  for (const char of normalized) {
+    const index = alphabet.indexOf(char);
+    if (index < 0) {
+      throw new Error("Invalid ADMIN_TOTP_SECRET value.");
+    }
+
+    current = (current << 5) | index;
+    bits += 5;
+    if (bits >= 8) {
+      output.push((current >>> (bits - 8)) & 0xff);
+      bits -= 8;
+    }
+  }
+
+  return Buffer.from(output);
+}
+
+function generateTotpCode(secret: string, now = Date.now()): string {
+  const key = decodeBase32(secret);
+  const counter = Math.floor(now / 1000 / 30);
+  const counterBuffer = Buffer.alloc(8);
+  counterBuffer.writeBigUInt64BE(BigInt(counter));
+
+  const hmac = createHmac("sha1", key).update(counterBuffer).digest();
+  const offset = hmac[hmac.length - 1] & 0x0f;
+  const binary =
+    ((hmac[offset] & 0x7f) << 24) |
+    ((hmac[offset + 1] & 0xff) << 16) |
+    ((hmac[offset + 2] & 0xff) << 8) |
+    (hmac[offset + 3] & 0xff);
+  return String(binary % 1_000_000).padStart(6, "0");
+}
+
+export function resolveAdminUsername(): string {
+  const fromProcess = process.env.ADMIN_USERNAME?.trim();
+  if (fromProcess) {
+    return fromProcess;
+  }
+
+  const fromEnv = parseEnvValueFromEnvFile("ADMIN_USERNAME");
+  return fromEnv ?? DEFAULT_ADMIN_USERNAME;
+}
+
+export function resolveAdminPassword(): string {
+  const fromProcess = process.env.ADMIN_PASSWORD?.trim();
+  if (fromProcess) {
+    return fromProcess;
+  }
+
+  const fromEnv = parseEnvValueFromEnvFile("ADMIN_PASSWORD");
+  return fromEnv ?? DEFAULT_ADMIN_PASSWORD;
+}
+
+export function resolveAdminTotpSecret(): string {
+  const fromProcess = process.env.ADMIN_TOTP_SECRET?.trim();
+  if (fromProcess) {
+    return fromProcess;
+  }
+
+  const fromEnv = parseEnvValueFromEnvFile("ADMIN_TOTP_SECRET");
+  return fromEnv ?? DEFAULT_ADMIN_TOTP_SECRET;
 }
 
 function normalizeSlug(value: string): string {
@@ -103,6 +186,49 @@ export async function authenticateWriteEditor(
   }
 
   throw new Error("API Key authentication did not transition to editor mode");
+}
+
+export async function authenticateAdminSession(
+  page: Page,
+  options: { nextPath?: string } = {},
+): Promise<void> {
+  const nextPath = options.nextPath ?? "/admin/write";
+  const username = resolveAdminUsername();
+  const password = resolveAdminPassword();
+  const totpSecret = resolveAdminTotpSecret();
+  const encodedNext = encodeURIComponent(nextPath);
+
+  await page.goto(`/admin/login?next=${encodedNext}`, {
+    waitUntil: "networkidle",
+  });
+  await page.getByLabel("아이디").fill(username);
+  await page.getByLabel("비밀번호").fill(password);
+  await page.getByRole("button", { name: "1차 인증" }).click();
+  await expect(page.getByLabel("인증 코드")).toBeVisible({ timeout: 8_000 });
+
+  let authenticated = false;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const code = generateTotpCode(resolveAdminTotpSecret());
+    await page.getByLabel("인증 코드").fill(code);
+    await page.getByRole("button", { name: "2차 인증 완료" }).click();
+
+    try {
+      await expect(page).toHaveURL(new RegExp(nextPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), {
+        timeout: 10_000,
+      });
+      authenticated = true;
+      break;
+    } catch {
+      await page.waitForTimeout(500);
+      if (attempt === 2) {
+        break;
+      }
+    }
+  }
+
+  if (!authenticated) {
+    throw new Error("admin authentication did not transition to workspace");
+  }
 }
 
 export function runCleanupScript(): void {

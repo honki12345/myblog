@@ -79,11 +79,28 @@ function cleanup() {
     const postIds = targets.map((row) => row.id);
 
     if (postIds.length === 0) {
+      const adminSessionsChanges = assertTableExists(db, "admin_sessions")
+        ? db.prepare("DELETE FROM admin_sessions").run().changes
+        : 0;
+      const adminNotesChanges = assertTableExists(db, "admin_notes")
+        ? db.prepare("DELETE FROM admin_notes").run().changes
+        : 0;
+      const adminTodosChanges = assertTableExists(db, "admin_todos")
+        ? db.prepare("DELETE FROM admin_todos").run().changes
+        : 0;
+      const adminSchedulesChanges = assertTableExists(db, "admin_schedules")
+        ? db.prepare("DELETE FROM admin_schedules").run().changes
+        : 0;
+
       return {
         postCount: 0,
         sourceCount: 0,
         tagLinkCount: 0,
         orphanTagCount: 0,
+        adminSessionsCount: adminSessionsChanges,
+        adminNotesCount: adminNotesChanges,
+        adminTodosCount: adminTodosChanges,
+        adminSchedulesCount: adminSchedulesChanges,
       };
     }
 
@@ -126,18 +143,35 @@ function cleanup() {
             .run().changes
         : 0;
 
+    const adminSessionsChanges = assertTableExists(db, "admin_sessions")
+      ? db.prepare("DELETE FROM admin_sessions").run().changes
+      : 0;
+    const adminNotesChanges = assertTableExists(db, "admin_notes")
+      ? db.prepare("DELETE FROM admin_notes").run().changes
+      : 0;
+    const adminTodosChanges = assertTableExists(db, "admin_todos")
+      ? db.prepare("DELETE FROM admin_todos").run().changes
+      : 0;
+    const adminSchedulesChanges = assertTableExists(db, "admin_schedules")
+      ? db.prepare("DELETE FROM admin_schedules").run().changes
+      : 0;
+
     return {
       postCount: postChanges,
       sourceCount: sourceChanges,
       tagLinkCount: tagLinkChanges,
       orphanTagCount: orphanTagChanges,
+      adminSessionsCount: adminSessionsChanges,
+      adminNotesCount: adminNotesChanges,
+      adminTodosCount: adminTodosChanges,
+      adminSchedulesCount: adminSchedulesChanges,
     };
   });
 
   try {
     const result = deleteInTransaction();
     console.log(
-      `[cleanup] posts=${result.postCount}, sources=${result.sourceCount}, post_tags=${result.tagLinkCount}, orphan_tags=${result.orphanTagCount}`,
+      `[cleanup] posts=${result.postCount}, sources=${result.sourceCount}, post_tags=${result.tagLinkCount}, orphan_tags=${result.orphanTagCount}, admin_sessions=${result.adminSessionsCount}, admin_notes=${result.adminNotesCount}, admin_todos=${result.adminTodosCount}, admin_schedules=${result.adminSchedulesCount}`,
     );
   } finally {
     db.close();

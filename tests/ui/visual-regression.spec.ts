@@ -70,7 +70,9 @@ for (const route of routes) {
         page.getByRole("heading", { name: "새 글 작성" }),
       ).toBeVisible();
       await expect(page.getByLabel("제목")).toBeVisible();
-      await expect(page.getByRole("button", { name: "로그아웃" })).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "로그아웃" }),
+      ).toBeVisible();
     }
 
     if (route.name === "tag-sample") {

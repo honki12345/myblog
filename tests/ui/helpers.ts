@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { createHmac } from "node:crypto";
 import path from "node:path";
 import Database from "better-sqlite3";
@@ -27,6 +27,10 @@ export type SeededPost = {
 };
 
 function parseEnvValueFromEnvFile(targetKey: string): string | null {
+  if (!existsSync(ENV_PATH)) {
+    return null;
+  }
+
   const envRaw = readFileSync(ENV_PATH, "utf8");
 
   for (const line of envRaw.split(/\r?\n/)) {

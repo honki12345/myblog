@@ -74,6 +74,7 @@ export default function AdminAuthNavButton() {
       type="button"
       onClick={handleLogout}
       className="rounded-md px-3 py-2 text-slate-700 hover:bg-slate-100"
+      aria-label="관리자 로그아웃"
     >
       로그아웃
     </button>

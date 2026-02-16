@@ -71,7 +71,7 @@ for (const route of routes) {
       ).toBeVisible();
       await expect(page.getByLabel("제목")).toBeVisible();
       await expect(
-        page.getByRole("button", { name: "로그아웃" }),
+        page.getByRole("button", { name: "관리자 로그아웃" }),
       ).toBeVisible();
     }
 

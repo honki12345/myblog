@@ -128,7 +128,10 @@ test("admin delete api rejects requests without csrf header", async ({
   await page.waitForLoadState("networkidle");
 
   const cookieMap = new Map(
-    (await page.context().cookies()).map((cookie) => [cookie.name, cookie.value]),
+    (await page.context().cookies()).map((cookie) => [
+      cookie.name,
+      cookie.value,
+    ]),
   );
   const cookieHeader = [
     ["admin_session", cookieMap.get("admin_session")],

@@ -53,7 +53,9 @@ test("admin workspace visual + functional + accessibility smoke", async ({
   await authenticateAdminSession(page, { nextPath: "/admin/write" });
   await page.addStyleTag({ content: DISABLE_ANIMATION_STYLE });
   await expect(page.getByRole("heading", { name: "새 글 작성" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "관리자 로그아웃" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "관리자 로그아웃" }),
+  ).toBeVisible();
   await assertNoSeriousA11yViolations(page);
   await expect(page).toHaveScreenshot("admin-write.png", { maxDiffPixelRatio });
 

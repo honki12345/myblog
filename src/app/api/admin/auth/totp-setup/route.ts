@@ -22,6 +22,15 @@ function errorResponse(status: number, code: ApiErrorCode, message: string) {
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
+  const setup = getAdminTotpSetupInfoFromLoginChallenge(request);
+  if (!setup) {
+    return errorResponse(
+      401,
+      "UNAUTHORIZED",
+      "Two-factor challenge is missing or expired.",
+    );
+  }
+
   try {
     ensureAdminConfigSynced();
   } catch (error) {
@@ -30,15 +39,6 @@ export async function GET(request: NextRequest) {
         ? error.message
         : "Admin auth configuration error.";
     return errorResponse(500, "INTERNAL_ERROR", message);
-  }
-
-  const setup = getAdminTotpSetupInfoFromLoginChallenge(request);
-  if (!setup) {
-    return errorResponse(
-      401,
-      "UNAUTHORIZED",
-      "Two-factor challenge is missing or expired.",
-    );
   }
 
   try {

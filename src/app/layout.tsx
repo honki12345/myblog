@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Suspense } from "react";
 import "katex/dist/katex.min.css";
 import "./globals.css";
+import AdminAuthNavButton from "@/components/AdminAuthNavButton";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -66,6 +68,18 @@ export default function RootLayout({
                 >
                   글쓰기
                 </Link>
+                <Suspense
+                  fallback={
+                    <Link
+                      href="/admin/login"
+                      className="rounded-md px-3 py-2 text-slate-700 hover:bg-slate-100"
+                    >
+                      로그인
+                    </Link>
+                  }
+                >
+                  <AdminAuthNavButton />
+                </Suspense>
               </nav>
             </div>
           </header>

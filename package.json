@@ -18,6 +18,7 @@
     "test:step6": "node scripts/test-step-6.mjs",
     "test:step7-local": "node scripts/test-step-7-local.mjs",
     "test:step7-remote": "node scripts/test-step-7-remote.mjs",
+    "test:step8": "node scripts/test-step-8.mjs",
     "test:ui": "playwright test",
     "test:ui:update": "playwright test --update-snapshots",
     "test:all": "node scripts/test-all.mjs",

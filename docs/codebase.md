@@ -214,7 +214,8 @@ Sources: `package.json`, `scripts/test-step-1.mjs`, `scripts/test-step-2.mjs`, `
 
 ### Common pitfalls and invariants
 
-- API 에러 응답은 `{ error: { code, message, details } }` 형태를 유지
+- API 에러 응답은 기본적으로 `{ error: { code, message, details } }` 형태를 유지한다.
+- 예외: `POST /api/posts/bulk`는 bulk 계약에 따라 `{ created: [...], errors: [...], code? }` 형태를 사용한다.
 - slug는 생성 시점에만 결정되고 PATCH에서 바꾸지 않는다(상세 URL 안정성)
 - `source_url` 중복은 409로 처리하며 경합 상황에서도 단일 성공을 보장한다
 - `POST /api/posts/bulk`는 최대 10건/단일 트랜잭션 정책을 유지해야 하며 부분 성공을 허용하지 않는다

@@ -205,6 +205,7 @@ export async function GET() {
       `
       SELECT id, title, slug, content, status, source_url, created_at, updated_at, published_at
       FROM posts
+      WHERE status = 'published'
       ORDER BY id DESC
       LIMIT 100
       `,

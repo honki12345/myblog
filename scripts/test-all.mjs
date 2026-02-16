@@ -154,6 +154,9 @@ async function main() {
   await runSingle("test:step5", {
     env: { STEP5_PORT_BASE: "3100" },
   });
+  await runSingle("test:step8", {
+    env: { STEP8_PORT_BASE: "3200" },
+  });
   await runSingle("test:ui");
 
   const totalDurationMs = Date.now() - totalStartedAt;

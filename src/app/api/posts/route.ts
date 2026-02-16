@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { logApiRequest, summarizeApiPayload } from "@/lib/api-log";
 import { getBearerToken, verifyApiKey } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -24,6 +25,23 @@ type PostRow = {
   updated_at: string;
   published_at: string | null;
 };
+
+function optionalTrimmedString(maxLength: number, fieldName: string) {
+  return z.preprocess(
+    (value) => {
+      if (typeof value !== "string") {
+        return value;
+      }
+
+      const trimmed = value.trim();
+      return trimmed === "" ? undefined : trimmed;
+    },
+    z
+      .string()
+      .max(maxLength, `${fieldName} must be ${maxLength} characters or fewer`)
+      .optional(),
+  );
+}
 
 const createPostSchema = z.object({
   title: z
@@ -58,6 +76,8 @@ const createPostSchema = z.object({
     return trimmed === "" ? undefined : trimmed;
   }, z.string().url("sourceUrl must be a valid URL").max(2048, "sourceUrl must be 2048 characters or fewer").optional()),
   status: z.enum(["draft", "published"]).default("draft"),
+  aiModel: optionalTrimmedString(120, "aiModel"),
+  promptHint: optionalTrimmedString(1000, "promptHint"),
 });
 
 function errorResponse(
@@ -79,10 +99,7 @@ function errorResponse(
 }
 
 function parseRequestJson(request: Request) {
-  return request.json().catch(() => null) as Promise<Record<
-    string,
-    unknown
-  > | null>;
+  return request.json().catch(() => null) as Promise<unknown | null>;
 }
 
 function normalizeTags(tags: string[] | undefined): string[] {
@@ -179,6 +196,7 @@ const RATE_LIMIT_WINDOW_MS = parsePositiveIntegerEnv(
   process.env.RATE_LIMIT_WINDOW_MS,
   60_000,
 );
+const SINGLE_RATE_LIMIT_KEY_PREFIX = "posts:create:";
 
 export async function GET() {
   const db = getDb();
@@ -197,146 +215,179 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const token = getBearerToken(request);
-  if (typeof token !== "string" || !verifyApiKey(token)) {
-    return errorResponse(401, "UNAUTHORIZED", "Invalid or missing API key.");
-  }
+  const route = "POST /api/posts";
+  const startedAt = Date.now();
+  let responseStatus = 500;
+  let payloadSummary = summarizeApiPayload(null);
 
-  const rate = checkRateLimit(
-    token,
-    RATE_LIMIT_MAX_REQUESTS,
-    RATE_LIMIT_WINDOW_MS,
-  );
-  if (!rate.allowed) {
-    const response = errorResponse(
-      429,
-      "RATE_LIMITED",
-      "Rate limit exceeded.",
-      {
-        retryAfterMs: rate.retryAfterMs,
-      },
-    );
-    response.headers.set(
-      "Retry-After",
-      String(Math.max(1, Math.ceil(rate.retryAfterMs / 1000))),
-    );
-    return response;
-  }
-
-  const payload = await parseRequestJson(request);
-  if (!payload) {
-    return errorResponse(
-      400,
-      "INVALID_INPUT",
-      "Request body must be valid JSON.",
-    );
-  }
-
-  const parsed = createPostSchema.safeParse(payload);
-  if (!parsed.success) {
-    return errorResponse(
-      400,
-      "INVALID_INPUT",
-      "Request body validation failed.",
-      {
-        issues: formatValidationIssues(parsed.error),
-      },
-    );
-  }
-
-  const db = getDb();
-  const input = parsed.data;
-  const sourceUrl = input.sourceUrl ?? null;
-
-  if (sourceUrl) {
-    const existing = db
-      .prepare("SELECT id FROM posts WHERE source_url = ? LIMIT 1")
-      .get(sourceUrl) as { id: number } | undefined;
-    if (existing) {
-      return errorResponse(
-        409,
-        "DUPLICATE_SOURCE",
-        "sourceUrl already exists.",
-        {
-          postId: existing.id,
-        },
-      );
-    }
-  }
-
-  const slug = createUniqueSlug(input.title);
-  const tags = normalizeTags(input.tags);
+  const respondError = (
+    status: number,
+    code: ApiErrorCode,
+    message: string,
+    details?: unknown,
+  ) => {
+    responseStatus = status;
+    return errorResponse(status, code, message, details);
+  };
 
   try {
-    const created = db.transaction(() => {
-      const postResult = db
-        .prepare(
-          `
-          INSERT INTO posts (title, slug, content, status, source_url, published_at)
-          VALUES (?, ?, ?, ?, ?, CASE WHEN ? = 'published' THEN datetime('now') ELSE NULL END)
-          `,
-        )
-        .run(
-          input.title.trim(),
-          slug,
-          input.content,
-          input.status,
-          sourceUrl,
-          input.status,
-        );
+    const token = getBearerToken(request);
+    if (typeof token !== "string" || !verifyApiKey(token)) {
+      return respondError(401, "UNAUTHORIZED", "Invalid or missing API key.");
+    }
 
-      const postId = Number(postResult.lastInsertRowid);
-
-      for (const tag of tags) {
-        db.prepare(
-          "INSERT INTO tags (name) VALUES (?) ON CONFLICT(name) DO NOTHING",
-        ).run(tag);
-        const tagRow = db
-          .prepare("SELECT id FROM tags WHERE name = ?")
-          .get(tag) as { id: number } | undefined;
-
-        if (!tagRow) {
-          throw new Error(`failed to load tag id for ${tag}`);
-        }
-
-        db.prepare(
-          "INSERT OR IGNORE INTO post_tags (post_id, tag_id) VALUES (?, ?)",
-        ).run(postId, tagRow.id);
-      }
-
-      if (sourceUrl) {
-        db.prepare("INSERT INTO sources (url, post_id) VALUES (?, ?)").run(
-          sourceUrl,
-          postId,
-        );
-      }
-
-      return { postId };
-    })();
-
-    revalidatePostRelatedPaths(slug, tags);
-
-    return NextResponse.json({ id: created.postId, slug }, { status: 201 });
-  } catch (error) {
-    if (isDuplicateSourceError(error)) {
-      const duplicate = db
-        .prepare("SELECT id FROM posts WHERE source_url = ? LIMIT 1")
-        .get(sourceUrl) as { id: number } | undefined;
-
-      return errorResponse(
-        409,
-        "DUPLICATE_SOURCE",
-        "sourceUrl already exists.",
+    const rate = checkRateLimit(
+      `${SINGLE_RATE_LIMIT_KEY_PREFIX}${token}`,
+      RATE_LIMIT_MAX_REQUESTS,
+      RATE_LIMIT_WINDOW_MS,
+    );
+    if (!rate.allowed) {
+      const response = respondError(
+        429,
+        "RATE_LIMITED",
+        "Rate limit exceeded.",
         {
-          postId: duplicate?.id ?? null,
+          retryAfterMs: rate.retryAfterMs,
+        },
+      );
+      response.headers.set(
+        "Retry-After",
+        String(Math.max(1, Math.ceil(rate.retryAfterMs / 1000))),
+      );
+      return response;
+    }
+
+    const payload = await parseRequestJson(request);
+    payloadSummary = summarizeApiPayload(payload);
+    if (!payload) {
+      return respondError(
+        400,
+        "INVALID_INPUT",
+        "Request body must be valid JSON.",
+      );
+    }
+
+    const parsed = createPostSchema.safeParse(payload);
+    if (!parsed.success) {
+      return respondError(
+        400,
+        "INVALID_INPUT",
+        "Request body validation failed.",
+        {
+          issues: formatValidationIssues(parsed.error),
         },
       );
     }
 
-    if (process.env.NODE_ENV !== "production") {
-      console.error("Failed to create post.", { error });
+    const db = getDb();
+    const input = parsed.data;
+    const sourceUrl = input.sourceUrl ?? null;
+
+    if (sourceUrl) {
+      const existing = db
+        .prepare("SELECT id FROM posts WHERE source_url = ? LIMIT 1")
+        .get(sourceUrl) as { id: number } | undefined;
+      if (existing) {
+        return respondError(
+          409,
+          "DUPLICATE_SOURCE",
+          "sourceUrl already exists.",
+          {
+            postId: existing.id,
+          },
+        );
+      }
     }
 
-    return errorResponse(500, "INTERNAL_ERROR", "Failed to create post.");
+    const slug = createUniqueSlug(input.title);
+    const tags = normalizeTags(input.tags);
+
+    try {
+      const created = db.transaction(() => {
+        const postResult = db
+          .prepare(
+            `
+            INSERT INTO posts (title, slug, content, status, source_url, published_at)
+            VALUES (?, ?, ?, ?, ?, CASE WHEN ? = 'published' THEN datetime('now') ELSE NULL END)
+            `,
+          )
+          .run(
+            input.title.trim(),
+            slug,
+            input.content,
+            input.status,
+            sourceUrl,
+            input.status,
+          );
+
+        const postId = Number(postResult.lastInsertRowid);
+
+        for (const tag of tags) {
+          db.prepare(
+            "INSERT INTO tags (name) VALUES (?) ON CONFLICT(name) DO NOTHING",
+          ).run(tag);
+          const tagRow = db
+            .prepare("SELECT id FROM tags WHERE name = ?")
+            .get(tag) as { id: number } | undefined;
+
+          if (!tagRow) {
+            throw new Error(`failed to load tag id for ${tag}`);
+          }
+
+          db.prepare(
+            "INSERT OR IGNORE INTO post_tags (post_id, tag_id) VALUES (?, ?)",
+          ).run(postId, tagRow.id);
+        }
+
+        if (sourceUrl) {
+          db.prepare(
+            `
+            INSERT INTO sources (url, post_id, ai_model, prompt_hint)
+            VALUES (?, ?, ?, ?)
+            `,
+          ).run(
+            sourceUrl,
+            postId,
+            input.aiModel ?? null,
+            input.promptHint ?? null,
+          );
+        }
+
+        return { postId };
+      })();
+
+      revalidatePostRelatedPaths(slug, tags);
+
+      responseStatus = 201;
+      return NextResponse.json({ id: created.postId, slug }, { status: 201 });
+    } catch (error) {
+      if (isDuplicateSourceError(error)) {
+        const duplicate = db
+          .prepare("SELECT id FROM posts WHERE source_url = ? LIMIT 1")
+          .get(sourceUrl) as { id: number } | undefined;
+
+        return respondError(
+          409,
+          "DUPLICATE_SOURCE",
+          "sourceUrl already exists.",
+          {
+            postId: duplicate?.id ?? null,
+          },
+        );
+      }
+
+      if (process.env.NODE_ENV !== "production") {
+        console.error("Failed to create post.", { error });
+      }
+
+      return respondError(500, "INTERNAL_ERROR", "Failed to create post.");
+    }
+  } finally {
+    logApiRequest({
+      route,
+      status: responseStatus,
+      durationMs: Date.now() - startedAt,
+      summary: payloadSummary,
+    });
   }
 }

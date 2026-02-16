@@ -476,47 +476,30 @@ npm run test:step1
 
 ### Step 8: AI 친화 기능
 
-#### 구현 항목
+> 상세 구현 계획은 `plans/step8-plan.md`를 참고.
+> 분리일: 2026-02-16
+> 구현 완료일: 2026-02-16
 
-- **POST /api/posts/bulk** — 벌크 포스팅 (최대 10건, 단일 트랜잭션 / 1GB VM 메모리와 처리 시간 고려)
-  - 요청: `{ posts: [{ title, content, tags, sourceUrl, status }] }`
-  - 응답: `{ created: [{ id, slug }], errors: [{ index, message }] }`
-- **이미지 포함 포스팅 E2E 흐름 테스트** — upload → URL 삽입 → 글 생성 전체 흐름 검증
-- **sources 테이블 활용** — ai_model, prompt_hint 필드를 POST /api/posts에서 선택적으로 수신
-- **로깅 개선** — API 요청 JSON 구조화 로그 (`console.log` + systemd journal)
+#### 구현 결과 (2026-02-16)
 
-#### 예정 테스트
-
-1. **벌크 포스팅 → 201**
-   ```bash
-   curl -s -w "\n%{http_code}" -X POST http://localhost:3000/api/posts/bulk \
-     -H "Content-Type: application/json" \
-     -H "Authorization: Bearer $API_KEY" \
-     -d '{
-       "posts": [
-         {"title": "벌크 글 1", "content": "내용 1", "tags": ["bulk"]},
-         {"title": "벌크 글 2", "content": "내용 2", "tags": ["bulk"]},
-         {"title": "벌크 글 3", "content": "내용 3", "tags": ["bulk"]}
-       ]
-     }'
-   ```
-   - 기대 결과: HTTP `201`, `created` 배열에 3개의 `{ id, slug }`
-
-2. **벌크 포스팅 — 20개 초과 → 400**
-   ```js
-   const posts = Array.from({ length: 21 }, (_, i) => ({
-     title: `벌크 초과 ${i}`, content: `내용 ${i}`
-   }));
-   const res = await fetch('http://localhost:3000/api/posts/bulk', {
-     method: 'POST',
-     headers: {
-       'Content-Type': 'application/json',
-       'Authorization': `Bearer ${process.env.API_KEY}`
-     },
-     body: JSON.stringify({ posts })
-   });
-   console.log('STATUS:', res.status);  // 400
-   ```
+- `POST /api/posts/bulk` 추가
+  - 최대 10건 입력 검증
+  - 단일 트랜잭션(all-or-nothing) 처리 및 실패 시 전량 롤백
+  - `DUPLICATE_SOURCE`(요청 내부/기존 데이터/경합) 처리
+  - bulk 전용 레이트 리밋(`3 req / 60s`) 적용
+- `POST /api/posts` 확장
+  - `aiModel`, `promptHint` optional 수신
+  - `sources.ai_model`, `sources.prompt_hint` 저장
+  - 단건 레이트 리밋 카운터를 bulk와 분리
+- 구조화 로그 공통 유틸(`src/lib/api-log.ts`) 도입
+  - `timestamp`, `route`, `status`, `durationMs`
+  - `postCount`, `contentLengthSum`, `sourceUrlCount`, `payloadHash`
+  - 본문 원문(`title`, `content`, `promptHint`) 비기록
+- Step 8 전용 회귀 스크립트 추가
+  - `scripts/test-step-8.mjs`
+  - `package.json`에 `test:step8` 등록
+  - `scripts/test-all.mjs`에 `test:step8` 편입
+- 이미지 포함 작성 E2E 흐름은 기존 `tests/ui/write-e2e.spec.ts`로 유지/검증
 
 ---
 
@@ -718,11 +701,11 @@ npm run test:step1
 
 ### Phase 2: 운영 확장 (Step 8~9)
 
-- [ ] **Step 8**: AI 친화 기능
-  - [ ] POST /api/posts/bulk (최대 10건, 메모리/처리시간 기준)
-  - [ ] 이미지 포함 포스팅 E2E 흐름 테스트
-  - [ ] sources 테이블 ai_model, prompt_hint 활용
-  - [ ] 로깅 개선 (JSON 구조화 로그)
+- [x] **Step 8**: AI 친화 기능
+  - [x] POST /api/posts/bulk (최대 10건, 메모리/처리시간 기준)
+  - [x] 이미지 포함 포스팅 E2E 흐름 테스트
+  - [x] sources 테이블 ai_model, prompt_hint 활용
+  - [x] 로깅 개선 (JSON 구조화 로그)
 
 - [ ] **Step 9**: 관리자 워크스페이스 (Step 5 이후 신규)
   - [ ] 관리자 로그인 (단일 계정 + 비밀번호 + TOTP 2FA + HttpOnly 세션, CSRF 방어)

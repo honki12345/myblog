@@ -3,7 +3,7 @@ import path from "node:path";
 import Database from "better-sqlite3";
 
 const DEFAULT_DB_PATH = path.join(process.cwd(), "data", "blog.db");
-const CURRENT_SCHEMA_VERSION = 1;
+const CURRENT_SCHEMA_VERSION = 2;
 
 const BASE_SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS posts (
@@ -76,6 +76,81 @@ CREATE INDEX IF NOT EXISTS idx_posts_status_published_at ON posts(status, publis
 CREATE INDEX IF NOT EXISTS idx_sources_url ON sources(url);
 `;
 
+const STEP9_SCHEMA_SQL = `
+CREATE TABLE IF NOT EXISTS admin_auth (
+  id                    INTEGER PRIMARY KEY CHECK (id = 1),
+  username              TEXT NOT NULL UNIQUE,
+  password_hash         TEXT NOT NULL,
+  totp_secret_encrypted TEXT NOT NULL,
+  created_at            TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at            TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS admin_sessions (
+  id           TEXT PRIMARY KEY,
+  user_id      INTEGER NOT NULL DEFAULT 1,
+  created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+  expires_at   TEXT NOT NULL,
+  last_seen_at TEXT NOT NULL DEFAULT (datetime('now')),
+  ip_hash      TEXT,
+  user_agent   TEXT
+);
+
+CREATE TABLE IF NOT EXISTS admin_recovery_codes (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  code_hash  TEXT NOT NULL UNIQUE,
+  used_at    TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS admin_notes (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  title      TEXT NOT NULL,
+  content    TEXT NOT NULL,
+  is_pinned  INTEGER NOT NULL DEFAULT 0 CHECK (is_pinned IN (0, 1)),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS admin_todos (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  title        TEXT NOT NULL,
+  description  TEXT,
+  status       TEXT NOT NULL DEFAULT 'todo'
+    CHECK (status IN ('todo', 'doing', 'done')),
+  priority     TEXT NOT NULL DEFAULT 'medium'
+    CHECK (priority IN ('low', 'medium', 'high')),
+  due_at       TEXT,
+  completed_at TEXT,
+  created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS admin_schedules (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  title       TEXT NOT NULL,
+  description TEXT,
+  start_at    TEXT NOT NULL,
+  end_at      TEXT NOT NULL,
+  is_done     INTEGER NOT NULL DEFAULT 0 CHECK (is_done IN (0, 1)),
+  created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_admin_sessions_expires_at
+  ON admin_sessions(expires_at);
+CREATE INDEX IF NOT EXISTS idx_admin_sessions_last_seen_at
+  ON admin_sessions(last_seen_at DESC);
+CREATE INDEX IF NOT EXISTS idx_admin_recovery_codes_used_at
+  ON admin_recovery_codes(used_at);
+CREATE INDEX IF NOT EXISTS idx_admin_notes_pinned_updated
+  ON admin_notes(is_pinned DESC, updated_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_admin_todos_status_priority_due
+  ON admin_todos(status, priority, due_at, id DESC);
+CREATE INDEX IF NOT EXISTS idx_admin_schedules_start_at
+  ON admin_schedules(start_at, id DESC);
+`;
+
 type DbGlobals = {
   __blogDb?: Database.Database;
   __blogDbPath?: string;
@@ -111,13 +186,24 @@ export function runMigrations(database: Database.Database): void {
       .prepare("SELECT MAX(version) AS version FROM schema_versions")
       .get() as { version: number | null } | undefined;
 
-    const currentVersion = row?.version ?? 0;
-    if (currentVersion < CURRENT_SCHEMA_VERSION) {
+    let currentVersion = row?.version ?? 0;
+
+    if (currentVersion < 1) {
       database
         .prepare(
           "INSERT INTO schema_versions (version, description) VALUES (?, ?)",
         )
-        .run(CURRENT_SCHEMA_VERSION, "Initial schema for Step 2");
+        .run(1, "Initial schema for Step 2");
+      currentVersion = 1;
+    }
+
+    if (currentVersion < 2) {
+      database.exec(STEP9_SCHEMA_SQL);
+      database
+        .prepare(
+          "INSERT INTO schema_versions (version, description) VALUES (?, ?)",
+        )
+        .run(2, "Admin workspace schema for Step 9");
     }
   });
 

@@ -32,7 +32,10 @@ const patchScheduleSchema = z
         message: "title must not be empty",
       })
       .optional(),
-    description: z.string().max(5_000, "description must be 5000 characters or fewer").optional(),
+    description: z
+      .string()
+      .max(5_000, "description must be 5000 characters or fewer")
+      .optional(),
     startAt: z.string().datetime({ offset: true }).optional(),
     endAt: z.string().datetime({ offset: true }).optional(),
     isDone: z.boolean().optional(),
@@ -42,7 +45,9 @@ const patchScheduleSchema = z
       if (!value.startAt || !value.endAt) {
         return true;
       }
-      return new Date(value.startAt).getTime() < new Date(value.endAt).getTime();
+      return (
+        new Date(value.startAt).getTime() < new Date(value.endAt).getTime()
+      );
     },
     {
       message: "startAt must be earlier than endAt",
@@ -100,7 +105,11 @@ export async function GET(request: NextRequest, context: RouteContext) {
   const { id } = await context.params;
   const scheduleId = parsePositiveIntParam(id);
   if (!scheduleId) {
-    return adminErrorResponse(400, "INVALID_INPUT", "id must be a positive integer.");
+    return adminErrorResponse(
+      400,
+      "INVALID_INPUT",
+      "id must be a positive integer.",
+    );
   }
 
   const schedule = loadSchedule(scheduleId);
@@ -120,7 +129,11 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   const { id } = await context.params;
   const scheduleId = parsePositiveIntParam(id);
   if (!scheduleId) {
-    return adminErrorResponse(400, "INVALID_INPUT", "id must be a positive integer.");
+    return adminErrorResponse(
+      400,
+      "INVALID_INPUT",
+      "id must be a positive integer.",
+    );
   }
 
   const payload = await request.json().catch(() => null);
@@ -134,12 +147,17 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
   const parsed = patchScheduleSchema.safeParse(payload);
   if (!parsed.success) {
-    return adminErrorResponse(400, "INVALID_INPUT", "Request validation failed.", {
-      issues: parsed.error.issues.map((issue) => ({
-        path: issue.path.join("."),
-        message: issue.message,
-      })),
-    });
+    return adminErrorResponse(
+      400,
+      "INVALID_INPUT",
+      "Request validation failed.",
+      {
+        issues: parsed.error.issues.map((issue) => ({
+          path: issue.path.join("."),
+          message: issue.message,
+        })),
+      },
+    );
   }
 
   const current = loadSchedule(scheduleId);
@@ -155,7 +173,11 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   const nextStartAt = parsed.data.startAt ?? current.start_at;
   const nextEndAt = parsed.data.endAt ?? current.end_at;
   const nextIsDone =
-    parsed.data.isDone !== undefined ? (parsed.data.isDone ? 1 : 0) : current.is_done;
+    parsed.data.isDone !== undefined
+      ? parsed.data.isDone
+        ? 1
+        : 0
+      : current.is_done;
 
   if (new Date(nextStartAt).getTime() >= new Date(nextEndAt).getTime()) {
     return adminErrorResponse(
@@ -178,7 +200,14 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       updated_at = datetime('now')
     WHERE id = ?
     `,
-  ).run(nextTitle, nextDescription, nextStartAt, nextEndAt, nextIsDone, scheduleId);
+  ).run(
+    nextTitle,
+    nextDescription,
+    nextStartAt,
+    nextEndAt,
+    nextIsDone,
+    scheduleId,
+  );
 
   const updated = loadSchedule(scheduleId);
   if (!updated) {
@@ -201,7 +230,11 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
   const { id } = await context.params;
   const scheduleId = parsePositiveIntParam(id);
   if (!scheduleId) {
-    return adminErrorResponse(400, "INVALID_INPUT", "id must be a positive integer.");
+    return adminErrorResponse(
+      400,
+      "INVALID_INPUT",
+      "id must be a positive integer.",
+    );
   }
 
   const db = getDb();
@@ -214,4 +247,3 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
 
   return NextResponse.json({ ok: true });
 }
-

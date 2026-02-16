@@ -12,7 +12,9 @@ const DISABLE_ANIMATION_STYLE = `
   }
 `;
 
-async function assertNoSeriousA11yViolations(targetPage: import("@playwright/test").Page) {
+async function assertNoSeriousA11yViolations(
+  targetPage: import("@playwright/test").Page,
+) {
   const results = await new AxeBuilder({ page: targetPage }).analyze();
   const blocking = results.violations.filter((violation) => {
     return violation.impact === "critical" || violation.impact === "serious";
@@ -24,11 +26,15 @@ test.beforeEach(() => {
   runCleanupScript();
 });
 
-test("admin workspace visual + functional + accessibility smoke", async ({ page }) => {
+test("admin workspace visual + functional + accessibility smoke", async ({
+  page,
+}) => {
   await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
   await page.goto("/admin/login", { waitUntil: "networkidle" });
   await page.addStyleTag({ content: DISABLE_ANIMATION_STYLE });
-  await expect(page.getByRole("heading", { name: "관리자 로그인" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "관리자 로그인" }),
+  ).toBeVisible();
   await assertNoSeriousA11yViolations(page);
   await expect(page).toHaveScreenshot("admin-login.png");
 
@@ -40,7 +46,9 @@ test("admin workspace visual + functional + accessibility smoke", async ({ page 
 
   await page.goto("/admin/notes", { waitUntil: "networkidle" });
   await page.addStyleTag({ content: DISABLE_ANIMATION_STYLE });
-  await expect(page.getByRole("heading", { name: "관리자 메모" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "관리자 메모" }),
+  ).toBeVisible();
   await page.getByLabel("제목").fill("UI-ADMIN-NOTE");
   await page.getByLabel("내용").fill("관리자 메모 기능 확인");
   await page.getByRole("button", { name: "메모 추가" }).click();
@@ -50,7 +58,9 @@ test("admin workspace visual + functional + accessibility smoke", async ({ page 
 
   await page.goto("/admin/todos", { waitUntil: "networkidle" });
   await page.addStyleTag({ content: DISABLE_ANIMATION_STYLE });
-  await expect(page.getByRole("heading", { name: "관리자 TODO" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "관리자 TODO" }),
+  ).toBeVisible();
   await page.getByLabel("제목").fill("UI-ADMIN-TODO");
   await page.getByRole("button", { name: "TODO 추가" }).click();
   await expect(page.getByText("UI-ADMIN-TODO")).toBeVisible();
@@ -62,7 +72,9 @@ test("admin workspace visual + functional + accessibility smoke", async ({ page 
 
   await page.goto("/admin/schedules", { waitUntil: "networkidle" });
   await page.addStyleTag({ content: DISABLE_ANIMATION_STYLE });
-  await expect(page.getByRole("heading", { name: "관리자 일정" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "관리자 일정" }),
+  ).toBeVisible();
   await page.getByLabel("제목").fill("UI-ADMIN-SCHEDULE");
   await page.getByLabel("시작").fill("2026-01-15T09:00");
   await page.getByLabel("종료").fill("2026-01-15T10:00");
@@ -71,4 +83,3 @@ test("admin workspace visual + functional + accessibility smoke", async ({ page 
   await assertNoSeriousA11yViolations(page);
   await expect(page).toHaveScreenshot("admin-schedules.png");
 });
-

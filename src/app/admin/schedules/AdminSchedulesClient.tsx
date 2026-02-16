@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+} from "react";
 import { useRouter } from "next/navigation";
 import { adminFetch } from "@/lib/admin-client";
 
@@ -50,7 +56,11 @@ function toDateKey(value: string): string {
 }
 
 function createMonthCells(anchorDate: Date): Date[] {
-  const monthStart = new Date(anchorDate.getFullYear(), anchorDate.getMonth(), 1);
+  const monthStart = new Date(
+    anchorDate.getFullYear(),
+    anchorDate.getMonth(),
+    1,
+  );
   const startWeekday = monthStart.getDay();
   const gridStart = new Date(monthStart);
   gridStart.setDate(monthStart.getDate() - startWeekday);
@@ -85,7 +95,10 @@ export default function AdminSchedulesClient() {
     return map;
   }, [items]);
 
-  const monthCells = useMemo(() => createMonthCells(calendarAnchor), [calendarAnchor]);
+  const monthCells = useMemo(
+    () => createMonthCells(calendarAnchor),
+    [calendarAnchor],
+  );
 
   const loadSchedules = useCallback(async () => {
     setIsLoading(true);
@@ -160,7 +173,9 @@ export default function AdminSchedulesClient() {
       await loadSchedules();
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "일정 생성 중 오류가 발생했습니다.",
+        error instanceof Error
+          ? error.message
+          : "일정 생성 중 오류가 발생했습니다.",
       );
     } finally {
       setIsSubmitting(false);
@@ -189,7 +204,9 @@ export default function AdminSchedulesClient() {
       await loadSchedules();
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "일정 상태 변경 중 오류가 발생했습니다.",
+        error instanceof Error
+          ? error.message
+          : "일정 상태 변경 중 오류가 발생했습니다.",
       );
     }
   };
@@ -210,7 +227,9 @@ export default function AdminSchedulesClient() {
       await loadSchedules();
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "일정 삭제 중 오류가 발생했습니다.",
+        error instanceof Error
+          ? error.message
+          : "일정 삭제 중 오류가 발생했습니다.",
       );
     }
   };
@@ -318,7 +337,9 @@ export default function AdminSchedulesClient() {
       </div>
 
       {isLoading ? (
-        <p className="text-sm text-slate-600">일정 목록을 불러오는 중입니다...</p>
+        <p className="text-sm text-slate-600">
+          일정 목록을 불러오는 중입니다...
+        </p>
       ) : viewMode === "list" ? (
         <section className="space-y-3">
           {items.length === 0 ? (
@@ -361,7 +382,7 @@ export default function AdminSchedulesClient() {
                   </div>
                 </div>
                 {item.description ? (
-                  <p className="mt-3 whitespace-pre-wrap text-sm text-slate-700">
+                  <p className="mt-3 text-sm whitespace-pre-wrap text-slate-700">
                     {item.description}
                   </p>
                 ) : null}
@@ -385,7 +406,8 @@ export default function AdminSchedulesClient() {
             {monthCells.map((date) => {
               const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
               const dayItems = groupedByDay.get(key) ?? [];
-              const isCurrentMonth = date.getMonth() === calendarAnchor.getMonth();
+              const isCurrentMonth =
+                date.getMonth() === calendarAnchor.getMonth();
               return (
                 <div
                   key={key}

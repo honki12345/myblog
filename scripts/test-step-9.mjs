@@ -44,7 +44,10 @@ function sleep(ms) {
 
 function decodeBase32(value) {
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-  const normalized = value.toUpperCase().replace(/=+$/g, "").replace(/[\s-]/g, "");
+  const normalized = value
+    .toUpperCase()
+    .replace(/=+$/g, "")
+    .replace(/[\s-]/g, "");
   let bits = 0;
   let current = 0;
   const out = [];
@@ -102,8 +105,12 @@ class CookieJar {
 
       const value = rest.join("=");
       const lowerAttrs = attrs.map((item) => item.trim().toLowerCase());
-      const hasExpiredAttr = lowerAttrs.some((attr) => attr.startsWith("max-age=0"));
-      const expiresAttr = lowerAttrs.find((attr) => attr.startsWith("expires="));
+      const hasExpiredAttr = lowerAttrs.some((attr) =>
+        attr.startsWith("max-age=0"),
+      );
+      const expiresAttr = lowerAttrs.find((attr) =>
+        attr.startsWith("expires="),
+      );
       const expiresPast =
         typeof expiresAttr === "string"
           ? Number.isFinite(Date.parse(expiresAttr.slice("expires=".length))) &&
@@ -480,20 +487,26 @@ async function runScenario() {
     "created schedule should appear in range query",
   );
 
-  const schedulePatch = await requestJson(`/api/admin/schedules/${scheduleId}`, {
-    method: "PATCH",
-    body: { isDone: true },
-    jar: adminJar,
-    headers: csrfHeaders(adminJar),
-  });
+  const schedulePatch = await requestJson(
+    `/api/admin/schedules/${scheduleId}`,
+    {
+      method: "PATCH",
+      body: { isDone: true },
+      jar: adminJar,
+      headers: csrfHeaders(adminJar),
+    },
+  );
   assert(schedulePatch.status === 200, "schedule patch should return 200");
   assert(schedulePatch.data?.isDone === true, "schedule should be marked done");
 
-  const scheduleDelete = await requestJson(`/api/admin/schedules/${scheduleId}`, {
-    method: "DELETE",
-    jar: adminJar,
-    headers: csrfHeaders(adminJar),
-  });
+  const scheduleDelete = await requestJson(
+    `/api/admin/schedules/${scheduleId}`,
+    {
+      method: "DELETE",
+      jar: adminJar,
+      headers: csrfHeaders(adminJar),
+    },
+  );
   assert(scheduleDelete.status === 200, "schedule delete should return 200");
 
   const aiUploadBlocked = await fetch(`${apiBase}/api/uploads`, {
@@ -541,14 +554,20 @@ async function runScenario() {
     body: { username: ADMIN_USERNAME, password: ADMIN_PASSWORD },
     jar: recoveryJar,
   });
-  assert(recoveryLogin.status === 200, "recovery login start should return 200");
+  assert(
+    recoveryLogin.status === 200,
+    "recovery login start should return 200",
+  );
 
   const recoveryVerify = await requestJson("/api/admin/auth/verify", {
     method: "POST",
     body: { code: "RECOVERY-ONE" },
     jar: recoveryJar,
   });
-  assert(recoveryVerify.status === 200, "first recovery code verify should return 200");
+  assert(
+    recoveryVerify.status === 200,
+    "first recovery code verify should return 200",
+  );
 
   const recoveryReuseJar = new CookieJar();
   const recoveryLoginAgain = await requestJson("/api/admin/auth/login", {

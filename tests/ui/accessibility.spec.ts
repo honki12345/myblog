@@ -7,7 +7,12 @@ test("critical pages have no serious axe violations", async ({
   request,
 }) => {
   const seeded = await seedVisualPosts(request);
-  const targets = ["/", "/posts", `/posts/${seeded.detailSlug}`, "/admin/login"];
+  const targets = [
+    "/",
+    "/posts",
+    `/posts/${seeded.detailSlug}`,
+    "/admin/login",
+  ];
 
   for (const target of targets) {
     await page.goto(target, { waitUntil: "networkidle" });

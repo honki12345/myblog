@@ -5,7 +5,10 @@ import {
   getAdminSessionFromRequest,
   getAdminSessionIdFromRequest,
 } from "@/lib/admin-auth";
-import { clearCsrfCookie, verifySignedDoubleSubmitCsrf } from "@/lib/admin-csrf";
+import {
+  clearCsrfCookie,
+  verifySignedDoubleSubmitCsrf,
+} from "@/lib/admin-csrf";
 
 type ApiErrorCode = "UNAUTHORIZED" | "CSRF_FAILED";
 
@@ -42,4 +45,3 @@ export async function POST(request: NextRequest) {
   clearCsrfCookie(response);
   return response;
 }
-

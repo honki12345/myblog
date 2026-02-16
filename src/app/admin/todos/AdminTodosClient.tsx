@@ -131,7 +131,9 @@ export default function AdminTodosClient() {
       await loadTodos();
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "TODO 생성 중 오류가 발생했습니다.",
+        error instanceof Error
+          ? error.message
+          : "TODO 생성 중 오류가 발생했습니다.",
       );
     } finally {
       setIsSubmitting(false);
@@ -168,7 +170,9 @@ export default function AdminTodosClient() {
       await loadTodos();
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "TODO 수정 중 오류가 발생했습니다.",
+        error instanceof Error
+          ? error.message
+          : "TODO 수정 중 오류가 발생했습니다.",
       );
     }
   };
@@ -189,7 +193,9 @@ export default function AdminTodosClient() {
       await loadTodos();
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "TODO 삭제 중 오류가 발생했습니다.",
+        error instanceof Error
+          ? error.message
+          : "TODO 삭제 중 오류가 발생했습니다.",
       );
     }
   };
@@ -279,7 +285,9 @@ export default function AdminTodosClient() {
 
       <section className="space-y-3">
         {isLoading ? (
-          <p className="text-sm text-slate-600">TODO 목록을 불러오는 중입니다...</p>
+          <p className="text-sm text-slate-600">
+            TODO 목록을 불러오는 중입니다...
+          </p>
         ) : items.length === 0 ? (
           <p className="text-sm text-slate-600">등록된 TODO가 없습니다.</p>
         ) : (
@@ -307,9 +315,9 @@ export default function AdminTodosClient() {
                     type="button"
                     className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
                     onClick={() => {
-                      updateTodo(item.id, { status: getNextStatus(item.status) }).catch(
-                        () => undefined,
-                      );
+                      updateTodo(item.id, {
+                        status: getNextStatus(item.status),
+                      }).catch(() => undefined);
                     }}
                   >
                     다음 상태
@@ -340,7 +348,7 @@ export default function AdminTodosClient() {
                 </div>
               </div>
               {item.description ? (
-                <p className="mt-3 whitespace-pre-wrap text-sm text-slate-700">
+                <p className="mt-3 text-sm whitespace-pre-wrap text-slate-700">
                   {item.description}
                 </p>
               ) : null}

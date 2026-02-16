@@ -19,7 +19,9 @@ function normalizeNextPath(rawValue: string | undefined): string {
   return rawValue;
 }
 
-export default async function AdminLoginPage({ searchParams }: AdminLoginPageProps) {
+export default async function AdminLoginPage({
+  searchParams,
+}: AdminLoginPageProps) {
   const params = await searchParams;
   const nextPath = normalizeNextPath(params.next);
   const session = await getAdminSessionFromServerCookies();
@@ -29,4 +31,3 @@ export default async function AdminLoginPage({ searchParams }: AdminLoginPagePro
 
   return <AdminLoginClient nextPath={nextPath} />;
 }
-

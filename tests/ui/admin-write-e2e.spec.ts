@@ -18,7 +18,9 @@ test.beforeEach(() => {
   runCleanupScript();
 });
 
-test("admin login -> write publish -> public detail visible", async ({ page }) => {
+test("admin login -> write publish -> public detail visible", async ({
+  page,
+}) => {
   const seed = Date.now();
   const title = `UI-ADMIN-PUBLISH-${seed}`;
 
@@ -81,4 +83,3 @@ test("admin write page edits existing post", async ({ page, request }) => {
   await expect(page.getByText("업데이트된 본문")).toBeVisible();
   await expect(page.getByRole("link", { name: "#after" })).toBeVisible();
 });
-

@@ -1,4 +1,9 @@
-import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import {
+  createHash,
+  createHmac,
+  randomBytes,
+  timingSafeEqual,
+} from "node:crypto";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { verify as verifyArgon2Hash } from "@node-rs/argon2";
@@ -181,7 +186,9 @@ function readRequestCookie(
 
 function signWithSessionSecret(payload: string): string {
   const sessionSecret = getRequiredEnv("ADMIN_SESSION_SECRET");
-  return createHmac("sha256", sessionSecret).update(payload).digest("base64url");
+  return createHmac("sha256", sessionSecret)
+    .update(payload)
+    .digest("base64url");
 }
 
 function loadAdminAuthRow(): AdminAuthRow {
@@ -315,7 +322,8 @@ export function readAndVerifyLoginChallenge(
     return null;
   }
 
-  const [version, usernamePart, issuedAtPart, nonce, signature] = token.split(".");
+  const [version, usernamePart, issuedAtPart, nonce, signature] =
+    token.split(".");
   if (!version || !usernamePart || !issuedAtPart || !nonce || !signature) {
     return null;
   }

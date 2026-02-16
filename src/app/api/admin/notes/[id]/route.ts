@@ -30,7 +30,10 @@ const patchNoteSchema = z
         message: "title must not be empty",
       })
       .optional(),
-    content: z.string().max(100_000, "content must be 100000 characters or fewer").optional(),
+    content: z
+      .string()
+      .max(100_000, "content must be 100000 characters or fewer")
+      .optional(),
     isPinned: z.boolean().optional(),
   })
   .refine(
@@ -78,7 +81,11 @@ export async function GET(request: NextRequest, context: RouteContext) {
   const { id } = await context.params;
   const noteId = parsePositiveIntParam(id);
   if (!noteId) {
-    return adminErrorResponse(400, "INVALID_INPUT", "id must be a positive integer.");
+    return adminErrorResponse(
+      400,
+      "INVALID_INPUT",
+      "id must be a positive integer.",
+    );
   }
 
   const note = loadNote(noteId);
@@ -98,7 +105,11 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   const { id } = await context.params;
   const noteId = parsePositiveIntParam(id);
   if (!noteId) {
-    return adminErrorResponse(400, "INVALID_INPUT", "id must be a positive integer.");
+    return adminErrorResponse(
+      400,
+      "INVALID_INPUT",
+      "id must be a positive integer.",
+    );
   }
 
   const payload = await request.json().catch(() => null);
@@ -112,12 +123,17 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
   const parsed = patchNoteSchema.safeParse(payload);
   if (!parsed.success) {
-    return adminErrorResponse(400, "INVALID_INPUT", "Request validation failed.", {
-      issues: parsed.error.issues.map((issue) => ({
-        path: issue.path.join("."),
-        message: issue.message,
-      })),
-    });
+    return adminErrorResponse(
+      400,
+      "INVALID_INPUT",
+      "Request validation failed.",
+      {
+        issues: parsed.error.issues.map((issue) => ({
+          path: issue.path.join("."),
+          message: issue.message,
+        })),
+      },
+    );
   }
 
   const current = loadNote(noteId);
@@ -129,7 +145,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   const nextContent = parsed.data.content ?? current.content;
   const nextPinned =
     parsed.data.isPinned !== undefined
-      ? (parsed.data.isPinned ? 1 : 0)
+      ? parsed.data.isPinned
+        ? 1
+        : 0
       : current.is_pinned;
 
   const db = getDb();
@@ -143,7 +161,11 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
   const updated = loadNote(noteId);
   if (!updated) {
-    return adminErrorResponse(500, "INTERNAL_ERROR", "Failed to load updated note.");
+    return adminErrorResponse(
+      500,
+      "INTERNAL_ERROR",
+      "Failed to load updated note.",
+    );
   }
 
   return NextResponse.json(toResponseRow(updated));
@@ -158,7 +180,11 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
   const { id } = await context.params;
   const noteId = parsePositiveIntParam(id);
   if (!noteId) {
-    return adminErrorResponse(400, "INVALID_INPUT", "id must be a positive integer.");
+    return adminErrorResponse(
+      400,
+      "INVALID_INPUT",
+      "id must be a positive integer.",
+    );
   }
 
   const db = getDb();
@@ -169,4 +195,3 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
 
   return NextResponse.json({ ok: true });
 }
-

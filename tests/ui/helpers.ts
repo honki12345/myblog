@@ -58,7 +58,10 @@ function parseApiKeyFromEnvFile(): string {
 
 function decodeBase32(value: string): Buffer {
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-  const normalized = value.toUpperCase().replace(/=+$/g, "").replace(/[\s-]/g, "");
+  const normalized = value
+    .toUpperCase()
+    .replace(/=+$/g, "")
+    .replace(/[\s-]/g, "");
   let bits = 0;
   let current = 0;
   const output: number[] = [];
@@ -213,9 +216,12 @@ export async function authenticateAdminSession(
     await page.getByRole("button", { name: "2차 인증 완료" }).click();
 
     try {
-      await expect(page).toHaveURL(new RegExp(nextPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), {
-        timeout: 10_000,
-      });
+      await expect(page).toHaveURL(
+        new RegExp(nextPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
+        {
+          timeout: 10_000,
+        },
+      );
       authenticated = true;
       break;
     } catch {

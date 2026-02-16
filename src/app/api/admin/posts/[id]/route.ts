@@ -267,4 +267,3 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     return adminErrorResponse(500, "INTERNAL_ERROR", "Failed to update post.");
   }
 }
-

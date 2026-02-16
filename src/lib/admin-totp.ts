@@ -13,10 +13,7 @@ const TOTP_WINDOW = 1;
 const BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
 function normalizeBase32Input(value: string): string {
-  return value
-    .toUpperCase()
-    .replace(/=+$/g, "")
-    .replace(/[\s-]/g, "");
+  return value.toUpperCase().replace(/=+$/g, "").replace(/[\s-]/g, "");
 }
 
 function encodeBase32(bytes: Buffer): string {
@@ -89,7 +86,9 @@ function toCounterBuffer(counter: number): Buffer {
 }
 
 function generateHotp(secret: Buffer, counter: number): string {
-  const hmac = createHmac("sha1", secret).update(toCounterBuffer(counter)).digest();
+  const hmac = createHmac("sha1", secret)
+    .update(toCounterBuffer(counter))
+    .digest();
   const offset = hmac[hmac.length - 1] & 0x0f;
   const binary =
     ((hmac[offset] & 0x7f) << 24) |
@@ -116,11 +115,17 @@ export function normalizeTotpSecret(input: string): string {
   return deriveTotpSecretFromRaw(input.trim());
 }
 
-export function encryptTotpSecret(secret: string, encryptionKey: string): string {
+export function encryptTotpSecret(
+  secret: string,
+  encryptionKey: string,
+): string {
   const key = deriveEncryptionKey(encryptionKey);
   const iv = randomBytes(12);
   const cipher = createCipheriv("aes-256-gcm", key, iv);
-  const encrypted = Buffer.concat([cipher.update(secret, "utf8"), cipher.final()]);
+  const encrypted = Buffer.concat([
+    cipher.update(secret, "utf8"),
+    cipher.final(),
+  ]);
   const authTag = cipher.getAuthTag();
 
   return `v1.${iv.toString("base64url")}.${encrypted.toString(
@@ -128,7 +133,10 @@ export function encryptTotpSecret(secret: string, encryptionKey: string): string
   )}.${authTag.toString("base64url")}`;
 }
 
-export function decryptTotpSecret(payload: string, encryptionKey: string): string {
+export function decryptTotpSecret(
+  payload: string,
+  encryptionKey: string,
+): string {
   const [version, ivPart, encryptedPart, tagPart] = payload.split(".");
   if (version !== "v1" || !ivPart || !encryptedPart || !tagPart) {
     throw new Error("Invalid encrypted TOTP secret format.");

@@ -85,7 +85,9 @@ export function clearCsrfCookie(response: NextResponse): void {
   });
 }
 
-export function readCsrfCookieToken(request: Request | NextRequest): string | null {
+export function readCsrfCookieToken(
+  request: Request | NextRequest,
+): string | null {
   if ("cookies" in request && request.cookies) {
     return request.cookies.get(ADMIN_CSRF_COOKIE_NAME)?.value ?? null;
   }
@@ -134,4 +136,3 @@ export function verifySignedDoubleSubmitCsrf(
 
   return { valid: true };
 }
-

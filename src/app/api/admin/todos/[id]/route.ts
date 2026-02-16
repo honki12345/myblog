@@ -36,12 +36,18 @@ const patchTodoSchema = z
         message: "title must not be empty",
       })
       .optional(),
-    description: z.string().max(5_000, "description must be 5000 characters or fewer").optional(),
+    description: z
+      .string()
+      .max(5_000, "description must be 5000 characters or fewer")
+      .optional(),
     status: z.enum(["todo", "doing", "done"]).optional(),
     priority: z.enum(["low", "medium", "high"]).optional(),
     dueAt: z
       .string()
-      .datetime({ offset: true, message: "dueAt must be ISO datetime with timezone" })
+      .datetime({
+        offset: true,
+        message: "dueAt must be ISO datetime with timezone",
+      })
       .nullable()
       .optional(),
   })
@@ -104,7 +110,11 @@ export async function GET(request: NextRequest, context: RouteContext) {
   const { id } = await context.params;
   const todoId = parsePositiveIntParam(id);
   if (!todoId) {
-    return adminErrorResponse(400, "INVALID_INPUT", "id must be a positive integer.");
+    return adminErrorResponse(
+      400,
+      "INVALID_INPUT",
+      "id must be a positive integer.",
+    );
   }
 
   const todo = loadTodo(todoId);
@@ -124,7 +134,11 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   const { id } = await context.params;
   const todoId = parsePositiveIntParam(id);
   if (!todoId) {
-    return adminErrorResponse(400, "INVALID_INPUT", "id must be a positive integer.");
+    return adminErrorResponse(
+      400,
+      "INVALID_INPUT",
+      "id must be a positive integer.",
+    );
   }
 
   const payload = await request.json().catch(() => null);
@@ -138,12 +152,17 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
   const parsed = patchTodoSchema.safeParse(payload);
   if (!parsed.success) {
-    return adminErrorResponse(400, "INVALID_INPUT", "Request validation failed.", {
-      issues: parsed.error.issues.map((issue) => ({
-        path: issue.path.join("."),
-        message: issue.message,
-      })),
-    });
+    return adminErrorResponse(
+      400,
+      "INVALID_INPUT",
+      "Request validation failed.",
+      {
+        issues: parsed.error.issues.map((issue) => ({
+          path: issue.path.join("."),
+          message: issue.message,
+        })),
+      },
+    );
   }
 
   const current = loadTodo(todoId);
@@ -158,7 +177,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       : current.description;
   const nextStatus = parsed.data.status ?? current.status;
   const nextPriority = parsed.data.priority ?? current.priority;
-  const nextDueAt = parsed.data.dueAt !== undefined ? parsed.data.dueAt : current.due_at;
+  const nextDueAt =
+    parsed.data.dueAt !== undefined ? parsed.data.dueAt : current.due_at;
 
   const db = getDb();
   db.prepare(
@@ -191,7 +211,11 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
   const updated = loadTodo(todoId);
   if (!updated) {
-    return adminErrorResponse(500, "INTERNAL_ERROR", "Failed to load updated todo.");
+    return adminErrorResponse(
+      500,
+      "INTERNAL_ERROR",
+      "Failed to load updated todo.",
+    );
   }
 
   return NextResponse.json(toResponseRow(updated));
@@ -206,7 +230,11 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
   const { id } = await context.params;
   const todoId = parsePositiveIntParam(id);
   if (!todoId) {
-    return adminErrorResponse(400, "INVALID_INPUT", "id must be a positive integer.");
+    return adminErrorResponse(
+      400,
+      "INVALID_INPUT",
+      "id must be a positive integer.",
+    );
   }
 
   const db = getDb();
@@ -217,4 +245,3 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
 
   return NextResponse.json({ ok: true });
 }
-

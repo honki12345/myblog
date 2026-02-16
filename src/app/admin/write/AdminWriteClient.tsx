@@ -101,7 +101,9 @@ export default function AdminWriteClient() {
         });
 
         if (response.status === 401) {
-          router.replace(`/admin/login?next=${encodeURIComponent(`/admin/write?id=${postId}`)}`);
+          router.replace(
+            `/admin/login?next=${encodeURIComponent(`/admin/write?id=${postId}`)}`,
+          );
           return;
         }
 
@@ -194,7 +196,9 @@ export default function AdminWriteClient() {
       insertSnippetToEditor(`![image](${data.url})`);
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "업로드 중 오류가 발생했습니다.";
+        error instanceof Error
+          ? error.message
+          : "업로드 중 오류가 발생했습니다.";
       setEditorError(message);
     } finally {
       setIsUploading(false);
@@ -237,7 +241,9 @@ export default function AdminWriteClient() {
         status,
       };
 
-      const endpoint = editPostId ? `/api/admin/posts/${editPostId}` : "/api/admin/posts";
+      const endpoint = editPostId
+        ? `/api/admin/posts/${editPostId}`
+        : "/api/admin/posts";
       const method = editPostId ? "PATCH" : "POST";
 
       const response = await adminFetch(endpoint, {
@@ -249,7 +255,9 @@ export default function AdminWriteClient() {
       });
 
       if (response.status === 401) {
-        router.replace(`/admin/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+        router.replace(
+          `/admin/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`,
+        );
         return;
       }
 
@@ -285,7 +293,9 @@ export default function AdminWriteClient() {
       router.refresh();
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "글 저장 중 오류가 발생했습니다.";
+        error instanceof Error
+          ? error.message
+          : "글 저장 중 오류가 발생했습니다.";
       setEditorError(message);
     } finally {
       setIsSaving(false);
@@ -309,7 +319,8 @@ export default function AdminWriteClient() {
             {editPostId ? `글 수정 #${editPostId}` : "새 글 작성"}
           </h1>
           <p className="mt-2 text-sm text-slate-600">
-            관리자 세션 기반 편집기입니다. 상태 변경 API는 CSRF 검증이 적용됩니다.
+            관리자 세션 기반 편집기입니다. 상태 변경 API는 CSRF 검증이
+            적용됩니다.
           </p>
         </div>
         <button
@@ -379,7 +390,9 @@ export default function AdminWriteClient() {
           </section>
 
           <section className="space-y-2">
-            <h2 className="text-sm font-semibold text-slate-700">실시간 프리뷰</h2>
+            <h2 className="text-sm font-semibold text-slate-700">
+              실시간 프리뷰
+            </h2>
             <article
               className="markdown-preview min-h-[420px] rounded-xl border border-slate-200 bg-white p-4"
               dangerouslySetInnerHTML={{
@@ -393,7 +406,9 @@ export default function AdminWriteClient() {
         </div>
 
         <section className="space-y-2 rounded-xl border border-slate-200 bg-white p-4">
-          <h2 className="text-sm font-semibold text-slate-700">이미지 업로드</h2>
+          <h2 className="text-sm font-semibold text-slate-700">
+            이미지 업로드
+          </h2>
           <label
             onDragOver={(event) => {
               event.preventDefault();
@@ -465,4 +480,3 @@ export default function AdminWriteClient() {
     </main>
   );
 }
-

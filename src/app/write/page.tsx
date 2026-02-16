@@ -4,7 +4,9 @@ type WritePageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export default async function WriteRedirectPage({ searchParams }: WritePageProps) {
+export default async function WriteRedirectPage({
+  searchParams,
+}: WritePageProps) {
   const params = await searchParams;
   const query = new URLSearchParams();
 
@@ -21,7 +23,7 @@ export default async function WriteRedirectPage({ searchParams }: WritePageProps
     }
   }
 
-  const target = query.size > 0 ? `/admin/write?${query.toString()}` : "/admin/write";
+  const target =
+    query.size > 0 ? `/admin/write?${query.toString()}` : "/admin/write";
   redirect(target);
 }
-

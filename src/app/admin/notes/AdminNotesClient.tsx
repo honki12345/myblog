@@ -78,7 +78,9 @@ export default function AdminNotesClient() {
     setIsSubmitting(true);
     try {
       const endpoint =
-        editingId === null ? "/api/admin/notes" : `/api/admin/notes/${editingId}`;
+        editingId === null
+          ? "/api/admin/notes"
+          : `/api/admin/notes/${editingId}`;
       const method = editingId === null ? "POST" : "PATCH";
 
       const response = await adminFetch(endpoint, {
@@ -106,7 +108,9 @@ export default function AdminNotesClient() {
       await loadNotes();
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "메모 저장 중 오류가 발생했습니다.",
+        error instanceof Error
+          ? error.message
+          : "메모 저장 중 오류가 발생했습니다.",
       );
     } finally {
       setIsSubmitting(false);
@@ -144,7 +148,9 @@ export default function AdminNotesClient() {
       await loadNotes();
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "메모 삭제 중 오류가 발생했습니다.",
+        error instanceof Error
+          ? error.message
+          : "메모 삭제 중 오류가 발생했습니다.",
       );
     }
   };
@@ -205,7 +211,11 @@ export default function AdminNotesClient() {
             className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-60"
             disabled={isSubmitting}
           >
-            {isSubmitting ? "저장 중..." : editingId === null ? "메모 추가" : "메모 수정"}
+            {isSubmitting
+              ? "저장 중..."
+              : editingId === null
+                ? "메모 추가"
+                : "메모 수정"}
           </button>
           {editingId !== null ? (
             <button
@@ -269,7 +279,7 @@ export default function AdminNotesClient() {
                   </button>
                 </div>
               </div>
-              <p className="mt-3 whitespace-pre-wrap text-sm text-slate-700">
+              <p className="mt-3 text-sm whitespace-pre-wrap text-slate-700">
                 {item.content}
               </p>
             </article>

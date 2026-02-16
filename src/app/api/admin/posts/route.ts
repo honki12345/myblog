@@ -1,7 +1,11 @@
 import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { adminErrorResponse, requireAdminSession, requireAdminSessionWithCsrf } from "@/lib/admin-api";
+import {
+  adminErrorResponse,
+  requireAdminSession,
+  requireAdminSessionWithCsrf,
+} from "@/lib/admin-api";
 import { getDb } from "@/lib/db";
 import { createSlug, withSlugSuffix } from "@/lib/slug";
 
@@ -218,7 +222,11 @@ export async function POST(request: NextRequest) {
 
     const post = loadPostById(postId);
     if (!post) {
-      return adminErrorResponse(500, "INTERNAL_ERROR", "Failed to load created post.");
+      return adminErrorResponse(
+        500,
+        "INTERNAL_ERROR",
+        "Failed to load created post.",
+      );
     }
 
     const tags = loadTagsForPost(postId);
@@ -232,4 +240,3 @@ export async function POST(request: NextRequest) {
     return adminErrorResponse(500, "INTERNAL_ERROR", "Failed to create post.");
   }
 }
-

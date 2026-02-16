@@ -83,7 +83,9 @@ export async function POST(request: NextRequest) {
     ensureAdminConfigSynced();
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Admin auth configuration error.";
+      error instanceof Error
+        ? error.message
+        : "Admin auth configuration error.";
     return errorResponse(500, "INTERNAL_ERROR", message);
   }
 
@@ -94,9 +96,14 @@ export async function POST(request: NextRequest) {
   );
 
   if (!rate.allowed) {
-    const response = errorResponse(429, "RATE_LIMITED", "Rate limit exceeded.", {
-      retryAfterMs: rate.retryAfterMs,
-    });
+    const response = errorResponse(
+      429,
+      "RATE_LIMITED",
+      "Rate limit exceeded.",
+      {
+        retryAfterMs: rate.retryAfterMs,
+      },
+    );
     response.headers.set(
       "Retry-After",
       String(Math.max(1, Math.ceil(rate.retryAfterMs / 1000))),
@@ -129,11 +136,7 @@ export async function POST(request: NextRequest) {
   );
 
   if (!isValid) {
-    return errorResponse(
-      401,
-      "UNAUTHORIZED",
-      "Invalid username or password.",
-    );
+    return errorResponse(401, "UNAUTHORIZED", "Invalid username or password.");
   }
 
   const response = NextResponse.json(
@@ -144,4 +147,3 @@ export async function POST(request: NextRequest) {
   setLoginChallengeCookie(response, parsed.data.username);
   return response;
 }
-

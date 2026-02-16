@@ -83,7 +83,9 @@ export async function POST(request: NextRequest) {
     ensureAdminConfigSynced();
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Admin auth configuration error.";
+      error instanceof Error
+        ? error.message
+        : "Admin auth configuration error.";
     return errorResponse(500, "INTERNAL_ERROR", message);
   }
 
@@ -93,9 +95,14 @@ export async function POST(request: NextRequest) {
     RATE_LIMIT_WINDOW_MS,
   );
   if (!rate.allowed) {
-    const response = errorResponse(429, "RATE_LIMITED", "Rate limit exceeded.", {
-      retryAfterMs: rate.retryAfterMs,
-    });
+    const response = errorResponse(
+      429,
+      "RATE_LIMITED",
+      "Rate limit exceeded.",
+      {
+        retryAfterMs: rate.retryAfterMs,
+      },
+    );
     response.headers.set(
       "Retry-After",
       String(Math.max(1, Math.ceil(rate.retryAfterMs / 1000))),
@@ -152,4 +159,3 @@ export async function POST(request: NextRequest) {
   setCsrfCookie(response, sessionId, maxAgeSeconds);
   return response;
 }
-

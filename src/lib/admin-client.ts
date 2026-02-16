@@ -27,7 +27,8 @@ export async function adminFetch(
 ): Promise<Response> {
   const method = (init.method ?? "GET").toUpperCase();
   const headers = new Headers(init.headers ?? {});
-  const isStateChanging = method !== "GET" && method !== "HEAD" && method !== "OPTIONS";
+  const isStateChanging =
+    method !== "GET" && method !== "HEAD" && method !== "OPTIONS";
 
   if (isStateChanging) {
     const csrfToken = getAdminCsrfToken();
@@ -42,4 +43,3 @@ export async function adminFetch(
     credentials: "same-origin",
   });
 }
-

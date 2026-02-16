@@ -57,7 +57,9 @@ export default function AdminLoginClient({ nextPath }: AdminLoginClientProps) {
       setCode("");
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "로그인 중 오류가 발생했습니다.",
+        error instanceof Error
+          ? error.message
+          : "로그인 중 오류가 발생했습니다.",
       );
     } finally {
       setIsSubmitting(false);
@@ -194,4 +196,3 @@ export default function AdminLoginClient({ nextPath }: AdminLoginClientProps) {
     </main>
   );
 }
-

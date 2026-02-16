@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { adminErrorResponse, requireAdminSession, requireAdminSessionWithCsrf } from "@/lib/admin-api";
+import {
+  adminErrorResponse,
+  requireAdminSession,
+  requireAdminSessionWithCsrf,
+} from "@/lib/admin-api";
 import { getDb } from "@/lib/db";
 
 type ScheduleRow = {
@@ -30,10 +34,14 @@ const createScheduleSchema = z
     endAt: z.string().datetime({ offset: true }),
     isDone: z.boolean().default(false),
   })
-  .refine((value) => new Date(value.startAt).getTime() < new Date(value.endAt).getTime(), {
-    message: "startAt must be earlier than endAt",
-    path: ["endAt"],
-  });
+  .refine(
+    (value) =>
+      new Date(value.startAt).getTime() < new Date(value.endAt).getTime(),
+    {
+      message: "startAt must be earlier than endAt",
+      path: ["endAt"],
+    },
+  );
 
 const querySchema = z
   .object({
@@ -79,12 +87,17 @@ export async function GET(request: NextRequest) {
     to: request.nextUrl.searchParams.get("to") ?? undefined,
   });
   if (!parsedQuery.success) {
-    return adminErrorResponse(400, "INVALID_INPUT", "Invalid query parameter.", {
-      issues: parsedQuery.error.issues.map((issue) => ({
-        path: issue.path.join("."),
-        message: issue.message,
-      })),
-    });
+    return adminErrorResponse(
+      400,
+      "INVALID_INPUT",
+      "Invalid query parameter.",
+      {
+        issues: parsedQuery.error.issues.map((issue) => ({
+          path: issue.path.join("."),
+          message: issue.message,
+        })),
+      },
+    );
   }
 
   const db = getDb();
@@ -132,12 +145,17 @@ export async function POST(request: NextRequest) {
 
   const parsed = createScheduleSchema.safeParse(payload);
   if (!parsed.success) {
-    return adminErrorResponse(400, "INVALID_INPUT", "Request validation failed.", {
-      issues: parsed.error.issues.map((issue) => ({
-        path: issue.path.join("."),
-        message: issue.message,
-      })),
-    });
+    return adminErrorResponse(
+      400,
+      "INVALID_INPUT",
+      "Request validation failed.",
+      {
+        issues: parsed.error.issues.map((issue) => ({
+          path: issue.path.join("."),
+          message: issue.message,
+        })),
+      },
+    );
   }
 
   try {
@@ -179,7 +197,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(toResponseRow(row), { status: 201 });
   } catch {
-    return adminErrorResponse(500, "INTERNAL_ERROR", "Failed to create schedule.");
+    return adminErrorResponse(
+      500,
+      "INTERNAL_ERROR",
+      "Failed to create schedule.",
+    );
   }
 }
-

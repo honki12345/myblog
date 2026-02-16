@@ -10,4 +10,3 @@ export default async function AdminTodosPage() {
 
   return <AdminTodosClient />;
 }
-

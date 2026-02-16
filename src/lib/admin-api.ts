@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminSessionFromRequest, type AdminSessionRow } from "@/lib/admin-auth";
+import {
+  getAdminSessionFromRequest,
+  type AdminSessionRow,
+} from "@/lib/admin-auth";
 import { verifySignedDoubleSubmitCsrf } from "@/lib/admin-csrf";
 
 export type AdminApiErrorCode =
@@ -70,4 +73,3 @@ export function parsePositiveIntParam(value: string): number | null {
   }
   return parsed;
 }
-

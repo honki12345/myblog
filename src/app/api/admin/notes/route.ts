@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { adminErrorResponse, requireAdminSession, requireAdminSessionWithCsrf } from "@/lib/admin-api";
+import {
+  adminErrorResponse,
+  requireAdminSession,
+  requireAdminSessionWithCsrf,
+} from "@/lib/admin-api";
 import { getDb } from "@/lib/db";
 
 type NoteRow = {
@@ -76,12 +80,17 @@ export async function POST(request: NextRequest) {
 
   const parsed = createNoteSchema.safeParse(payload);
   if (!parsed.success) {
-    return adminErrorResponse(400, "INVALID_INPUT", "Request validation failed.", {
-      issues: parsed.error.issues.map((issue) => ({
-        path: issue.path.join("."),
-        message: issue.message,
-      })),
-    });
+    return adminErrorResponse(
+      400,
+      "INVALID_INPUT",
+      "Request validation failed.",
+      {
+        issues: parsed.error.issues.map((issue) => ({
+          path: issue.path.join("."),
+          message: issue.message,
+        })),
+      },
+    );
   }
 
   try {
@@ -112,7 +121,11 @@ export async function POST(request: NextRequest) {
       .get(id) as NoteRow | undefined;
 
     if (!row) {
-      return adminErrorResponse(500, "INTERNAL_ERROR", "Failed to load created note.");
+      return adminErrorResponse(
+        500,
+        "INTERNAL_ERROR",
+        "Failed to load created note.",
+      );
     }
 
     return NextResponse.json(toResponseRow(row), { status: 201 });
@@ -120,4 +133,3 @@ export async function POST(request: NextRequest) {
     return adminErrorResponse(500, "INTERNAL_ERROR", "Failed to create note.");
   }
 }
-

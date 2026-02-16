@@ -11,8 +11,9 @@
 
 - Next.js App Router 기반 웹 페이지: `/`, `/posts`, `/posts/[slug]`, `/tags/[tag]`, `/write`
 - SQLite(better-sqlite3) 기반 글/태그/출처 저장 및 FTS5 인덱스 유지
-- API Key(Bearer) 기반 보호 API: 글 생성/수정, 글 단건 조회, 출처 중복 확인, 이미지 업로드
+- API Key(Bearer) 기반 보호 API: 단건/벌크 글 생성, 글 수정/조회, 출처 중복 확인, 이미지 업로드
 - 마크다운 렌더링 파이프라인: GFM + 수식(KaTeX) + 코드 하이라이트(Shiki) + sanitize + Mermaid placeholder
+- API 요청 구조화 로그(JSON): `timestamp`, `route`, `status`, `durationMs`, `postCount`, `contentLengthSum`, `sourceUrlCount`, `payloadHash`
 - Playwright 기반 시각 회귀 + 접근성 + 작성 E2E 테스트
 
 ### Non-goals / limitations (current implementation)
@@ -23,7 +24,7 @@
 - 저장소 내에는 크론 스크래퍼/배포 스크립트(Caddy/systemd 설정 파일) 구현이 없다.
 - 업로드 URL(`/uploads/...`)의 HTTP 서빙 매핑은 앱 코드에 없고 런타임/프록시 구성에 의존한다.
 
-Sources: `AGENTS.md`, `src/app/layout.tsx`, `src/app/page.tsx`, `src/app/posts/page.tsx`, `src/app/posts/[slug]/page.tsx`, `src/app/tags/[tag]/page.tsx`, `src/app/write/page.tsx`, `src/lib/db.ts`, `src/lib/markdown.ts`, `src/lib/rate-limit.ts`, `src/app/api/posts/route.ts`, `src/app/api/posts/[id]/route.ts`, `src/app/api/posts/check/route.ts`, `src/app/api/uploads/route.ts`
+Sources: `AGENTS.md`, `src/app/layout.tsx`, `src/app/page.tsx`, `src/app/posts/page.tsx`, `src/app/posts/[slug]/page.tsx`, `src/app/tags/[tag]/page.tsx`, `src/app/write/page.tsx`, `src/lib/db.ts`, `src/lib/markdown.ts`, `src/lib/rate-limit.ts`, `src/lib/api-log.ts`, `src/app/api/posts/route.ts`, `src/app/api/posts/bulk/route.ts`, `src/app/api/posts/[id]/route.ts`, `src/app/api/posts/check/route.ts`, `src/app/api/uploads/route.ts`
 
 ## 2. Architecture
 
@@ -42,9 +43,10 @@ Sources: `AGENTS.md`, `src/app/layout.tsx`, `src/app/page.tsx`, `src/app/posts/p
 ### Data/control flow
 
 - 읽기 경로: Server Component가 `getDb()`로 SQLite 조회 -> 게시 상태(`published`) 중심 필터 -> JSX 렌더링
-- 작성 경로: `/write`에서 API Key 확인(`/api/health`) -> `POST /api/posts` 또는 `PATCH /api/posts/:id` -> DB 트랜잭션 -> `revalidatePath`로 홈/목록/상세/태그 갱신 -> 상태 기반 라우팅(`published`는 `/posts/{slug}`, `draft`는 `/write?id={id}`)
+- 작성 경로: `/write`에서 API Key 확인(`/api/health`) -> `POST /api/posts`, `POST /api/posts/bulk`, `PATCH /api/posts/:id` -> DB 트랜잭션 -> `revalidatePath`로 홈/목록/상세/태그 갱신 -> 상태 기반 라우팅(`published`는 `/posts/{slug}`, `draft`는 `/write?id={id}`)
 - 렌더링 경로: 상세 페이지에서 `renderMarkdown()` 호출 -> Mermaid 블록은 base64 placeholder로 출력 -> 클라이언트에서 `mermaid` 동적 import 후 SVG 변환
 - 업로드 경로: `/api/uploads`가 MIME + 매직바이트 검증 후 `uploads/YYYY/MM/uuid.ext` 저장 -> URL 반환
+- 관측 경로: `POST /api/posts`, `POST /api/posts/bulk`는 요청 요약(JSON) 로그를 stdout으로 출력하며 systemd journal에서 수집 가능
 
 ### External systems
 
@@ -53,7 +55,7 @@ Sources: `AGENTS.md`, `src/app/layout.tsx`, `src/app/page.tsx`, `src/app/posts/p
 - 브라우저 `localStorage`(write 페이지의 API Key 보관)
 - GitHub Actions CI (lint/format/build/API/UI tests)
 
-Sources: `src/lib/db.ts`, `src/app/api/posts/route.ts`, `src/app/api/posts/[id]/route.ts`, `src/lib/markdown.ts`, `src/components/PostContent.tsx`, `src/components/MermaidDiagram.tsx`, `src/app/write/page.tsx`, `src/app/api/uploads/route.ts`, `tests/ui/helpers.ts`, `.github/workflows/ci.yml`
+Sources: `src/lib/db.ts`, `src/app/api/posts/route.ts`, `src/app/api/posts/bulk/route.ts`, `src/lib/api-log.ts`, `src/app/api/posts/[id]/route.ts`, `src/lib/markdown.ts`, `src/components/PostContent.tsx`, `src/components/MermaidDiagram.tsx`, `src/app/write/page.tsx`, `src/app/api/uploads/route.ts`, `tests/ui/helpers.ts`, `.github/workflows/ci.yml`
 
 ## 3. API and Runtime Behavior
 
@@ -76,22 +78,29 @@ Sources: `src/lib/db.ts`, `src/app/api/posts/route.ts`, `src/app/api/posts/[id]/
 
 ### Endpoints
 
-| Method  | Path                       | Auth                                     | Behavior                                                                 | 주요 오류 코드                                                                          |
-| ------- | -------------------------- | ---------------------------------------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
-| `GET`   | `/api/health`              | 선택적(Authorization 헤더가 있으면 검증) | DB 연결 확인. 인증 헤더 유효 시 `auth: "valid"` 포함                     | `UNAUTHORIZED`, `INTERNAL_ERROR`                                                        |
-| `GET`   | `/api/posts`               | 없음                                     | 최신 100개 글 반환(현재 구현은 draft/published 모두 반환)                | -                                                                                       |
-| `POST`  | `/api/posts`               | 필수                                     | 글 생성, slug 자동 생성, 태그/출처 저장, 경로 revalidate                 | `UNAUTHORIZED`, `INVALID_INPUT`, `DUPLICATE_SOURCE`, `RATE_LIMITED`, `INTERNAL_ERROR`   |
-| `GET`   | `/api/posts/check?url=...` | 필수                                     | `source_url` 중복 여부 확인                                              | `UNAUTHORIZED`, `INVALID_INPUT`, `INTERNAL_ERROR`                                       |
-| `GET`   | `/api/posts/:id`           | 필수                                     | 글 단건 + 태그 배열 반환                                                 | `UNAUTHORIZED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`                          |
-| `PATCH` | `/api/posts/:id`           | 필수                                     | 제목/본문/상태/태그 부분 수정, `published_at` 전이 처리, 경로 revalidate | `UNAUTHORIZED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`                          |
-| `POST`  | `/api/uploads`             | 필수                                     | 이미지 업로드(최대 5MB, png/jpeg/webp/gif) 후 URL 반환                   | `UNAUTHORIZED`, `INVALID_INPUT`, `FILE_TOO_LARGE`, `UNSUPPORTED_TYPE`, `INTERNAL_ERROR` |
+| Method  | Path                       | Auth                                     | Behavior                                                                                          | 주요 오류 코드                                                                          |
+| ------- | -------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `GET`   | `/api/health`              | 선택적(Authorization 헤더가 있으면 검증) | DB 연결 확인. 인증 헤더 유효 시 `auth: "valid"` 포함                                              | `UNAUTHORIZED`, `INTERNAL_ERROR`                                                        |
+| `GET`   | `/api/posts`               | 없음                                     | 최신 100개 글 반환(현재 구현은 draft/published 모두 반환)                                         | -                                                                                       |
+| `POST`  | `/api/posts`               | 필수                                     | 단건 글 생성, slug 자동 생성, 태그/출처(ai metadata 포함) 저장, 구조화 로그 출력, 경로 revalidate | `UNAUTHORIZED`, `INVALID_INPUT`, `DUPLICATE_SOURCE`, `RATE_LIMITED`, `INTERNAL_ERROR`   |
+| `POST`  | `/api/posts/bulk`          | 필수                                     | 벌크 글 생성(최대 10건), 단일 트랜잭션(all-or-nothing), 구조화 로그 출력, 경로 revalidate         | `UNAUTHORIZED`, `INVALID_INPUT`, `DUPLICATE_SOURCE`, `RATE_LIMITED`, `INTERNAL_ERROR`   |
+| `GET`   | `/api/posts/check?url=...` | 필수                                     | `source_url` 중복 여부 확인                                                                       | `UNAUTHORIZED`, `INVALID_INPUT`, `INTERNAL_ERROR`                                       |
+| `GET`   | `/api/posts/:id`           | 필수                                     | 글 단건 + 태그 배열 반환                                                                          | `UNAUTHORIZED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`                          |
+| `PATCH` | `/api/posts/:id`           | 필수                                     | 제목/본문/상태/태그 부분 수정, `published_at` 전이 처리, 경로 revalidate                          | `UNAUTHORIZED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`                          |
+| `POST`  | `/api/uploads`             | 필수                                     | 이미지 업로드(최대 5MB, png/jpeg/webp/gif) 후 URL 반환                                            | `UNAUTHORIZED`, `INVALID_INPUT`, `FILE_TOO_LARGE`, `UNSUPPORTED_TYPE`, `INTERNAL_ERROR` |
 
 ### Input/output contracts (selected)
 
 - `POST /api/posts`
-  - 입력: `title(<=200)`, `content(<=100000)`, `status(draft|published)`, `tags(<=10, 각 <=30)`, `sourceUrl(url, <=2048, optional)`
+  - 입력: `title(<=200)`, `content(<=100000)`, `status(draft|published)`, `tags(<=10, 각 <=30)`, `sourceUrl(url, <=2048, optional)`, `aiModel(optional)`, `promptHint(optional)`
   - 출력: `201 { id, slug }`
   - 제한: 같은 `sourceUrl`은 409, 같은 제목은 slug suffix(`-2`, `-3`...) 부여
+- `POST /api/posts/bulk`
+  - 입력: `{ posts: Array<{ title, content, tags?, sourceUrl?, status?, aiModel?, promptHint? }> }`
+  - 제약: `posts.length`는 `1~10`
+  - 성공: `201 { created: [{ id, slug }], errors: [] }`
+  - 실패: `400/409/429 { created: [], errors: [...], code }`
+  - 정책: all-or-nothing(부분 성공 없음)
 - `PATCH /api/posts/:id`
   - 입력: `title|content|status|tags` 중 최소 1개 필요
   - 동작: `published_at`은 처음 `published` 될 때만 설정되고 이후 재발행에서는 유지
@@ -107,20 +116,25 @@ Sources: `src/lib/db.ts`, `src/app/api/posts/route.ts`, `src/app/api/posts/[id]/
 - 생성/수정 API는 `revalidatePath`로 홈/목록/상세/태그 캐시 갱신을 트리거한다.
 - 상세 페이지 slug 조회는 decode-safe + `NFKC` 정규화를 적용한다.
 - malformed 퍼센트 인코딩 slug(`%E0%A4%A`)는 Next.js 라우팅 레벨에서 `400`으로 처리된다.
-- `POST /api/posts`는 토큰 기준 10회/60초 레이트 리밋을 적용한다(프로세스 메모리 기준).
+- `POST /api/posts`는 토큰 기준 10회/60초, `POST /api/posts/bulk`는 3회/60초 레이트 리밋을 적용한다(프로세스 메모리 기준, 카운터 분리).
+- `POST /api/posts`, `POST /api/posts/bulk`는 공통 JSON 구조화 로그를 출력하며 요청 본문 원문(`title`, `content`, `promptHint`)은 기록하지 않는다.
 
-Sources: `src/app/api/health/route.ts`, `src/app/api/posts/route.ts`, `src/app/api/posts/check/route.ts`, `src/app/api/posts/[id]/route.ts`, `src/app/api/uploads/route.ts`, `src/lib/auth.ts`, `src/lib/rate-limit.ts`, `src/app/page.tsx`, `src/app/posts/page.tsx`, `src/app/posts/[slug]/page.tsx`, `src/app/tags/[tag]/page.tsx`, `src/app/write/page.tsx`, `scripts/test-step-3.mjs`, `scripts/test-step-5.mjs`
+Sources: `src/app/api/health/route.ts`, `src/app/api/posts/route.ts`, `src/app/api/posts/bulk/route.ts`, `src/app/api/posts/check/route.ts`, `src/app/api/posts/[id]/route.ts`, `src/app/api/uploads/route.ts`, `src/lib/auth.ts`, `src/lib/rate-limit.ts`, `src/lib/api-log.ts`, `src/app/page.tsx`, `src/app/posts/page.tsx`, `src/app/posts/[slug]/page.tsx`, `src/app/tags/[tag]/page.tsx`, `src/app/write/page.tsx`, `scripts/test-step-3.mjs`, `scripts/test-step-5.mjs`, `scripts/test-step-8.mjs`
 
 ## 4. Configuration and Deployment
 
 ### Environment variables
 
-| Name                   | Required   | Used by                             | Description                                                                                      |
-| ---------------------- | ---------- | ----------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `BLOG_API_KEY`         | Yes (운영) | API routes, write auth, tests       | 보호 API 인증 키                                                                                 |
-| `DATABASE_PATH`        | No         | DB layer, tests                     | SQLite 파일 경로 오버라이드. 기본값은 `data/blog.db`, 운영 권장값은 `/var/lib/blog/data/blog.db` |
-| `NEXT_PUBLIC_SITE_URL` | No         | post metadata, Playwright webServer | 상세 페이지 canonical URL 생성 기준                                                              |
-| `API_KEY`              | No         | UI 테스트 헬퍼                      | 테스트 시 `BLOG_API_KEY` 대체 입력값                                                             |
+| Name                           | Required   | Used by                             | Description                                                                                      |
+| ------------------------------ | ---------- | ----------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `BLOG_API_KEY`                 | Yes (운영) | API routes, write auth, tests       | 보호 API 인증 키                                                                                 |
+| `DATABASE_PATH`                | No         | DB layer, tests                     | SQLite 파일 경로 오버라이드. 기본값은 `data/blog.db`, 운영 권장값은 `/var/lib/blog/data/blog.db` |
+| `NEXT_PUBLIC_SITE_URL`         | No         | post metadata, Playwright webServer | 상세 페이지 canonical URL 생성 기준                                                              |
+| `API_KEY`                      | No         | UI 테스트 헬퍼                      | 테스트 시 `BLOG_API_KEY` 대체 입력값                                                             |
+| `RATE_LIMIT_MAX_REQUESTS`      | No         | `POST /api/posts`                   | 단건 글 생성 레이트 리밋 최대 요청 수(기본 10)                                                   |
+| `RATE_LIMIT_WINDOW_MS`         | No         | `POST /api/posts`                   | 단건 글 생성 레이트 리밋 윈도우 ms(기본 60000)                                                   |
+| `RATE_LIMIT_BULK_MAX_REQUESTS` | No         | `POST /api/posts/bulk`              | 벌크 글 생성 레이트 리밋 최대 요청 수(기본 3)                                                    |
+| `RATE_LIMIT_BULK_WINDOW_MS`    | No         | `POST /api/posts/bulk`              | 벌크 글 생성 레이트 리밋 윈도우 ms(기본 60000)                                                   |
 
 ### Build/deploy paths
 
@@ -169,9 +183,10 @@ Sources: `package.json`, `.env.example`, `next.config.ts`, `src/lib/db.ts`, `src
   - `npm run test:step5`: 페이지 라우팅/SSR 출력/캐시 갱신/업로드 검증
     - 동적 포트 탐색 + 네트워크 오류 재시도로 `next dev` 충돌/일시적 fetch 실패를 완화한다.
   - `npm run test:step6`: CI/CD 게이트(클린 빌드, standalone 패키징/무결성, better-sqlite3 바인딩, 워크플로우 정책) 검증
+  - `npm run test:step8`: bulk API 계약(최대 10건/원자성/중복/경합/레이트리밋), `aiModel`/`promptHint` 저장, 구조화 로그 키 검증
   - `npm run test:ui`: Playwright 시각 회귀 + 접근성 + 작성 E2E
-- 전체 회귀: `npm run test:all` (`step1~5 + ui`)
-  - 실행 오케스트레이션: `step1` -> (`step2` + `step4` 병렬) -> `step3` -> `step5` -> `ui`
+- 전체 회귀: `npm run test:all` (`step1~5 + step8 + ui`)
+  - 실행 오케스트레이션: `step1` -> (`step2` + `step4` 병렬) -> `step3` -> `step5` -> `step8` -> `ui`
   - 각 단계/그룹의 소요 시간과 총 소요 시간을 로그로 출력한다.
 - UI 테스트 특징:
   - 뷰포트 고정: `360`, `768`, `1440`
@@ -185,7 +200,7 @@ Sources: `package.json`, `.env.example`, `next.config.ts`, `src/lib/db.ts`, `src
 - `deploy.yml`: `main` push + 경로 필터(`src/**`, `package*.json`, `next.config.*`) 또는 `workflow_dispatch`에서 배포 전용 실행
 - 배포 워크플로우는 필수 Secrets(`BLOG_DOMAIN`, `VM_HOST`, `VM_USER`, `VM_SSH_KEY`) fail-fast 검증과 롤백 단계를 포함한다
 
-Sources: `package.json`, `scripts/test-step-1.mjs`, `scripts/test-step-2.mjs`, `scripts/test-step-3.mjs`, `scripts/test-step-4.mjs`, `scripts/test-step-5.mjs`, `scripts/test-step-6.mjs`, `scripts/test-all.mjs`, `playwright.config.ts`, `tests/ui/visual-regression.spec.ts`, `tests/ui/accessibility.spec.ts`, `tests/ui/write-e2e.spec.ts`, `tests/ui/helpers.ts`, `.github/workflows/ci.yml`, `.github/workflows/deploy.yml`, `docs/runbooks/deploy-log.md`
+Sources: `package.json`, `scripts/test-step-1.mjs`, `scripts/test-step-2.mjs`, `scripts/test-step-3.mjs`, `scripts/test-step-4.mjs`, `scripts/test-step-5.mjs`, `scripts/test-step-6.mjs`, `scripts/test-step-8.mjs`, `scripts/test-all.mjs`, `playwright.config.ts`, `tests/ui/visual-regression.spec.ts`, `tests/ui/accessibility.spec.ts`, `tests/ui/write-e2e.spec.ts`, `tests/ui/helpers.ts`, `.github/workflows/ci.yml`, `.github/workflows/deploy.yml`, `docs/runbooks/deploy-log.md`
 
 ## 6. Extension Points
 
@@ -202,10 +217,12 @@ Sources: `package.json`, `scripts/test-step-1.mjs`, `scripts/test-step-2.mjs`, `
 - API 에러 응답은 `{ error: { code, message, details } }` 형태를 유지
 - slug는 생성 시점에만 결정되고 PATCH에서 바꾸지 않는다(상세 URL 안정성)
 - `source_url` 중복은 409로 처리하며 경합 상황에서도 단일 성공을 보장한다
+- `POST /api/posts/bulk`는 최대 10건/단일 트랜잭션 정책을 유지해야 하며 부분 성공을 허용하지 않는다
 - 글 생성/수정 시 홈/목록/상세/태그 경로 revalidate를 누락하지 않는다
 - 레이트 리밋이 메모리 기반이므로 인스턴스 수평 확장 시 별도 저장소(예: Redis) 설계가 필요하다
-- 글 생성 API 레이트 리밋은 기본값 `10 req / 60s`이며, 필요 시 `RATE_LIMIT_MAX_REQUESTS`/`RATE_LIMIT_WINDOW_MS` 환경변수로 조정할 수 있다
+- 글 생성 API 레이트 리밋은 단건(`10 req / 60s`)과 벌크(`3 req / 60s`)가 분리되어 있으며, 필요 시 각각의 환경변수로 조정할 수 있다
+- 구조화 로그에는 요약값만 남기고 본문 원문(`title`, `content`, `promptHint`)을 기록하지 않는다
 - `/uploads` URL 서빙 경로는 앱 외부 설정(Caddy 등)과 맞춰야 한다
 - Shiki 언어 수 증가는 메모리 사용량 증가와 직결되므로 운영 제약(1GB RAM)을 고려해야 한다
 
-Sources: `src/app/api/posts/route.ts`, `src/app/api/posts/[id]/route.ts`, `src/app/api/uploads/route.ts`, `src/lib/db.ts`, `src/lib/markdown.ts`, `src/lib/rate-limit.ts`, `tests/ui/helpers.ts`, `AGENTS.md`
+Sources: `src/app/api/posts/route.ts`, `src/app/api/posts/bulk/route.ts`, `src/app/api/posts/[id]/route.ts`, `src/app/api/uploads/route.ts`, `src/lib/api-log.ts`, `src/lib/db.ts`, `src/lib/markdown.ts`, `src/lib/rate-limit.ts`, `tests/ui/helpers.ts`, `AGENTS.md`

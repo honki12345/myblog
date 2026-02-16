@@ -84,3 +84,10 @@
   - [x] `GET /api/posts`는 `published`만 반환
   - [x] 공개 페이지(`/`, `/posts`, `/tags/[tag]`)는 기본 `published`만, 관리자 세션에서만 `draft` + `published`
   - [x] 목록에서 draft 편집 이동 경로: `/admin/write?id={id}`
+
+## PR 리뷰 반영 내역 (2026-02-16)
+- `src/app/page.tsx`: 관리자 세션에서 draft 포함 시 헤더 카피를 "최신 글 (초안 포함)"으로 분기하고, 비관리자는 기존 "최신 공개 글"을 유지
+- `src/app/tags/[tag]/page.tsx`: 관리자 세션에서 "공개 글" 표현을 "글"로 조정하고, draft 포함 여부를 "(초안 포함)"으로 표기
+- `src/app/posts/page.tsx`: 상태(status) 필터의 clause 생성 로직을 `buildStatusFilter(..., alias)`로 통일해 중복 placeholder 생성을 제거
+- `tests/ui/visual-regression.spec.ts`: `desktop-1440`에서만 visual diff threshold 0.02를 적용하고, 나머지는 기본값 0.01 유지
+- 검증: `npm run test:all` 통과

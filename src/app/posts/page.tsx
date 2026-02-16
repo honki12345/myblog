@@ -68,13 +68,17 @@ function buildPageHref(page: number, perPage: number): string {
   return `/posts?${search.toString()}`;
 }
 
-function buildStatusFilter(statuses: readonly PostStatus[]): {
+function buildStatusFilter(
+  statuses: readonly PostStatus[],
+  alias?: string,
+): {
   clause: string;
   params: PostStatus[];
 } {
+  const column = alias ? `${alias}.status` : "status";
   const placeholders = statuses.map(() => "?").join(", ");
   return {
-    clause: `status IN (${placeholders})`,
+    clause: `${column} IN (${placeholders})`,
     params: [...statuses],
   };
 }
@@ -94,7 +98,7 @@ function loadPosts(
   perPage: number,
 ) {
   const db = getDb();
-  const statusFilter = buildStatusFilter(statuses);
+  const statusFilter = buildStatusFilter(statuses, "p");
   const offset = (page - 1) * perPage;
   const rows = db
     .prepare(
@@ -110,7 +114,7 @@ function loadPosts(
       FROM posts p
       LEFT JOIN post_tags pt ON pt.post_id = p.id
       LEFT JOIN tags t ON t.id = pt.tag_id
-      WHERE p.status IN (${statusFilter.params.map(() => "?").join(", ")})
+      WHERE ${statusFilter.clause}
       GROUP BY p.id
       ORDER BY datetime(COALESCE(p.published_at, p.created_at)) DESC, p.id DESC
       LIMIT ? OFFSET ?

@@ -100,10 +100,15 @@ export default async function TagPage({ params }: PageProps) {
   const { tag } = await params;
   const decodedTag = decodeURIComponent(tag);
   const session = await getAdminSessionFromServerCookies();
+  const isAdmin = Boolean(session);
   const statuses: readonly PostStatus[] = session
     ? ["draft", "published"]
     : ["published"];
   const posts = loadPostsByTag(decodedTag, statuses);
+  const includesDraft =
+    isAdmin && posts.some((post) => post.status === "draft");
+  const label = isAdmin ? "글" : "공개 글";
+  const draftSuffix = includesDraft ? " (초안 포함)" : "";
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 sm:px-6 lg:px-8">
@@ -113,8 +118,8 @@ export default async function TagPage({ params }: PageProps) {
         </h1>
         <p className="text-sm text-slate-600">
           {posts.length > 0
-            ? `${posts.length}개의 공개 글이 있습니다.`
-            : "해당 태그의 공개 글이 없습니다."}
+            ? `${posts.length}개의 ${label}이 있습니다${draftSuffix}.`
+            : `해당 태그의 ${label}이 없습니다.`}
         </p>
       </header>
 

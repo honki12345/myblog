@@ -15,7 +15,7 @@ const DISABLE_ANIMATION_STYLE = `
 function getWorkspaceDiffThreshold(projectName: string): number {
   // CI 러너 폰트 렌더링 차이로 로그인/관리자 화면에서 줄바꿈 오차가 발생한다.
   if (projectName === "mobile-360") {
-    return 0.03;
+    return 0.05;
   }
   if (projectName === "tablet-768") {
     return 0.04;

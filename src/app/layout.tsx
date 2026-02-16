@@ -61,7 +61,7 @@ export default function RootLayout({
                   태그
                 </Link>
                 <Link
-                  href="/write"
+                  href="/admin/write"
                   className="rounded-md px-3 py-2 text-slate-700 hover:bg-slate-100"
                 >
                   글쓰기

@@ -19,6 +19,7 @@
     "test:step7-local": "node scripts/test-step-7-local.mjs",
     "test:step7-remote": "node scripts/test-step-7-remote.mjs",
     "test:step8": "node scripts/test-step-8.mjs",
+    "test:step9": "node scripts/test-step-9.mjs",
     "test:ui": "playwright test",
     "test:ui:update": "playwright test --update-snapshots",
     "test:all": "node scripts/test-all.mjs",
@@ -28,6 +29,7 @@
     "format:check": "prettier . --check"
   },
   "dependencies": {
+    "@node-rs/argon2": "^2.0.2",
     "@shikijs/rehype": "^3.22.0",
     "better-sqlite3": "^12.6.2",
     "isomorphic-dompurify": "^2.36.0",

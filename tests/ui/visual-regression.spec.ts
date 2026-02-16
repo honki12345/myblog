@@ -1,16 +1,16 @@
 import { expect, test } from "@playwright/test";
-import { seedVisualPosts } from "./helpers";
+import { authenticateAdminSession, seedVisualPosts } from "./helpers";
 
 const routes = [
   { name: "home", path: "/" },
   { name: "posts", path: "/posts" },
-  { name: "write", path: "/write" },
+  { name: "admin-write", path: "/admin/write" },
   { name: "tag-sample", path: "/tags/sample" },
 ] as const;
 
 function getVisualDiffThreshold(projectName: string): number {
-  // CI runner의 폰트 메트릭 차이로 모바일/태블릿 full-page 스냅샷에
-  // 경미한 줄바꿈/높이 오차가 발생하므로 뷰포트별 허용치로 고정한다.
+  // CI runner의 폰트 메트릭 차이로 모바일/태블릿 스냅샷에
+  // 경미한 줄바꿈/레이아웃 오차가 발생하므로 뷰포트별 허용치로 고정한다.
   if (projectName === "mobile-360") {
     return 0.06;
   }
@@ -41,7 +41,12 @@ test.beforeEach(async ({ request }) => {
 for (const route of routes) {
   test(`visual snapshot: ${route.name}`, async ({ page }, testInfo) => {
     await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
-    await page.goto(route.path, { waitUntil: "networkidle" });
+    if (route.name === "admin-write") {
+      await authenticateAdminSession(page, { nextPath: "/admin/write" });
+      await page.waitForLoadState("networkidle");
+    } else {
+      await page.goto(route.path, { waitUntil: "networkidle" });
+    }
 
     await page.addStyleTag({ content: DISABLE_ANIMATION_STYLE });
     await expect(page.locator("main").first()).toBeVisible();
@@ -60,11 +65,11 @@ for (const route of routes) {
       await expect(page.locator("article").first()).toBeVisible();
     }
 
-    if (route.name === "write") {
+    if (route.name === "admin-write") {
       await expect(
-        page.getByRole("heading", { name: "글쓰기 인증" }),
+        page.getByRole("heading", { name: "새 글 작성" }),
       ).toBeVisible();
-      await expect(page.getByLabel("API Key")).toBeVisible();
+      await expect(page.getByLabel("제목")).toBeVisible();
     }
 
     if (route.name === "tag-sample") {
@@ -75,12 +80,8 @@ for (const route of routes) {
     }
 
     const maxDiffPixelRatio = getVisualDiffThreshold(testInfo.project.name);
-    const useFullPage = !(
-      testInfo.project.name === "mobile-360" && route.name === "home"
-    );
-
     await expect(page).toHaveScreenshot(`${route.name}.png`, {
-      fullPage: useFullPage,
+      fullPage: false,
       maxDiffPixelRatio,
     });
   });

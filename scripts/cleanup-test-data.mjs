@@ -34,6 +34,32 @@ function createPatternWhereClause(column, patterns) {
   return patterns.map(() => `${column} LIKE ?`).join(" OR ");
 }
 
+function cleanupAdminTables(db) {
+  const adminRecoveryCodesCount = assertTableExists(db, "admin_recovery_codes")
+    ? db.prepare("DELETE FROM admin_recovery_codes").run().changes
+    : 0;
+  const adminSessionsCount = assertTableExists(db, "admin_sessions")
+    ? db.prepare("DELETE FROM admin_sessions").run().changes
+    : 0;
+  const adminNotesCount = assertTableExists(db, "admin_notes")
+    ? db.prepare("DELETE FROM admin_notes").run().changes
+    : 0;
+  const adminTodosCount = assertTableExists(db, "admin_todos")
+    ? db.prepare("DELETE FROM admin_todos").run().changes
+    : 0;
+  const adminSchedulesCount = assertTableExists(db, "admin_schedules")
+    ? db.prepare("DELETE FROM admin_schedules").run().changes
+    : 0;
+
+  return {
+    adminRecoveryCodesCount,
+    adminSessionsCount,
+    adminNotesCount,
+    adminTodosCount,
+    adminSchedulesCount,
+  };
+}
+
 function cleanup() {
   if (!existsSync(DATABASE_PATH)) {
     console.log(`[cleanup] skip: db file not found (${DATABASE_PATH})`);
@@ -79,11 +105,14 @@ function cleanup() {
     const postIds = targets.map((row) => row.id);
 
     if (postIds.length === 0) {
+      const adminCounts = cleanupAdminTables(db);
+
       return {
         postCount: 0,
         sourceCount: 0,
         tagLinkCount: 0,
         orphanTagCount: 0,
+        ...adminCounts,
       };
     }
 
@@ -126,18 +155,21 @@ function cleanup() {
             .run().changes
         : 0;
 
+    const adminCounts = cleanupAdminTables(db);
+
     return {
       postCount: postChanges,
       sourceCount: sourceChanges,
       tagLinkCount: tagLinkChanges,
       orphanTagCount: orphanTagChanges,
+      ...adminCounts,
     };
   });
 
   try {
     const result = deleteInTransaction();
     console.log(
-      `[cleanup] posts=${result.postCount}, sources=${result.sourceCount}, post_tags=${result.tagLinkCount}, orphan_tags=${result.orphanTagCount}`,
+      `[cleanup] posts=${result.postCount}, sources=${result.sourceCount}, post_tags=${result.tagLinkCount}, orphan_tags=${result.orphanTagCount}, admin_recovery_codes=${result.adminRecoveryCodesCount}, admin_sessions=${result.adminSessionsCount}, admin_notes=${result.adminNotesCount}, admin_todos=${result.adminTodosCount}, admin_schedules=${result.adminSchedulesCount}`,
     );
   } finally {
     db.close();

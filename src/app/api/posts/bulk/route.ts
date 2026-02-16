@@ -359,7 +359,7 @@ export async function POST(request: Request) {
 
     const payload = await parseRequestJson(request);
     payloadSummary = summarizeApiPayload(payload);
-    if (!payload) {
+    if (payload === null) {
       return respondError(400, "INVALID_INPUT", [
         { index: -1, message: "Request body must be valid JSON." },
       ]);

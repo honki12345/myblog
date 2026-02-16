@@ -1,14 +1,13 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
-import { authenticateWriteEditor, runCleanupScript } from "./helpers";
+import { authenticateAdminSession, runCleanupScript } from "./helpers";
 
 test.beforeEach(() => {
   runCleanupScript();
 });
 
 test("write preview applies typography styles", async ({ page }) => {
-  await page.goto("/write", { waitUntil: "networkidle" });
-  await authenticateWriteEditor(page);
+  await authenticateAdminSession(page, { nextPath: "/admin/write" });
 
   await page
     .getByPlaceholder("마크다운 본문을 입력하세요")

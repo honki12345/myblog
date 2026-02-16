@@ -510,7 +510,10 @@ async function runChecks(apiKey) {
 
   const writePage = await requestText("/write");
   assert(writePage.status === 200, "write page should return 200");
-  assert(writePage.text.includes("글쓰기 인증"), "write auth form missing");
+  assert(
+    writePage.text.includes("관리자 로그인"),
+    "write compatibility redirect should land on admin login page",
+  );
 
   const cacheTitle = `STEP5-CACHE-${seed}`;
   const cachePost = await createPost(apiKey, {

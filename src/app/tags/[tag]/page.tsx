@@ -105,7 +105,8 @@ export default async function TagPage({ params }: PageProps) {
     ? ["draft", "published"]
     : ["published"];
   const posts = loadPostsByTag(decodedTag, statuses);
-  const includesDraft = isAdmin && posts.some((post) => post.status === "draft");
+  const includesDraft =
+    isAdmin && posts.some((post) => post.status === "draft");
   const label = isAdmin ? "글" : "공개 글";
   const draftSuffix = includesDraft ? " (초안 포함)" : "";
 

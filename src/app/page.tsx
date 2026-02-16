@@ -101,7 +101,8 @@ export default async function Home() {
     ? ["draft", "published"]
     : ["published"];
   const posts = loadLatestPosts(statuses, 10);
-  const includesDraft = isAdmin && posts.some((post) => post.status === "draft");
+  const includesDraft =
+    isAdmin && posts.some((post) => post.status === "draft");
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-10 sm:px-6 lg:px-8">
@@ -110,7 +111,11 @@ export default async function Home() {
           Latest Posts
         </p>
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-          {isAdmin ? (includesDraft ? "최신 글 (초안 포함)" : "최신 글") : "최신 공개 글"}
+          {isAdmin
+            ? includesDraft
+              ? "최신 글 (초안 포함)"
+              : "최신 글"
+            : "최신 공개 글"}
         </h1>
         <p className="max-w-2xl text-sm text-slate-600 sm:text-base">
           AI 수집 글과 직접 작성한 글을 최신 순으로 보여줍니다.

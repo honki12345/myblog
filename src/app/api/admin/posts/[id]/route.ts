@@ -25,6 +25,12 @@ type PostRow = {
   published_at: string | null;
 };
 
+class AdminPostNotFoundError extends Error {
+  constructor() {
+    super("Post not found.");
+  }
+}
+
 const patchPostSchema = z
   .object({
     title: z
@@ -265,5 +271,59 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     }
 
     return adminErrorResponse(500, "INTERNAL_ERROR", "Failed to update post.");
+  }
+}
+
+export async function DELETE(request: NextRequest, context: RouteContext) {
+  const auth = requireAdminSessionWithCsrf(request);
+  if ("response" in auth) {
+    return auth.response;
+  }
+
+  const { id } = await context.params;
+  const postId = parsePositiveIntParam(id);
+  if (!postId) {
+    return adminErrorResponse(
+      400,
+      "INVALID_INPUT",
+      "id must be a positive integer.",
+    );
+  }
+
+  const db = getDb();
+
+  try {
+    const post = loadPostById(postId);
+    if (!post) {
+      return adminErrorResponse(404, "NOT_FOUND", "Post not found.");
+    }
+
+    const tags = loadTagsForPost(postId);
+
+    db.transaction(() => {
+      // Preserve scraped sources (unique url) while allowing the post row to be removed.
+      db.prepare("UPDATE sources SET post_id = NULL WHERE post_id = ?").run(
+        postId,
+      );
+
+      const result = db.prepare("DELETE FROM posts WHERE id = ?").run(postId);
+      if (result.changes === 0) {
+        throw new AdminPostNotFoundError();
+      }
+    })();
+
+    revalidatePostRelatedPaths(post.slug, tags);
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    if (error instanceof AdminPostNotFoundError) {
+      return adminErrorResponse(404, "NOT_FOUND", "Post not found.");
+    }
+
+    if (process.env.NODE_ENV !== "production") {
+      console.error("Failed to delete admin post.", { error, postId });
+    }
+
+    return adminErrorResponse(500, "INTERNAL_ERROR", "Failed to delete post.");
   }
 }

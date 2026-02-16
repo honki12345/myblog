@@ -1,5 +1,8 @@
 import PostCard from "@/components/PostCard";
+import { getAdminSessionFromServerCookies } from "@/lib/admin-auth";
 import { getDb } from "@/lib/db";
+
+type PostStatus = "draft" | "published";
 
 type PageProps = {
   params: Promise<{ tag: string }>;
@@ -10,6 +13,7 @@ type TaggedPostRow = {
   slug: string;
   title: string;
   content: string;
+  status: PostStatus;
   published_at: string | null;
   tags_csv: string;
 };
@@ -36,8 +40,20 @@ function createExcerpt(content: string, maxLength = 200): string {
   return `${plain.slice(0, maxLength).trimEnd()}...`;
 }
 
-function loadPostsByTag(tag: string) {
+function buildStatusFilter(statuses: readonly PostStatus[]): {
+  clause: string;
+  params: PostStatus[];
+} {
+  const placeholders = statuses.map(() => "?").join(", ");
+  return {
+    clause: `p.status IN (${placeholders})`,
+    params: [...statuses],
+  };
+}
+
+function loadPostsByTag(tag: string, statuses: readonly PostStatus[]) {
   const db = getDb();
+  const statusFilter = buildStatusFilter(statuses);
   const rows = db
     .prepare(
       `
@@ -46,6 +62,7 @@ function loadPostsByTag(tag: string) {
         p.slug,
         p.title,
         p.content,
+        p.status,
         p.published_at,
         COALESCE(all_tags.tags_csv, '') AS tags_csv
       FROM posts p
@@ -59,11 +76,11 @@ function loadPostsByTag(tag: string) {
         INNER JOIN tags t2 ON t2.id = pt2.tag_id
         GROUP BY pt2.post_id
       ) AS all_tags ON all_tags.post_id = p.id
-      WHERE t.name = ? AND p.status = 'published'
+      WHERE t.name = ? AND ${statusFilter.clause}
       ORDER BY datetime(COALESCE(p.published_at, p.created_at)) DESC, p.id DESC
       `,
     )
-    .all(tag) as TaggedPostRow[];
+    .all(tag, ...statusFilter.params) as TaggedPostRow[];
 
   return rows.map((row) => ({
     id: row.id,
@@ -75,13 +92,18 @@ function loadPostsByTag(tag: string) {
         ? row.tags_csv.split("\u001f").filter((item) => item.length > 0)
         : [],
     publishedAt: row.published_at,
+    status: row.status,
   }));
 }
 
 export default async function TagPage({ params }: PageProps) {
   const { tag } = await params;
   const decodedTag = decodeURIComponent(tag);
-  const posts = loadPostsByTag(decodedTag);
+  const session = await getAdminSessionFromServerCookies();
+  const statuses: readonly PostStatus[] = session
+    ? ["draft", "published"]
+    : ["published"];
+  const posts = loadPostsByTag(decodedTag, statuses);
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 sm:px-6 lg:px-8">

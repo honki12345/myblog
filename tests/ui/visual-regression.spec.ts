@@ -17,7 +17,8 @@ function getVisualDiffThreshold(projectName: string): number {
   if (projectName === "tablet-768") {
     return 0.03;
   }
-  return 0.01;
+  // GitHub Actions runner에서도 데스크톱 폰트 렌더링 차이로 미세한 diff가 발생할 수 있다.
+  return 0.02;
 }
 
 const DISABLE_ANIMATION_STYLE = `

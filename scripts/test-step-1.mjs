@@ -114,13 +114,30 @@ async function ensureLocalEnvFile() {
     // .env.example validation is handled in testEnvFiles
   }
 
-  const lines = template
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
+  // Next.js expands "$FOO" style placeholders inside env files.
+  // Admin hashes/secrets often include "$" so keep them commented in generated `.env.local`
+  // to avoid overriding test-provided env values (e.g. Step 9 / Playwright).
+  const rawLines = template.split(/\r?\n/);
+  let hasApiKey = false;
 
-  if (!lines.some((line) => line.startsWith("BLOG_API_KEY="))) {
-    lines.push("BLOG_API_KEY=change-this-local-api-key");
+  const lines = rawLines
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      if (line.startsWith("BLOG_API_KEY=")) {
+        hasApiKey = true;
+        return line;
+      }
+
+      if (line.startsWith("ADMIN_")) {
+        return `# ${line}`;
+      }
+
+      return line;
+    });
+
+  if (!hasApiKey) {
+    lines.unshift("BLOG_API_KEY=change-this-local-api-key");
   }
 
   const content = `${lines.join("\n")}\n`;

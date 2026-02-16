@@ -51,7 +51,17 @@ export default function AdminAuthNavButton() {
 
   const handleLogout = async () => {
     try {
-      await adminFetch("/api/admin/auth/logout", { method: "POST" });
+      const response = await adminFetch("/api/admin/auth/logout", {
+        method: "POST",
+      });
+
+      if (!response.ok && process.env.NODE_ENV !== "production") {
+        console.error("Admin logout API failed.", { status: response.status });
+      }
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.error("Admin logout API failed.", error);
+      }
     } finally {
       setCsrfToken(null);
       router.replace("/admin/login");

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { adminFetch } from "@/lib/admin-client";
 
@@ -64,7 +64,7 @@ export default function AdminTodosClient() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
-  const loadTodos = async () => {
+  const loadTodos = useCallback(async () => {
     setIsLoading(true);
     setErrorMessage("");
     try {
@@ -87,11 +87,11 @@ export default function AdminTodosClient() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [router]);
 
   useEffect(() => {
     loadTodos().catch(() => undefined);
-  }, []);
+  }, [loadTodos]);
 
   const handleCreate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();

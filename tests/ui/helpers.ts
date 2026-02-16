@@ -208,7 +208,7 @@ export async function authenticateAdminSession(
 
   let authenticated = false;
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    const code = generateTotpCode(resolveAdminTotpSecret());
+    const code = generateTotpCode(totpSecret);
     await page.getByLabel("인증 코드").fill(code);
     await page.getByRole("button", { name: "2차 인증 완료" }).click();
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { adminFetch } from "@/lib/admin-client";
 
@@ -36,7 +36,7 @@ export default function AdminNotesClient() {
   const [form, setForm] = useState<NotePayload>(createInitialPayload());
   const [editingId, setEditingId] = useState<number | null>(null);
 
-  const loadNotes = async () => {
+  const loadNotes = useCallback(async () => {
     setIsLoading(true);
     setErrorMessage("");
     try {
@@ -59,11 +59,11 @@ export default function AdminNotesClient() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [router]);
 
   useEffect(() => {
     loadNotes().catch(() => undefined);
-  }, []);
+  }, [loadNotes]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();

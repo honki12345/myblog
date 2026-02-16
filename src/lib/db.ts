@@ -3,7 +3,6 @@ import path from "node:path";
 import Database from "better-sqlite3";
 
 const DEFAULT_DB_PATH = path.join(process.cwd(), "data", "blog.db");
-const CURRENT_SCHEMA_VERSION = 2;
 
 const BASE_SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS posts (

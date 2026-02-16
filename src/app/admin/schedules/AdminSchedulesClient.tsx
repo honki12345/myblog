@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { adminFetch } from "@/lib/admin-client";
 
@@ -87,7 +87,7 @@ export default function AdminSchedulesClient() {
 
   const monthCells = useMemo(() => createMonthCells(calendarAnchor), [calendarAnchor]);
 
-  const loadSchedules = async () => {
+  const loadSchedules = useCallback(async () => {
     setIsLoading(true);
     setErrorMessage("");
     try {
@@ -110,11 +110,11 @@ export default function AdminSchedulesClient() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [router]);
 
   useEffect(() => {
     loadSchedules().catch(() => undefined);
-  }, []);
+  }, [loadSchedules]);
 
   const handleCreate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -424,4 +424,3 @@ export default function AdminSchedulesClient() {
     </main>
   );
 }
-

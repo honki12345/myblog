@@ -50,6 +50,8 @@ export default function AdminAuthNavButton() {
   }
 
   const handleLogout = async () => {
+    // Redirect regardless of API outcome: the user's intent is to leave the admin UI.
+    // Server-side session/cookie cleanup is best-effort via the logout endpoint.
     try {
       const response = await adminFetch("/api/admin/auth/logout", {
         method: "POST",

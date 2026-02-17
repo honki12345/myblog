@@ -154,13 +154,13 @@ export default async function PostsPage({ searchParams }: PageProps) {
 
   try {
     const result = listPostsWithTotalCount({
-        statuses,
-        type,
-        tag,
-        ftsQuery,
-        limit: perPage,
-        offset: requestedOffset,
-      });
+      statuses,
+      type,
+      tag,
+      ftsQuery,
+      limit: perPage,
+      offset: requestedOffset,
+    });
     items = result.items;
     totalCount = result.totalCount;
   } catch (error) {

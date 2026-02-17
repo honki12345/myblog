@@ -187,18 +187,18 @@ async function startServer(apiKey) {
       env: {
         ...process.env,
         BLOG_API_KEY: apiKey,
-      DATABASE_PATH: TEST_DB_PATH,
-      NEXT_PUBLIC_SITE_URL: apiBase,
-      RATE_LIMIT_MAX_REQUESTS:
-        process.env.STEP5_RATE_LIMIT_MAX_REQUESTS ??
-        process.env.RATE_LIMIT_MAX_REQUESTS ??
-        "100",
-      RATE_LIMIT_WINDOW_MS:
-        process.env.STEP5_RATE_LIMIT_WINDOW_MS ??
-        process.env.RATE_LIMIT_WINDOW_MS ??
-        "1000",
-      NEXT_TELEMETRY_DISABLED: "1",
-    },
+        DATABASE_PATH: TEST_DB_PATH,
+        NEXT_PUBLIC_SITE_URL: apiBase,
+        RATE_LIMIT_MAX_REQUESTS:
+          process.env.STEP5_RATE_LIMIT_MAX_REQUESTS ??
+          process.env.RATE_LIMIT_MAX_REQUESTS ??
+          "100",
+        RATE_LIMIT_WINDOW_MS:
+          process.env.STEP5_RATE_LIMIT_WINDOW_MS ??
+          process.env.RATE_LIMIT_WINDOW_MS ??
+          "1000",
+        NEXT_TELEMETRY_DISABLED: "1",
+      },
       detached: true,
       stdio: ["ignore", "pipe", "pipe"],
     },

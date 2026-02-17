@@ -175,14 +175,7 @@ async function startServer(apiKey, options = {}) {
   const output = { stdout: "", stderr: "" };
   const child = spawn(
     process.execPath,
-    [
-      NEXT_BIN,
-      "dev",
-      "--hostname",
-      DEV_SERVER_HOST,
-      "--port",
-      String(port),
-    ],
+    [NEXT_BIN, "dev", "--hostname", DEV_SERVER_HOST, "--port", String(port)],
     {
       cwd: ROOT,
       env: {

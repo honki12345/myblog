@@ -274,11 +274,15 @@ async function testDevServer() {
     3002,
   );
   const port = await findAvailablePort(portBase);
-  const dev = spawn(process.execPath, [NEXT_BIN, "dev", "--port", String(port)], {
-    env: { ...process.env },
-    detached: true,
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  const dev = spawn(
+    process.execPath,
+    [NEXT_BIN, "dev", "--port", String(port)],
+    {
+      env: { ...process.env },
+      detached: true,
+      stdio: ["ignore", "pipe", "pipe"],
+    },
+  );
 
   dev.stdout.on("data", (chunk) => process.stdout.write(chunk.toString()));
   dev.stderr.on("data", (chunk) => process.stderr.write(chunk.toString()));

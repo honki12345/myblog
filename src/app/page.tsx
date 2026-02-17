@@ -74,8 +74,8 @@ export default async function Home() {
       {!hasAnyPosts ? (
         <section className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-600">
           <p>
-            아직 글이 없습니다. 아래의 태그 허브나 아카이브 링크로 탐색을
-            시작해 보세요.
+            아직 글이 없습니다. 아래의 태그 허브나 아카이브 링크로 탐색을 시작해
+            보세요.
           </p>
           {isAdmin ? (
             <Link

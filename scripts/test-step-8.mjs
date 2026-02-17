@@ -242,7 +242,11 @@ async function stopServer(child) {
       child.kill("SIGTERM");
     }
   } catch {
-    child.kill("SIGTERM");
+    try {
+      child.kill("SIGTERM");
+    } catch {
+      // The process may have already exited (ESRCH); ignore shutdown races.
+    }
   }
 
   await new Promise((resolve) => {
@@ -255,7 +259,11 @@ async function stopServer(child) {
             child.kill("SIGKILL");
           }
         } catch {
-          child.kill("SIGKILL");
+          try {
+            child.kill("SIGKILL");
+          } catch {
+            // The process may have already exited (ESRCH); ignore shutdown races.
+          }
         }
       }
     }, 5000);

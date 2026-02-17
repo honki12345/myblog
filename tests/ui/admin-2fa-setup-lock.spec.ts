@@ -42,7 +42,9 @@ async function assertNoSeriousA11yViolations(page: Page, message: string) {
 function resetAdminTotpEnabledAt(): void {
   const db = new Database(PLAYWRIGHT_DATABASE_PATH);
   try {
-    db.prepare("UPDATE admin_auth SET totp_enabled_at = NULL WHERE id = 1").run();
+    db.prepare(
+      "UPDATE admin_auth SET totp_enabled_at = NULL WHERE id = 1",
+    ).run();
   } catch {
     // Best-effort: the server applies migrations on startup, but keep tests resilient.
   } finally {
@@ -66,7 +68,9 @@ test.beforeEach(() => {
   resetAdminTotpEnabledAt();
 });
 
-test("admin 2FA setup QR is locked after enabling", async ({ page }, testInfo) => {
+test("admin 2FA setup QR is locked after enabling", async ({
+  page,
+}, testInfo) => {
   const maxDiffPixelRatio = getDiffThreshold(testInfo.project.name);
   const username = resolveAdminUsername();
   const password = resolveAdminPassword();
@@ -86,16 +90,18 @@ test("admin 2FA setup QR is locked after enabling", async ({ page }, testInfo) =
   await expect(page.getByLabel("인증 코드")).toBeVisible({ timeout: 8_000 });
 
   const cookiesAfterPrimary = await page.context().cookies();
-  expect(findCookieValue(cookiesAfterPrimary, "admin_login_challenge")).not.toBe(
-    null,
-  );
+  expect(
+    findCookieValue(cookiesAfterPrimary, "admin_login_challenge"),
+  ).not.toBe(null);
   expect(findCookieValue(cookiesAfterPrimary, "admin_session")).toBe(null);
 
   await expect(
     page.getByRole("button", { name: "Authenticator 등록 QR 보기" }),
   ).toBeVisible();
 
-  await page.getByRole("button", { name: "Authenticator 등록 QR 보기" }).click();
+  await page
+    .getByRole("button", { name: "Authenticator 등록 QR 보기" })
+    .click();
   await expect(page.getByAltText("Authenticator 앱 등록 QR 코드")).toBeVisible({
     timeout: 10_000,
   });
@@ -123,7 +129,9 @@ test("admin 2FA setup QR is locked after enabling", async ({ page }, testInfo) =
   }
 
   const cookiesAfterVerify = await page.context().cookies();
-  expect(findCookieValue(cookiesAfterVerify, "admin_login_challenge")).toBe(null);
+  expect(findCookieValue(cookiesAfterVerify, "admin_login_challenge")).toBe(
+    null,
+  );
   expect(findCookieValue(cookiesAfterVerify, "admin_session")).not.toBe(null);
 
   const dbAfterVerify = new Database(PLAYWRIGHT_DATABASE_PATH);

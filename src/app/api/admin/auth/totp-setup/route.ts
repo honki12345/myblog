@@ -6,10 +6,7 @@ import {
   isAdminTotpEnabled,
 } from "@/lib/admin-auth";
 
-type ApiErrorCode =
-  | "UNAUTHORIZED"
-  | "TOTP_ALREADY_ENABLED"
-  | "INTERNAL_ERROR";
+type ApiErrorCode = "UNAUTHORIZED" | "TOTP_ALREADY_ENABLED" | "INTERNAL_ERROR";
 
 function errorResponse(
   status: number,
@@ -52,7 +49,11 @@ export async function GET(request: NextRequest) {
   }
 
   if (isAdminTotpEnabled()) {
-    return errorResponse(409, "TOTP_ALREADY_ENABLED", "TOTP is already enabled.");
+    return errorResponse(
+      409,
+      "TOTP_ALREADY_ENABLED",
+      "TOTP is already enabled.",
+    );
   }
 
   try {

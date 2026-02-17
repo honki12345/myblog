@@ -6,8 +6,9 @@ import path from "node:path";
 import process from "node:process";
 
 const ROOT = process.cwd();
-const PORT = 3000;
-const API_BASE = `http://localhost:${PORT}`;
+const DEV_SERVER_HOST = "127.0.0.1";
+const DEFAULT_PORT = 3000;
+let apiBase = `http://${DEV_SERVER_HOST}:${DEFAULT_PORT}`;
 const TEST_DB_PATH = path.join(ROOT, "data", "test-step3.db");
 const TEST_DB_WAL_PATH = `${TEST_DB_PATH}-wal`;
 const TEST_DB_SHM_PATH = `${TEST_DB_PATH}-shm`;
@@ -75,10 +76,20 @@ function canBindPort(port) {
     server.unref();
 
     server.once("error", () => resolve(false));
-    server.listen({ port, exclusive: true }, () => {
+    server.listen({ port, host: DEV_SERVER_HOST }, () => {
       server.close(() => resolve(true));
     });
   });
+}
+
+async function findAvailablePort(startPort = DEFAULT_PORT, maxAttempts = 100) {
+  for (let port = startPort; port < startPort + maxAttempts; port += 1) {
+    if (await canBindPort(port)) {
+      return port;
+    }
+  }
+
+  throw new Error(`unable to find available port from ${startPort}`);
 }
 
 async function waitForPortToBeFree(port, retries = 25, delayMs = 200) {
@@ -151,16 +162,30 @@ async function waitForServer(url, retries = 60, delayMs = 500) {
 
 async function startServer(apiKey, options = {}) {
   const { env = {} } = options;
+  const startPort = Number.parseInt(process.env.STEP3_PORT_BASE ?? "", 10);
+  const portBase =
+    Number.isFinite(startPort) && startPort > 0 ? startPort : DEFAULT_PORT;
+  const port = await findAvailablePort(portBase);
+  apiBase = `http://${DEV_SERVER_HOST}:${port}`;
+
   const output = { stdout: "", stderr: "" };
   const child = spawn(
     "node",
-    ["node_modules/next/dist/bin/next", "dev", "--port", String(PORT)],
+    [
+      "node_modules/next/dist/bin/next",
+      "dev",
+      "--hostname",
+      DEV_SERVER_HOST,
+      "--port",
+      String(port),
+    ],
     {
       cwd: ROOT,
       env: {
         ...process.env,
         BLOG_API_KEY: apiKey,
         DATABASE_PATH: TEST_DB_PATH,
+        NEXT_PUBLIC_SITE_URL: apiBase,
         NEXT_TELEMETRY_DISABLED: "1",
         ...env,
       },
@@ -168,6 +193,7 @@ async function startServer(apiKey, options = {}) {
       stdio: ["ignore", "pipe", "pipe"],
     },
   );
+  child.__step3Port = port;
 
   child.__output = output;
   child.stdout.on("data", (chunk) => {
@@ -181,7 +207,7 @@ async function startServer(apiKey, options = {}) {
     process.stderr.write(text);
   });
 
-  await waitForServer(`${API_BASE}/api/health`);
+  await waitForServer(`${apiBase}/api/health`);
   return child;
 }
 
@@ -226,7 +252,10 @@ async function stopServer(child) {
 
   // `next dev` can keep the port occupied briefly after the parent process exits
   // (child workers / graceful shutdown). Ensure we don't race the next start.
-  await waitForPortToBeFree(PORT);
+  const port = typeof child.__step3Port === "number" ? child.__step3Port : null;
+  if (port !== null) {
+    await waitForPortToBeFree(port);
+  }
 }
 
 async function callJson(pathname, options = {}) {
@@ -243,7 +272,7 @@ async function callJson(pathname, options = {}) {
     payload = JSON.stringify(body);
   }
 
-  const response = await fetch(`${API_BASE}${pathname}`, {
+  const response = await fetch(`${apiBase}${pathname}`, {
     method,
     headers: requestHeaders,
     body: payload,
@@ -267,7 +296,7 @@ async function callUpload(pathname, apiKey, file) {
   const formData = new FormData();
   formData.set("file", file);
 
-  const response = await fetch(`${API_BASE}${pathname}`, {
+  const response = await fetch(`${apiBase}${pathname}`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -628,7 +657,7 @@ async function runSessionOne(apiKey, uploadedFiles) {
   const missingPost = await callJson("/api/posts/99999", { apiKey });
   assertErrorResponse(missingPost, 404, "NOT_FOUND");
 
-  const uploadUnauthorized = await fetch(`${API_BASE}/api/uploads`, {
+  const uploadUnauthorized = await fetch(`${apiBase}/api/uploads`, {
     method: "POST",
   });
   const uploadUnauthorizedData = await uploadUnauthorized.json();

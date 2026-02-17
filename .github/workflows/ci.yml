@@ -108,6 +108,8 @@ jobs:
             mv .artifact/next-standalone/.next/standalone .next/standalone
           elif [ -d .artifact/next-standalone/standalone ]; then
             mv .artifact/next-standalone/standalone .next/standalone
+          elif [ -f .artifact/next-standalone/server.js ]; then
+            mv .artifact/next-standalone .next/standalone
           else
             echo "standalone artifact not found in expected paths" >&2
             find .artifact/next-standalone -maxdepth 4 -type f -name server.js -print

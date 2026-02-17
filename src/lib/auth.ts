@@ -30,13 +30,3 @@ export function verifyApiKey(input: string | null | undefined): boolean {
 
   return timingSafeEqualString(input, expected);
 }
-
-export function verifyInboxToken(input: string | null | undefined): boolean {
-  const expected = process.env.INBOX_TOKEN ?? "";
-
-  if (!input || !expected) {
-    return false;
-  }
-
-  return timingSafeEqualString(input, expected);
-}

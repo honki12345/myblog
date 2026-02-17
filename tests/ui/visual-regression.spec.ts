@@ -1,18 +1,32 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
-import { authenticateAdminSession, seedVisualPosts } from "./helpers";
+import {
+  assertNoHorizontalPageScroll,
+  authenticateAdminSession,
+  seedVisualPosts,
+} from "./helpers";
 
 const THUMBNAIL_SEED_TITLE = "PW-SEED-홈 화면 글";
 const NO_THUMBNAIL_SEED_TITLE = "PW-SEED-목록 화면 글";
 const FALLBACK_THUMBNAIL_SEED_TITLE = "PW-SEED-태그 화면 글";
 
 const routes = [
-  { name: "home", path: "/" },
-  { name: "posts", path: "/posts" },
-  { name: "admin-write", path: "/admin/write" },
-  { name: "tags", path: "/tags" },
-  { name: "tag-sample", path: "/tags/sample" },
-] as const;
+  { name: "home", getPath: (_seeded: { detailSlug: string }) => "/" },
+  { name: "posts", getPath: (_seeded: { detailSlug: string }) => "/posts" },
+  {
+    name: "post-detail",
+    getPath: (seeded: { detailSlug: string }) => `/posts/${seeded.detailSlug}`,
+  },
+  {
+    name: "admin-write",
+    getPath: (_seeded: { detailSlug: string }) => "/admin/write",
+  },
+  { name: "tags", getPath: (_seeded: { detailSlug: string }) => "/tags" },
+  {
+    name: "tag-sample",
+    getPath: (_seeded: { detailSlug: string }) => "/tags/sample",
+  },
+];
 
 function getVisualDiffThreshold(projectName: string): number {
   // CI runner의 폰트 메트릭 차이로 모바일/태블릿 스냅샷에
@@ -59,24 +73,27 @@ async function assertNoSeriousA11yViolations(page: Page, message: string) {
   expect(blockingViolations, message).toEqual([]);
 }
 
-test.beforeEach(async ({ request }) => {
-  await seedVisualPosts(request);
-});
-
 for (const route of routes) {
-  test(`visual snapshot: ${route.name}`, async ({ page }, testInfo) => {
+  test(`visual snapshot: ${route.name}`, async ({ page, request }, testInfo) => {
+    const seeded = await seedVisualPosts(request);
+    const routePath = route.getPath(seeded);
+
     await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
     if (route.name === "admin-write") {
       await authenticateAdminSession(page, { nextPath: "/admin/write" });
       await page.waitForLoadState("networkidle");
     } else {
-      await page.goto(route.path, { waitUntil: "networkidle" });
+      await page.goto(routePath, { waitUntil: "networkidle" });
     }
 
     await page.addStyleTag({ content: DISABLE_ANIMATION_STYLE });
     await expect(page.locator("main").first()).toBeVisible();
 
-    if (route.name !== "admin-write" && route.name !== "tags") {
+    if (
+      route.name === "home" ||
+      route.name === "posts" ||
+      route.name === "tag-sample"
+    ) {
       const cardWithThumbnail = getPostCardByTitle(page, THUMBNAIL_SEED_TITLE);
       await expect(cardWithThumbnail).toBeVisible();
       await expect(
@@ -151,6 +168,17 @@ for (const route of routes) {
       await expect(page.locator("article").first()).toBeVisible();
     }
 
+    if (route.name === "post-detail") {
+      await expect(
+        page.getByRole("heading", { name: THUMBNAIL_SEED_TITLE }),
+      ).toBeVisible();
+      const content = page.locator("article.markdown-content");
+      await expect(content).toBeVisible();
+      await expect(content.locator("pre")).toBeVisible();
+      await expect(content.locator("table")).toBeVisible();
+      await expect(content.locator(".katex")).toBeVisible();
+    }
+
     if (route.name === "admin-write") {
       await expect(
         page.getByRole("heading", { name: "새 글 작성" }),
@@ -173,9 +201,14 @@ for (const route of routes) {
       await expect(page.getByRole("link", { name: /#sample/ })).toBeVisible();
     }
 
+    await assertNoHorizontalPageScroll(
+      page,
+      `[${testInfo.project.name}] ${routePath} has horizontal overflow`,
+    );
+
     await assertNoSeriousA11yViolations(
       page,
-      `[${testInfo.project.name}] ${route.path} has serious/critical accessibility violations`,
+      `[${testInfo.project.name}] ${routePath} has serious/critical accessibility violations`,
     );
 
     const maxDiffPixelRatio = getVisualDiffThreshold(testInfo.project.name);

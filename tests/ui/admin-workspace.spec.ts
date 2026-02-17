@@ -1,6 +1,10 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
-import { authenticateAdminSession, runCleanupScript } from "./helpers";
+import {
+  assertNoHorizontalPageScroll,
+  authenticateAdminSession,
+  runCleanupScript,
+} from "./helpers";
 
 const DISABLE_ANIMATION_STYLE = `
   *,
@@ -47,6 +51,10 @@ test("admin workspace visual + functional + accessibility smoke", async ({
   await expect(
     page.getByRole("heading", { name: "관리자 로그인" }),
   ).toBeVisible();
+  await assertNoHorizontalPageScroll(
+    page,
+    `[${testInfo.project.name}] /admin/login has horizontal overflow`,
+  );
   await assertNoSeriousA11yViolations(page);
   await expect(page).toHaveScreenshot("admin-login.png", { maxDiffPixelRatio });
 
@@ -56,6 +64,10 @@ test("admin workspace visual + functional + accessibility smoke", async ({
   await expect(
     page.getByRole("button", { name: "관리자 로그아웃" }),
   ).toBeVisible();
+  await assertNoHorizontalPageScroll(
+    page,
+    `[${testInfo.project.name}] /admin/write has horizontal overflow`,
+  );
   await assertNoSeriousA11yViolations(page);
   await expect(page).toHaveScreenshot("admin-write.png", { maxDiffPixelRatio });
 
@@ -68,6 +80,10 @@ test("admin workspace visual + functional + accessibility smoke", async ({
   await page.getByLabel("내용").fill("관리자 메모 기능 확인");
   await page.getByRole("button", { name: "메모 추가" }).click();
   await expect(page.getByText("UI-ADMIN-NOTE")).toBeVisible();
+  await assertNoHorizontalPageScroll(
+    page,
+    `[${testInfo.project.name}] /admin/notes has horizontal overflow`,
+  );
   await assertNoSeriousA11yViolations(page);
   await expect(page).toHaveScreenshot("admin-notes.png", { maxDiffPixelRatio });
 
@@ -82,6 +98,10 @@ test("admin workspace visual + functional + accessibility smoke", async ({
   await page.getByRole("button", { name: "다음 상태" }).first().click();
   await page.getByRole("button", { name: "다음 상태" }).first().click();
   await expect(page.getByText("status: done", { exact: false })).toBeVisible();
+  await assertNoHorizontalPageScroll(
+    page,
+    `[${testInfo.project.name}] /admin/todos has horizontal overflow`,
+  );
   await assertNoSeriousA11yViolations(page);
   await expect(page).toHaveScreenshot("admin-todos.png", { maxDiffPixelRatio });
 
@@ -95,6 +115,10 @@ test("admin workspace visual + functional + accessibility smoke", async ({
   await page.getByLabel("종료").fill("2026-01-15T10:00");
   await page.getByRole("button", { name: "일정 추가" }).click();
   await expect(page.getByText("UI-ADMIN-SCHEDULE")).toBeVisible();
+  await assertNoHorizontalPageScroll(
+    page,
+    `[${testInfo.project.name}] /admin/schedules has horizontal overflow`,
+  );
   await assertNoSeriousA11yViolations(page);
   await expect(page).toHaveScreenshot("admin-schedules.png", {
     maxDiffPixelRatio,

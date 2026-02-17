@@ -195,6 +195,77 @@ export async function authenticateWriteEditor(
   throw new Error("API Key authentication did not transition to editor mode");
 }
 
+export async function assertNoHorizontalPageScroll(
+  page: Page,
+  message: string,
+): Promise<void> {
+  const { documentElement, body, offenders } = await page.evaluate(() => {
+    const clientWidth = document.documentElement.clientWidth;
+    const elements = Array.from(document.querySelectorAll("body *"));
+
+    const candidates = elements
+      .map((node) => {
+        const element = node as HTMLElement;
+        const rect = element.getBoundingClientRect();
+        const rightOverflow = rect.right - clientWidth;
+        const scrollOverflow = element.scrollWidth - clientWidth;
+        const tag = element.tagName.toLowerCase();
+        const id = element.id ? `#${element.id}` : "";
+        const className =
+          typeof element.className === "string" && element.className.trim()
+            ? `.${element.className.trim().split(/\\s+/).slice(0, 4).join(".")}`
+            : "";
+        const label = `${tag}${id}${className}`;
+        return {
+          label,
+          right: rect.right,
+          width: rect.width,
+          left: rect.left,
+          scrollWidth: element.scrollWidth,
+          clientWidth: element.clientWidth,
+          rightOverflow,
+          scrollOverflow,
+        };
+      })
+      .filter((item) => {
+        return (
+          item.rightOverflow > 1 &&
+          item.width > clientWidth + 1 &&
+          item.left > -1
+        );
+      })
+      .sort((a, b) => b.rightOverflow - a.rightOverflow)
+      .slice(0, 5);
+
+    return {
+      documentElement: {
+        scrollWidth: document.documentElement.scrollWidth,
+        clientWidth: document.documentElement.clientWidth,
+      },
+      body: {
+        scrollWidth: document.body.scrollWidth,
+        clientWidth: document.body.clientWidth,
+      },
+      offenders: candidates,
+    };
+  });
+
+  const offenderHint =
+    offenders.length > 0
+      ? ` offenders=${JSON.stringify(offenders)}`
+      : "";
+
+  expect(
+    Math.ceil(documentElement.scrollWidth),
+    `${message} (documentElement scrollWidth=${documentElement.scrollWidth} clientWidth=${documentElement.clientWidth})${offenderHint}`,
+  ).toBeLessThanOrEqual(documentElement.clientWidth + 1);
+
+  expect(
+    Math.ceil(body.scrollWidth),
+    `${message} (body scrollWidth=${body.scrollWidth} clientWidth=${body.clientWidth})${offenderHint}`,
+  ).toBeLessThanOrEqual(body.clientWidth + 1);
+}
+
 export async function authenticateAdminSession(
   page: Page,
   options: { nextPath?: string } = {},
@@ -367,10 +438,34 @@ export async function seedVisualPosts(
   runCleanupScript();
   const seededPosts: Array<SeededPost & { id: number; slug: string }> = [];
 
+  const longToken = "a".repeat(180);
   const homeSeed: SeededPost = {
     title: "PW-SEED-홈 화면 글",
-    content:
-      "![thumbnail](/uploads/pw-seed-thumbnail.svg)\n\n시각 회귀 테스트용 홈 콘텐츠",
+    content: `![thumbnail](/uploads/pw-seed-thumbnail.svg)
+
+# PW Seed Detail
+
+시각 회귀 테스트용 홈 콘텐츠 (오버플로우 케이스 포함)
+
+## Long Code
+
+\`\`\`js
+const reallyLongLine = "${longToken}";
+console.log(reallyLongLine);
+\`\`\`
+
+## Long URL
+
+https://example.com/${longToken}
+
+## Wide Table
+
+| A | B | C | D | E | F |
+| --- | --- | --- | --- | --- | --- |
+| cell-${longToken} | cell-${longToken} | cell-${longToken} | cell-${longToken} | cell-${longToken} | cell-${longToken} |
+
+$$E=mc^2$$
+`,
     tags: ["sample", "visual"],
     status: "published",
     sourceUrl: "https://playwright.seed/home",

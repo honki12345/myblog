@@ -21,7 +21,8 @@ export default function SearchBar({ query }: SearchBarProps) {
           name="q"
           type="search"
           defaultValue={normalizedQuery}
-          placeholder="검색어를 입력하세요"
+          autoComplete="off"
+          placeholder="예: Kubernetes…"
           className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200"
         />
         <button
@@ -40,4 +41,3 @@ export default function SearchBar({ query }: SearchBarProps) {
     </div>
   );
 }
-

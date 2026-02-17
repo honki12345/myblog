@@ -101,3 +101,17 @@
 ## 검증 계획
 - [ ] `npm run test:all` (프로젝트 규칙에 따라)
 - [ ] Playwright: 이미지 유/무 카드 스크린샷 및 기능 assertion 통과
+
+## PR 리뷰 반영 내역 (2026-02-17)
+- 코멘트(Inline, CodeRabbit): `tests/ui/admin-write-redirect.spec.ts`의 `async ({}, testInfo)` 패턴이 Biome `noEmptyPattern` 린트 에러를 유발
+  - 변경: `async (_fixtures, testInfo)`로 수정
+  - 변경 파일: `tests/ui/admin-write-redirect.spec.ts`
+  - 검증: `npm run lint`
+- 코멘트(Review, CodeRabbit): 시각 회귀 테스트에 axe-core 접근성(serious/critical) 검증 추가
+  - 변경: `tests/ui/visual-regression.spec.ts`에서 스크린샷 직전에 `@axe-core/playwright` 검사 실행
+  - 변경 파일: `tests/ui/visual-regression.spec.ts`
+  - 검증: `PLAYWRIGHT_PORT=3400 npm run test:ui -- tests/ui/visual-regression.spec.ts`
+- 코멘트(Review, CodeRabbit): `tests/ui/admin-write-redirect.spec.ts`의 fetch 기반 테스트를 page 기반 UI 테스트로 전환하고 스크린샷 + axe-core 검증 추가
+  - 변경: `page.goto()` 기반으로 리다이렉트 체인(`/write` → `/admin/write` → `/admin/login?next=...`)을 검증하고, `toHaveScreenshot()` + `@axe-core/playwright` 검사 추가
+  - 변경 파일: `tests/ui/admin-write-redirect.spec.ts`, `tests/ui/admin-write-redirect.spec.ts-snapshots/*`
+  - 검증: `PLAYWRIGHT_PORT=3400 npm run test:ui -- tests/ui/admin-write-redirect.spec.ts`

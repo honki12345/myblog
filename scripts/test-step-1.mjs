@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { access, readFile, readdir, writeFile } from "node:fs/promises";
+import { access, readdir, writeFile } from "node:fs/promises";
 import process from "node:process";
 import path from "node:path";
 
@@ -107,26 +107,15 @@ async function ensureLocalEnvFile() {
     // continue to create from template
   }
 
-  let template = "";
-  try {
-    template = await readFile(".env.example", "utf8");
-  } catch {
-    // .env.example validation is handled in testEnvFiles
-  }
-
-  const lines = template
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  if (!lines.some((line) => line.startsWith("BLOG_API_KEY="))) {
-    lines.push("BLOG_API_KEY=change-this-local-api-key");
-  }
-
-  const content = `${lines.join("\n")}\n`;
+  // Keep the generated env minimal so later test steps that rely on Next's
+  // dotenv loader are not affected by placeholder admin auth values.
+  // (e.g. `ADMIN_PASSWORD_HASH=$argon2id$...` is unsafe with dotenv-expand.)
+  const apiKey =
+    process.env.BLOG_API_KEY?.trim() || "change-this-local-api-key";
+  const content = `BLOG_API_KEY=${apiKey}\n`;
   try {
     await writeFile(".env.local", content, { flag: "wx" });
-    console.log("Created .env.local from template for this local test run.");
+    console.log("Created .env.local for this local test run.");
   } catch (error) {
     if (error instanceof Error && "code" in error && error.code === "EEXIST") {
       return;

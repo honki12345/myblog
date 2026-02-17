@@ -142,9 +142,14 @@ curl -i -sS -X POST "https://<host>/api/inbox" \
 
 ### Auth / permissions and cache behavior
 
-- 공개 페이지(`/`, `/posts`, `/tags/[tag]`)는 기본적으로 `status='published'`만 노출한다.
+- 공개 페이지(`/`, `/posts`, `/tags`, `/tags/[tag]`)는 기본적으로 `status='published'`만 노출한다.
   - 단, 관리자 세션(`admin_session` 쿠키)이 유효하면 목록 페이지에서 `draft`도 함께 노출한다.
   - 목록에서 `draft` 클릭 시 편집기로 이동한다: `/admin/write?id={id}`
+- `/`은 탐색 시작점이다: 태그 허브 + 최신 직접 작성 5 + 최신 AI 수집 5 + CTA.
+- `/posts`는 아카이브다: `type=all|original|ai` + 검색(`q`, FTS5) + 태그(`tag`) + 페이지네이션(`page`, `per_page`).
+  - `q`가 있을 때: 관련도 우선(`bm25(posts_fts) ASC`) + 최신순 tie-break.
+  - `q`가 없을 때: 최신순.
+  - `type`은 `posts.origin(original|ai)` 기준이며, 생성 시 결정되고 변경되지 않는다.
 - 상세 페이지(`/posts/[slug]`)는 `published`만 노출한다.
 - `/write` 페이지는 클라이언트에서 `/api/health`를 호출해 API Key를 검증한다.
 - 생성/수정 API는 `revalidatePath`로 홈/목록/상세/태그 캐시 갱신을 트리거한다.

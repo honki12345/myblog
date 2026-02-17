@@ -226,7 +226,7 @@ export async function POST(request: Request) {
   }
 
   const payload = await parseRequestJson(request);
-  if (!payload) {
+  if (payload === null) {
     return errorResponse(
       400,
       "INVALID_INPUT",

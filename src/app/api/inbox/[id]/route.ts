@@ -103,7 +103,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   const payload = await parseRequestJson(request);
-  if (!payload) {
+  if (payload === null) {
     return errorResponse(
       400,
       "INVALID_INPUT",

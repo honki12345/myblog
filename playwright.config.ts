@@ -1,6 +1,17 @@
 import { defineConfig } from "@playwright/test";
 
 const PLAYWRIGHT_DB_PATH = `${process.cwd()}/data/playwright-ui.db`;
+const DEFAULT_PLAYWRIGHT_PORT = 3000;
+const PLAYWRIGHT_PORT_RAW = process.env.PLAYWRIGHT_PORT?.trim();
+const PLAYWRIGHT_PORT = PLAYWRIGHT_PORT_RAW
+  ? Number.parseInt(PLAYWRIGHT_PORT_RAW, 10)
+  : DEFAULT_PLAYWRIGHT_PORT;
+const PLAYWRIGHT_PORT_NORMALIZED =
+  Number.isFinite(PLAYWRIGHT_PORT) && PLAYWRIGHT_PORT > 0
+    ? PLAYWRIGHT_PORT
+    : DEFAULT_PLAYWRIGHT_PORT;
+const PLAYWRIGHT_BASE_URL = `http://127.0.0.1:${PLAYWRIGHT_PORT_NORMALIZED}`;
+
 const PLAYWRIGHT_WEB_SERVER_COMMAND = `set -eu;
 set -a;
 [ -z "\${BLOG_API_KEY:-}" ] && [ -f ./.env.local ] && . ./.env.local;
@@ -20,7 +31,7 @@ if [ -n "\${PLAYWRIGHT_SKIP_BUILD:-}" ] && [ "\${PLAYWRIGHT_SKIP_BUILD:-}" != "0
   echo "[playwright:webServer] skip build (PLAYWRIGHT_SKIP_BUILD=\${PLAYWRIGHT_SKIP_BUILD})" >&2;
 else
   echo "[playwright:webServer] running build" >&2;
-DATABASE_PATH=${PLAYWRIGHT_DB_PATH} NEXT_PUBLIC_SITE_URL=http://127.0.0.1:3000 \\
+DATABASE_PATH=${PLAYWRIGHT_DB_PATH} NEXT_PUBLIC_SITE_URL=${PLAYWRIGHT_BASE_URL} \\
 ADMIN_USERNAME="$ADMIN_USERNAME" \\
 ADMIN_PASSWORD_HASH="$ADMIN_PASSWORD_HASH" \\
 ADMIN_SESSION_SECRET="$ADMIN_SESSION_SECRET" \\
@@ -60,7 +71,7 @@ if [ ! -d "$STANDALONE_DIR/.next/static" ]; then
   exit 1;
 fi;
 cd "$STANDALONE_DIR";
-DATABASE_PATH=${PLAYWRIGHT_DB_PATH} NEXT_PUBLIC_SITE_URL=http://127.0.0.1:3000 PORT=3000 \\
+DATABASE_PATH=${PLAYWRIGHT_DB_PATH} NEXT_PUBLIC_SITE_URL=${PLAYWRIGHT_BASE_URL} PORT=${PLAYWRIGHT_PORT_NORMALIZED} \\
 ADMIN_USERNAME="$ADMIN_USERNAME" \\
 ADMIN_PASSWORD_HASH="$ADMIN_PASSWORD_HASH" \\
 ADMIN_SESSION_SECRET="$ADMIN_SESSION_SECRET" \\
@@ -91,7 +102,7 @@ export default defineConfig({
     ? [["list"], ["html", { open: "never" }]]
     : [["list"]],
   use: {
-    baseURL: "http://127.0.0.1:3000",
+    baseURL: PLAYWRIGHT_BASE_URL,
     colorScheme: "light",
     locale: "ko-KR",
     timezoneId: "Asia/Seoul",
@@ -101,7 +112,7 @@ export default defineConfig({
   },
   webServer: {
     command: PLAYWRIGHT_WEB_SERVER_COMMAND,
-    url: "http://127.0.0.1:3000",
+    url: PLAYWRIGHT_BASE_URL,
     timeout: 180_000,
     reuseExistingServer: false,
   },

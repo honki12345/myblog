@@ -8,7 +8,7 @@ function resolveBaseUrl(testInfo: TestInfo) {
   return baseURL;
 }
 
-test("write compatibility route redirects to admin write", async ({}, testInfo) => {
+test("write compatibility route redirects to admin write", async (_fixtures, testInfo) => {
   const baseURL = resolveBaseUrl(testInfo);
   const response = await fetch(new URL("/write", baseURL));
   expect(response.status).toBe(200);
@@ -17,7 +17,7 @@ test("write compatibility route redirects to admin write", async ({}, testInfo) 
   expect(html).toContain("/admin/write");
 });
 
-test("write?id compatibility route preserves query on redirect", async ({}, testInfo) => {
+test("write?id compatibility route preserves query on redirect", async (_fixtures, testInfo) => {
   const baseURL = resolveBaseUrl(testInfo);
   const response = await fetch(new URL("/write?id=123", baseURL));
   expect(response.status).toBe(200);

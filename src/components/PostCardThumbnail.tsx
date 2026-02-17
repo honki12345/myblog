@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 
 type ThumbnailState = "loading" | "loaded" | "fallback";
 
@@ -16,37 +16,22 @@ function normalizeThumbnailSrc(src: string): string {
   return trimmed.length > 0 ? trimmed : PLACEHOLDER_SRC;
 }
 
-export default function PostCardThumbnail({ src, alt }: PostCardThumbnailProps) {
+export default function PostCardThumbnail({
+  src,
+  alt,
+}: PostCardThumbnailProps) {
   const normalizedSrc = useMemo(() => normalizeThumbnailSrc(src), [src]);
-  const initialState: ThumbnailState =
-    normalizedSrc === PLACEHOLDER_SRC ? "fallback" : "loading";
-  const [currentSrc, setCurrentSrc] = useState(normalizedSrc);
-  const [state, setState] = useState<ThumbnailState>(initialState);
-  const imgRef = useRef<HTMLImageElement | null>(null);
+  const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
+  const [errorSrc, setErrorSrc] = useState<string | null>(null);
 
-  useEffect(() => {
-    setCurrentSrc(normalizedSrc);
-    setState(normalizedSrc === PLACEHOLDER_SRC ? "fallback" : "loading");
-  }, [normalizedSrc]);
-
-  useEffect(() => {
-    if (currentSrc === PLACEHOLDER_SRC) {
-      setState("fallback");
-      return;
-    }
-
-    const img = imgRef.current;
-    if (!img || !img.complete) {
-      return;
-    }
-
-    if (img.naturalWidth > 0) {
-      setState("loaded");
-    } else {
-      setCurrentSrc(PLACEHOLDER_SRC);
-      setState("fallback");
-    }
-  }, [currentSrc]);
+  const isFallback =
+    normalizedSrc === PLACEHOLDER_SRC || errorSrc === normalizedSrc;
+  const state: ThumbnailState = isFallback
+    ? "fallback"
+    : loadedSrc === normalizedSrc
+      ? "loaded"
+      : "loading";
+  const renderedSrc = isFallback ? PLACEHOLDER_SRC : normalizedSrc;
 
   return (
     <div
@@ -54,27 +39,26 @@ export default function PostCardThumbnail({ src, alt }: PostCardThumbnailProps) 
       data-post-thumbnail
       data-post-thumbnail-state={state}
     >
+      {/* `next/image` requires configuring allowed remote hosts, but thumbnails may be arbitrary HTTPS URLs. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        ref={imgRef}
-        src={currentSrc}
+        src={renderedSrc}
         alt={alt}
         loading="lazy"
         decoding="async"
         className="h-full w-full object-cover"
         draggable={false}
         onLoad={() => {
-          if (currentSrc !== PLACEHOLDER_SRC) {
-            setState("loaded");
+          if (renderedSrc !== PLACEHOLDER_SRC) {
+            setLoadedSrc(normalizedSrc);
           }
         }}
         onError={() => {
-          if (currentSrc !== PLACEHOLDER_SRC) {
-            setCurrentSrc(PLACEHOLDER_SRC);
-            setState("fallback");
+          if (normalizedSrc !== PLACEHOLDER_SRC) {
+            setErrorSrc(normalizedSrc);
           }
         }}
       />
     </div>
   );
 }
-

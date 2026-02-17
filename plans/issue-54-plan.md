@@ -13,11 +13,11 @@
 이 상태로는 역할이 겹치고, 구현이 페이지별로 복붙되어(`/`, `/posts`, `/tags/[tag]`, 메타데이터 등) 앞으로 정책이 쉽게 어긋날 수 있다.
 
 ## 목표
-- [ ] 홈(`/`)을 탐색 시작점으로 만든다: 태그 허브 + (직접 작성 최신 5) + (AI 수집 최신 5) + CTA.
-- [ ] `/posts`를 아카이브로 만든다: 타입 탭(type) + 검색(q, FTS5) + 태그(tag) + 페이지네이션.
-- [ ] 공통 노출 규칙 유지: 비로그인=published만, 관리자=draft+published.
-- [ ] 목록/정렬/태그/발췌(excerpt)/필터 로직을 공통 모듈로 추출해 중복을 제거한다.
-- [ ] Playwright 회귀 테스트로 홈/아카이브/관리자 노출 규칙을 고정한다.
+- [x] 홈(`/`)을 탐색 시작점으로 만든다: 태그 허브 + (직접 작성 최신 5) + (AI 수집 최신 5) + CTA.
+- [x] `/posts`를 아카이브로 만든다: 타입 탭(type) + 검색(q, FTS5) + 태그(tag) + 페이지네이션.
+- [x] 공통 노출 규칙 유지: 비로그인=published만, 관리자=draft+published.
+- [x] 목록/정렬/태그/발췌(excerpt)/필터 로직을 공통 모듈로 추출해 중복을 제거한다.
+- [x] Playwright 회귀 테스트로 홈/아카이브/관리자 노출 규칙을 고정한다.
 
 ## 요구사항 정리
 ### 공통 노출 규칙
@@ -70,55 +70,55 @@
 - 검색 랭킹/스니펫 하이라이트 등 고급 검색 UX(우선은 필터 정합성/기능 고정)
 
 ## 구현 단계
-1. [ ] 분석 및 설계
-2. [ ] 구현
-3. [ ] 테스트
-4. [ ] 문서화/정리
+1. [x] 분석 및 설계
+2. [x] 구현
+3. [x] 테스트
+4. [x] 문서화/정리
 
 ### 세부 작업
-- [ ] (DB) `posts.origin` 추가 + backfill + 불변 트리거
-  - [ ] `origin` 값: `original|ai` (NOT NULL + CHECK)
-  - [ ] 마이그레이션 방식: `src/lib/db.ts`의 `schema_versions` 기반 버전 추가(현재 3 → 4)
-  - [ ] 컬럼 추가 SQL: `ALTER TABLE posts ADD COLUMN origin TEXT NOT NULL DEFAULT 'original' CHECK (origin IN ('original','ai'))`
-  - [ ] backfill SQL(확정): `UPDATE posts SET origin='ai' WHERE source_url IS NOT NULL OR EXISTS (SELECT 1 FROM sources s WHERE s.post_id = posts.id)`
-  - [ ] backfill 완료 기준: `origin`은 NULL이 없어야 하고(스키마로 보장), `SELECT origin, COUNT(*) FROM posts GROUP BY origin`로 분포를 샘플 확인한다
-  - [ ] 인덱스(필요 시): `CREATE INDEX IF NOT EXISTS idx_posts_origin ON posts(origin)`
-  - [ ] `origin` UPDATE 차단 트리거(불변 보장): `BEFORE UPDATE OF origin ON posts ... RAISE(ABORT, 'origin is immutable')`
-  - [ ] 새 DB에서도 schema version 4 마이그레이션이 반드시 적용되어 `origin`이 최종적으로 존재해야 함(마이그레이션 only 전략)
-- [ ] (리팩토링) `stripMarkdown`/`createExcerpt`를 `src/lib`로 이동하고 `/`, `/posts`, `/tags/[tag]`, `/posts/[slug]`에서 재사용
-- [ ] (리팩토링) 리스트 조회 공통 모듈 생성
-  - [ ] 입력: `statuses`, `type`, `tag`, `q`, `limit`, `offset`
-  - [ ] 출력: 카드 렌더에 필요한 필드 + tags 목록 + (선택) `source_url`/도메인
-  - [ ] COUNT 쿼리: 동일 조건으로 `totalCount`
-- [ ] (홈) 태그 허브 쿼리 구현
-  - [ ] status(권한) 반영
-  - [ ] 최근 활성 기준 정렬 + 글 수
-  - [ ] N(기본값)=10으로 확정
-- [ ] (홈) 최신 직접 작성/AI 수집 2개 섹션 구현
-  - [ ] original: `origin = 'original'` 최신 5
-  - [ ] ai: `origin = 'ai'` 최신 5 + 출처 도메인(가능 시)
-- [ ] (/posts) 쿼리 파라미터 파싱/정규화
-  - [ ] `type` 기본값 all, 허용값 외 fallback
-  - [ ] `q` trim + 빈 문자열 처리
-  - [ ] `q` 정규화 방식 확정(예: 토큰화 후 AND 결합) + FTS 문법 에러 시 500 방지(빈 결과/오류 메시지 처리)
-  - [ ] `tag` decode + 빈 문자열 처리
-  - [ ] 페이지네이션 링크가 `type/q/tag/per_page`를 보존
-- [ ] (/posts) FTS5 검색 구현
-  - [ ] `posts_fts MATCH ?` 기반으로 rowid 조인
-  - [ ] status/type/tag 필터와 조합
-  - [ ] COUNT/LIST 쿼리 결과가 일치하도록 조건/조인 구조 정리
-- [ ] (/posts) type=original|ai 필터를 `posts.origin` 기반으로 구현하고, 생성 경로별로 `origin`이 고정되도록 보장
-- [ ] (/tags) `/tags`(인덱스) + `/tags/[tag]`(상세) 모두 공통 노출 규칙 적용 + 공통 모듈/유틸로 중복 제거
-- [ ] (테스트) Playwright
-  - [ ] public: `/posts`에서 `type/q/tag` 조합이 정상 동작(결과/페이지네이션)
-  - [ ] public: `/posts` 페이지네이션 링크가 `type/q/tag/per_page`를 보존한다 (+ `type` invalid fallback)
-  - [ ] public: `/posts?type=original|ai`가 `origin` 기준으로 정확히 필터링된다
-  - [ ] public: `q`에 특수문자/따옴표가 포함돼도 500이 나지 않는다(빈 결과/오류 메시지 처리)
-  - [ ] home: 태그 섹션 + original/ai 섹션 렌더(스냅샷)
-  - [ ] admin: draft 노출 규칙 회귀 방지(`/`, `/posts`, `/tags`, `/tags/[tag]`)
-  - [ ] admin: `/tags` 인덱스에서 draft-only 태그가 노출/집계된다
-  - [ ] 스크린샷 비교 최소 뷰포트 `360/768/1440` 포함
-  - [ ] (메모) UI 변경으로 기존 visual regression 스냅샷(home/posts 등) 갱신이 필요할 수 있음
+- [x] (DB) `posts.origin` 추가 + backfill + 불변 트리거
+  - [x] `origin` 값: `original|ai` (NOT NULL + CHECK)
+  - [x] 마이그레이션 방식: `src/lib/db.ts`의 `schema_versions` 기반 버전 추가(현재 3 → 4)
+  - [x] 컬럼 추가 SQL: `ALTER TABLE posts ADD COLUMN origin TEXT NOT NULL DEFAULT 'original' CHECK (origin IN ('original','ai'))`
+  - [x] backfill SQL(확정): `UPDATE posts SET origin='ai' WHERE source_url IS NOT NULL OR EXISTS (SELECT 1 FROM sources s WHERE s.post_id = posts.id)`
+  - [x] backfill 완료 기준: `origin`은 NULL이 없어야 하고(스키마로 보장), `SELECT origin, COUNT(*) FROM posts GROUP BY origin`로 분포를 샘플 확인한다
+  - [x] 인덱스(필요 시): `CREATE INDEX IF NOT EXISTS idx_posts_origin ON posts(origin)`
+  - [x] `origin` UPDATE 차단 트리거(불변 보장): `BEFORE UPDATE OF origin ON posts ... RAISE(ABORT, 'origin is immutable')`
+  - [x] 새 DB에서도 schema version 4 마이그레이션이 반드시 적용되어 `origin`이 최종적으로 존재해야 함(마이그레이션 only 전략)
+- [x] (리팩토링) `stripMarkdown`/`createExcerpt`를 `src/lib`로 이동하고 `/`, `/posts`, `/tags/[tag]`, `/posts/[slug]`에서 재사용
+- [x] (리팩토링) 리스트 조회 공통 모듈 생성
+  - [x] 입력: `statuses`, `type`, `tag`, `q`, `limit`, `offset`
+  - [x] 출력: 카드 렌더에 필요한 필드 + tags 목록 + (선택) `source_url`/도메인
+  - [x] COUNT 쿼리: 동일 조건으로 `totalCount`
+- [x] (홈) 태그 허브 쿼리 구현
+  - [x] status(권한) 반영
+  - [x] 최근 활성 기준 정렬 + 글 수
+  - [x] N(기본값)=10으로 확정
+- [x] (홈) 최신 직접 작성/AI 수집 2개 섹션 구현
+  - [x] original: `origin = 'original'` 최신 5
+  - [x] ai: `origin = 'ai'` 최신 5 + 출처 도메인(가능 시)
+- [x] (/posts) 쿼리 파라미터 파싱/정규화
+  - [x] `type` 기본값 all, 허용값 외 fallback
+  - [x] `q` trim + 빈 문자열 처리
+  - [x] `q` 정규화 방식 확정(예: 토큰화 후 AND 결합) + FTS 문법 에러 시 500 방지(빈 결과/오류 메시지 처리)
+  - [x] `tag` decode + 빈 문자열 처리
+  - [x] 페이지네이션 링크가 `type/q/tag/per_page`를 보존
+- [x] (/posts) FTS5 검색 구현
+  - [x] `posts_fts MATCH ?` 기반으로 rowid 조인
+  - [x] status/type/tag 필터와 조합
+  - [x] COUNT/LIST 쿼리 결과가 일치하도록 조건/조인 구조 정리
+- [x] (/posts) type=original|ai 필터를 `posts.origin` 기반으로 구현하고, 생성 경로별로 `origin`이 고정되도록 보장
+- [x] (/tags) `/tags`(인덱스) + `/tags/[tag]`(상세) 모두 공통 노출 규칙 적용 + 공통 모듈/유틸로 중복 제거
+- [x] (테스트) Playwright
+  - [x] public: `/posts`에서 `type/q/tag` 조합이 정상 동작(결과/페이지네이션)
+  - [x] public: `/posts` 페이지네이션 링크가 `type/q/tag/per_page`를 보존한다 (+ `type` invalid fallback)
+  - [x] public: `/posts?type=original|ai`가 `origin` 기준으로 정확히 필터링된다
+  - [x] public: `q`에 특수문자/따옴표가 포함돼도 500이 나지 않는다(빈 결과/오류 메시지 처리)
+  - [x] home: 태그 섹션 + original/ai 섹션 렌더(스냅샷)
+  - [x] admin: draft 노출 규칙 회귀 방지(`/`, `/posts`, `/tags`, `/tags/[tag]`)
+  - [x] admin: `/tags` 인덱스에서 draft-only 태그가 노출/집계된다
+  - [x] 스크린샷 비교 최소 뷰포트 `360/768/1440` 포함
+  - [x] (메모) UI 변경으로 기존 visual regression 스냅샷(home/posts 등) 갱신이 필요할 수 있음
 
 ## 리스크 및 확인 필요 사항
 - FTS5 조인 + 태그 조인 + GROUP BY 조합에서 COUNT/페이지네이션 불일치가 생기기 쉬움(동일 조건/동일 조인 구조 유지 필요)
@@ -144,13 +144,13 @@
 - `tests/ui/*.spec.ts`
 
 ## 완료 기준(DoD)
-- [ ] 홈(`/`)에 태그 허브 + 최신 직접 작성 5 + 최신 AI 수집 5 + CTA가 표시된다.
-- [ ] `/posts`가 `type/q/tag/page/per_page`를 지원하고, 조합해도 정상 동작한다.
-- [ ] 비로그인 사용자는 어디에서도 draft를 볼 수 없다.
-- [ ] 관리자는 `/`, `/posts`, `/tags` 계열에서 draft+published를 볼 수 있다.
-- [ ] `npm run test:all`이 통과한다.
+- [x] 홈(`/`)에 태그 허브 + 최신 직접 작성 5 + 최신 AI 수집 5 + CTA가 표시된다.
+- [x] `/posts`가 `type/q/tag/page/per_page`를 지원하고, 조합해도 정상 동작한다.
+- [x] 비로그인 사용자는 어디에서도 draft를 볼 수 없다.
+- [x] 관리자는 `/`, `/posts`, `/tags` 계열에서 draft+published를 볼 수 있다.
+- [x] `npm run test:all`이 통과한다.
 
 ## 검증 계획
-- [ ] `npm run test:all`
-- [ ] Playwright: public 시나리오(type/q/tag + 페이지네이션 보존), home 스냅샷, admin draft 노출(/tags 인덱스 포함) 회귀
-- [ ] DB 마이그레이션 검증: `origin` 컬럼 존재 + backfill 결과 + `origin` 불변 트리거 동작을 자동화로 확인
+- [x] `npm run test:all`
+- [x] Playwright: public 시나리오(type/q/tag + 페이지네이션 보존), home 스냅샷, admin draft 노출(/tags 인덱스 포함) 회귀
+- [x] DB 마이그레이션 검증: `origin` 컬럼 존재 + backfill 결과 + `origin` 불변 트리거 동작을 자동화로 확인

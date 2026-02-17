@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getBearerToken, verifyInboxToken } from "@/lib/auth";
+import { getBearerToken, verifyApiKey } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { normalizeXStatusUrl } from "@/lib/inbox-url";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -47,14 +47,10 @@ function parseRequestJson(request: Request) {
   return request.json().catch(() => null) as Promise<unknown | null>;
 }
 
-function validateInboxToken(request: Request): NextResponse | null {
+function validateApiKey(request: Request): NextResponse | null {
   const token = getBearerToken(request);
-  if (!verifyInboxToken(token)) {
-    return errorResponse(
-      401,
-      "UNAUTHORIZED",
-      "Invalid or missing inbox token.",
-    );
+  if (!verifyApiKey(token)) {
+    return errorResponse(401, "UNAUTHORIZED", "Invalid or missing API key.");
   }
 
   return null;
@@ -138,7 +134,7 @@ function getClientIp(request: Request): string {
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const authError = validateInboxToken(request);
+  const authError = validateApiKey(request);
   if (authError) {
     return authError;
   }
@@ -196,13 +192,15 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const authError = validateApiKey(request);
+  if (authError) {
+    return authError;
+  }
+
   const token = getBearerToken(request);
-  if (!verifyInboxToken(token)) {
-    return errorResponse(
-      401,
-      "UNAUTHORIZED",
-      "Invalid or missing inbox token.",
-    );
+  if (!token) {
+    // Should not happen because validateApiKey() already passed.
+    return errorResponse(401, "UNAUTHORIZED", "Invalid or missing API key.");
   }
 
   const clientIp = getClientIp(request);

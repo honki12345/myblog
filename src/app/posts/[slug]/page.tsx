@@ -7,6 +7,7 @@ import PostAdminActionsClient from "./PostAdminActionsClient";
 import { getAdminSessionFromServerCookies } from "@/lib/admin-auth";
 import { getDb } from "@/lib/db";
 import { formatDate } from "@/lib/date";
+import { createExcerpt } from "@/lib/excerpt";
 import { normalizeSlugParam } from "@/lib/slug";
 
 type PageProps = {
@@ -22,28 +23,6 @@ type PostDetailRow = {
   updated_at: string;
   tags_csv: string;
 };
-
-function stripMarkdown(markdown: string): string {
-  return markdown
-    .replace(/```[\s\S]*?```/g, " ")
-    .replace(/`[^`]*`/g, " ")
-    .replace(/!\[[^\]]*]\([^)]*\)/g, " ")
-    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
-    .replace(/^[-*+]\s+/gm, " ")
-    .replace(/^#{1,6}\s+/gm, " ")
-    .replace(/[*_~>#|]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function createExcerpt(content: string, maxLength = 200): string {
-  const plain = stripMarkdown(content);
-  if (plain.length <= maxLength) {
-    return plain;
-  }
-
-  return `${plain.slice(0, maxLength).trimEnd()}...`;
-}
 
 function loadPublishedPostBySlug(slug: string): PostDetailRow | null {
   const db = getDb();

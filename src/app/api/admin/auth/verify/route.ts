@@ -5,6 +5,7 @@ import {
   clearLoginChallengeCookie,
   createAdminSession,
   ensureAdminConfigSynced,
+  markAdminTotpEnabledAtIfUnset,
   readAndVerifyLoginChallenge,
   setAdminSessionCookie,
   verifyAdminSecondFactor,
@@ -141,6 +142,10 @@ export async function POST(request: NextRequest) {
   const verification = await verifyAdminSecondFactor(parsed.data.code);
   if (!verification.ok) {
     return errorResponse(401, "UNAUTHORIZED", "Invalid two-factor code.");
+  }
+
+  if (verification.method === "totp") {
+    markAdminTotpEnabledAtIfUnset();
   }
 
   const { sessionId, maxAgeSeconds } = createAdminSession(request);

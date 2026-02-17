@@ -125,3 +125,10 @@
 ### 가드 확인
 
 - `.next` 제거 + `PLAYWRIGHT_SKIP_BUILD=1` 실행 시 즉시 실패하며 `standalone server.js not found`를 출력한다.
+
+## PR 리뷰 반영 내역 (2026-02-17)
+- `.github/workflows/ci.yml`: standalone artifact 복원 이후 `.next/standalone/server.js` 및 `.next/standalone/.next/static` 존재 여부를 검증해, 누락 시 더 빠르게 실패하고 진단 로그(`find`)를 남긴다.
+- `scripts/test-step-1.mjs`: `test:step1` dev 서버 포트를 `STEP1_DEV_PORT_BASE`(기본 3002) 기준으로 사용 가능한 포트를 자동 선택해 포트 충돌을 줄인다.
+- `scripts/test-ui.mjs`: 로컬에서는 `PLAYWRIGHT_PORT_BASE`(기본 3400) 기준으로 사용 가능한 포트를 자동 선택하고, CI에서는 기본 3000을 고정한다(필요 시 `PLAYWRIGHT_PORT`/`PLAYWRIGHT_PORT_BASE`로 오버라이드). 멀티 프로젝트 순차 실행은 동일 포트를 재사용하며 다음 실행 전 포트 해제를 대기한다.
+- `scripts/test-step-3.mjs`(추가): `next dev` 종료 후 포트(3000) 해제를 대기해 `EADDRINUSE` flake를 줄인다.
+- 검증: `npm run lint`, `npm run format:check`, `npm run test:all` (PASS, total 4m 20s; `test:ui` 2m 17s)

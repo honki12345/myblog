@@ -5,6 +5,7 @@ const routes = [
   { name: "home", path: "/" },
   { name: "posts", path: "/posts" },
   { name: "admin-write", path: "/admin/write" },
+  { name: "tags", path: "/tags" },
   { name: "tag-sample", path: "/tags/sample" },
 ] as const;
 
@@ -84,6 +85,11 @@ for (const route of routes) {
         page.getByRole("heading", { name: "태그: sample" }),
       ).toBeVisible();
       await expect(page.locator("article").first()).toBeVisible();
+    }
+
+    if (route.name === "tags") {
+      await expect(page.getByRole("heading", { name: "태그" })).toBeVisible();
+      await expect(page.getByRole("link", { name: /#sample/ })).toBeVisible();
     }
 
     const maxDiffPixelRatio = getVisualDiffThreshold(testInfo.project.name);

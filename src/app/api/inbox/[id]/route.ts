@@ -147,13 +147,23 @@ export async function PATCH(request: Request, context: RouteContext) {
     const nextError =
       parsed.data.status === "failed" ? (parsed.data.error ?? null) : null;
 
-    db.prepare(
+    const result = db
+      .prepare(
       `
       UPDATE inbox_items
       SET status = ?, error = ?, updated_at = datetime('now')
-      WHERE id = ?
+      WHERE id = ? AND status = 'queued'
       `,
-    ).run(parsed.data.status, nextError, inboxItemId);
+      )
+      .run(parsed.data.status, nextError, inboxItemId);
+
+    if (result.changes === 0) {
+      return errorResponse(
+        400,
+        "INVALID_INPUT",
+        "Only queued items can be updated.",
+      );
+    }
 
     return NextResponse.json({
       ok: true,

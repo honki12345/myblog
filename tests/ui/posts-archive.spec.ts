@@ -85,8 +85,12 @@ test("public: type filter matches posts.origin", async ({ page, request }) => {
   await page.goto("/posts?type=ai&per_page=50", { waitUntil: "networkidle" });
   await expect(page.getByRole("link", { name: aiA.title })).toBeVisible();
   await expect(page.getByRole("link", { name: aiB.title })).toBeVisible();
-  await expect(page.getByRole("link", { name: originalA.title })).toHaveCount(0);
-  await expect(page.getByRole("link", { name: originalB.title })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: originalA.title })).toHaveCount(
+    0,
+  );
+  await expect(page.getByRole("link", { name: originalB.title })).toHaveCount(
+    0,
+  );
 });
 
 test("public: pagination preserves type/q/tag/per_page (+ type invalid fallback)", async ({
@@ -157,9 +161,7 @@ test("public: q with special characters does not crash (no 500)", async ({
   });
   expect(response?.ok()).toBeTruthy();
   await expect(page.getByRole("heading", { name: "글 목록" })).toBeVisible();
-  await expect(
-    page.getByText(/검색어를 해석할 수 없습니다/),
-  ).toBeVisible();
+  await expect(page.getByText(/검색어를 해석할 수 없습니다/)).toBeVisible();
 });
 
 test("public: type/q/tag combination returns expected results", async ({

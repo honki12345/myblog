@@ -49,7 +49,9 @@ function normalizeOptionalString(value: string | undefined): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
-function normalizeOptionalDecodedString(value: string | undefined): string | null {
+function normalizeOptionalDecodedString(
+  value: string | undefined,
+): string | null {
   const normalized = normalizeOptionalString(value);
   if (!normalized) {
     return null;
@@ -185,10 +187,7 @@ export default async function PostsPage({ searchParams }: PageProps) {
       </header>
 
       <section className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <nav
-          aria-label="글 유형"
-          className="flex flex-wrap items-center gap-2"
-        >
+        <nav aria-label="글 유형" className="flex flex-wrap items-center gap-2">
           {(
             [
               { value: "all", label: "전체" },

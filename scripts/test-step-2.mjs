@@ -295,7 +295,10 @@ function testOriginConstraints(db) {
   assert(postId > 0, "Origin CREATE failed");
 
   const row = db.prepare("SELECT origin FROM posts WHERE id = ?").get(postId);
-  assert(row?.origin === "original", `Unexpected default origin: ${row?.origin}`);
+  assert(
+    row?.origin === "original",
+    `Unexpected default origin: ${row?.origin}`,
+  );
 
   let invalidOriginThrow = false;
   try {
@@ -419,8 +422,15 @@ function testOriginMigrationBackfill() {
           VALUES (?, ?, ?, ?, NULL, ?, ?, ?)
           `,
         )
-        .run("Backfill B", seedSlugB, "backfill content b", "draft", now, now, null)
-        .lastInsertRowid,
+        .run(
+          "Backfill B",
+          seedSlugB,
+          "backfill content b",
+          "draft",
+          now,
+          now,
+          null,
+        ).lastInsertRowid,
     );
     assert(postBId > 0, "failed to seed backfill post B");
 
@@ -437,8 +447,15 @@ function testOriginMigrationBackfill() {
           VALUES (?, ?, ?, ?, NULL, ?, ?, ?)
           `,
         )
-        .run("Backfill C", seedSlugC, "backfill content c", "draft", now, now, null)
-        .lastInsertRowid,
+        .run(
+          "Backfill C",
+          seedSlugC,
+          "backfill content c",
+          "draft",
+          now,
+          now,
+          null,
+        ).lastInsertRowid,
     );
     assert(postCId > 0, "failed to seed backfill post C");
   } finally {

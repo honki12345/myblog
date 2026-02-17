@@ -188,15 +188,7 @@ async function startServer(apiKey, logs) {
 
   const child = spawn(
     "npm",
-    [
-      "run",
-      "dev",
-      "--",
-      "--hostname",
-      DEV_SERVER_HOST,
-      "--port",
-      String(port),
-    ],
+    ["run", "dev", "--", "--hostname", DEV_SERVER_HOST, "--port", String(port)],
     {
       cwd: ROOT,
       env: {

@@ -19,4 +19,3 @@ export function createExcerpt(content: string, maxLength = 200): string {
 
   return `${plain.slice(0, maxLength).trimEnd()}...`;
 }
-

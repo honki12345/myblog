@@ -63,11 +63,7 @@ export default async function Home() {
           Explore
         </p>
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-          {isAdmin
-            ? includesDraft
-              ? "홈 (초안 포함)"
-              : "홈"
-            : "홈"}
+          {isAdmin ? (includesDraft ? "홈 (초안 포함)" : "홈") : "홈"}
         </h1>
         <p className="max-w-2xl text-sm text-slate-600 sm:text-base">
           태그로 탐색하거나, 직접 작성 글과 AI 수집 글을 분리해서 최신 글을

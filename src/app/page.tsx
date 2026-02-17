@@ -139,12 +139,14 @@ export default async function Home() {
           <p className="mt-2 text-sm text-slate-600">
             첫 글을 작성하면 이곳에 최신 글이 표시됩니다.
           </p>
-          <Link
-            href="/admin/write"
-            className="mt-4 inline-flex rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
-          >
-            글 작성하기
-          </Link>
+          {isAdmin ? (
+            <Link
+              href="/admin/write"
+              className="mt-4 inline-flex rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+            >
+              글 작성하기
+            </Link>
+          ) : null}
         </section>
       ) : (
         <section className="grid gap-4">

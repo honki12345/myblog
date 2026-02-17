@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { access, readFile, rm, unlink } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
@@ -46,6 +47,18 @@ function assertErrorResponse(response, expectedStatus, expectedCode) {
   );
 }
 
+async function assertRejects(action, name) {
+  let didThrow = false;
+
+  try {
+    await action();
+  } catch {
+    didThrow = true;
+  }
+
+  assert(didThrow, `expected rejection: ${name}`);
+}
+
 async function pathExists(targetPath) {
   try {
     await access(targetPath);
@@ -81,13 +94,55 @@ async function loadApiKeyFromEnvFile() {
   throw new Error("BLOG_API_KEY is missing in .env.local");
 }
 
+async function loadInboxTokenFromEnvFile() {
+  const envPath = path.join(ROOT, ".env.local");
+  const raw = await readFile(envPath, "utf8");
+
+  for (const line of raw.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) {
+      continue;
+    }
+
+    const [key, ...rest] = trimmed.split("=");
+    if (key === "INBOX_TOKEN") {
+      const value = rest.join("=").trim();
+      return value.replace(/^['\"]|['\"]$/g, "");
+    }
+  }
+
+  return null;
+}
+
 async function resolveApiKey() {
   const fromEnv = process.env.API_KEY ?? process.env.BLOG_API_KEY;
   if (fromEnv && fromEnv.trim()) {
     return fromEnv.trim();
   }
 
-  return loadApiKeyFromEnvFile();
+  try {
+    return await loadApiKeyFromEnvFile();
+  } catch {
+    return `api-test-${randomUUID()}`;
+  }
+}
+
+async function resolveInboxToken() {
+  const fromEnv = process.env.INBOX_TOKEN;
+  if (fromEnv && fromEnv.trim()) {
+    return fromEnv.trim();
+  }
+
+  try {
+    const fromFile = await loadInboxTokenFromEnvFile();
+    if (fromFile && fromFile.trim()) {
+      return fromFile.trim();
+    }
+  } catch {
+    // ignore missing env file
+  }
+
+  return `inbox-test-${randomUUID()}`;
 }
 
 async function waitForServer(url, retries = 60, delayMs = 500) {
@@ -107,7 +162,9 @@ async function waitForServer(url, retries = 60, delayMs = 500) {
   throw new Error(`Timed out waiting for server: ${url}`);
 }
 
-async function startServer(apiKey) {
+async function startServer(apiKey, options = {}) {
+  const { inboxToken, env = {} } = options;
+  const output = { stdout: "", stderr: "" };
   const child = spawn(
     "node",
     ["node_modules/next/dist/bin/next", "dev", "--port", String(PORT)],
@@ -116,16 +173,27 @@ async function startServer(apiKey) {
       env: {
         ...process.env,
         BLOG_API_KEY: apiKey,
+        INBOX_TOKEN: inboxToken ?? process.env.INBOX_TOKEN ?? "",
         DATABASE_PATH: TEST_DB_PATH,
         NEXT_TELEMETRY_DISABLED: "1",
+        ...env,
       },
       detached: true,
       stdio: ["ignore", "pipe", "pipe"],
     },
   );
 
-  child.stdout.on("data", (chunk) => process.stdout.write(chunk.toString()));
-  child.stderr.on("data", (chunk) => process.stderr.write(chunk.toString()));
+  child.__output = output;
+  child.stdout.on("data", (chunk) => {
+    const text = chunk.toString();
+    output.stdout += text;
+    process.stdout.write(text);
+  });
+  child.stderr.on("data", (chunk) => {
+    const text = chunk.toString();
+    output.stderr += text;
+    process.stderr.write(text);
+  });
 
   await waitForServer(`${API_BASE}/api/health`);
   return child;
@@ -229,6 +297,100 @@ async function callUpload(pathname, apiKey, file) {
   }
 
   return { status: response.status, data };
+}
+
+async function runInboxUrlUnitTests() {
+  console.log("\n[unit] inbox url normalization");
+
+  const inboxUrlModule = await import("../src/lib/inbox-url.ts");
+  const inboxUrlExports = inboxUrlModule.default ?? inboxUrlModule;
+  const { normalizeXStatusUrl } = inboxUrlExports;
+
+  const direct = await normalizeXStatusUrl("https://x.com/i/web/status/123");
+  assert(
+    direct.canonicalUrl === "https://x.com/i/web/status/123",
+    "direct canonical URL should be preserved",
+  );
+
+  const viaTwitter = await normalizeXStatusUrl(
+    "https://twitter.com/i/web/status/456",
+  );
+  assert(
+    viaTwitter.canonicalUrl === "https://x.com/i/web/status/456",
+    "twitter.com URL should normalize to x.com canonical",
+  );
+
+  const statusPath = await normalizeXStatusUrl(
+    "https://x.com/someuser/status/789",
+  );
+  assert(
+    statusPath.canonicalUrl === "https://x.com/i/web/status/789",
+    "/status/<id> URL should normalize to canonical",
+  );
+
+  const redirectMap = new Map([
+    [
+      "https://t.co/abc",
+      new Response(null, {
+        status: 302,
+        headers: { location: "https://twitter.com/i/web/status/999" },
+      }),
+    ],
+    [
+      "https://twitter.com/i/web/status/999",
+      new Response(null, { status: 200 }),
+    ],
+  ]);
+
+  const stubFetch = async (input) => {
+    const url = typeof input === "string" ? input : input.toString();
+    const response = redirectMap.get(url);
+    if (!response) {
+      throw new Error(`unexpected fetch: ${url}`);
+    }
+    return response;
+  };
+
+  const viaTco = await normalizeXStatusUrl("https://t.co/abc", {
+    fetch: stubFetch,
+  });
+  assert(
+    viaTco.canonicalUrl === "https://x.com/i/web/status/999",
+    "t.co redirect should normalize to canonical",
+  );
+
+  const badRedirects = new Map([
+    [
+      "https://t.co/bad",
+      new Response(null, {
+        status: 302,
+        headers: { location: "https://evil.example/i/web/status/111" },
+      }),
+    ],
+  ]);
+  const badFetch = async (input) => {
+    const url = typeof input === "string" ? input : input.toString();
+    const response = badRedirects.get(url);
+    if (!response) {
+      throw new Error(`unexpected fetch: ${url}`);
+    }
+    return response;
+  };
+
+  await assertRejects(
+    () =>
+      normalizeXStatusUrl("https://t.co/bad", {
+        fetch: badFetch,
+      }),
+    "t.co redirect to disallowed host",
+  );
+
+  await assertRejects(
+    () => normalizeXStatusUrl("http://x.com/i/web/status/123"),
+    "http scheme rejection",
+  );
+
+  console.log("[unit] inbox url normalization passed");
 }
 
 async function runSessionOne(apiKey, uploadedFiles) {
@@ -737,6 +899,291 @@ async function runRateLimitSession(apiKey) {
   );
 }
 
+function generateStatusId(seed, index) {
+  const suffix = String(index).padStart(2, "0");
+  return `${seed}${suffix}`;
+}
+
+function assertNoTokenInLogs(server, token, label) {
+  const stdout = server?.__output?.stdout ?? "";
+  const stderr = server?.__output?.stderr ?? "";
+  const combined = `${stdout}\n${stderr}`;
+  assert(
+    !combined.includes(token),
+    `${label}: token must not appear in server stdout/stderr`,
+  );
+}
+
+async function runInboxSession(inboxToken, server) {
+  const seed = Date.now();
+  console.log("\n[session-4] inbox enqueue/list/patch checks");
+
+  const unauthorizedCreate = await callJson("/api/inbox", {
+    method: "POST",
+    body: {
+      url: "https://x.com/i/web/status/1",
+      source: "x",
+      client: "ios_shortcuts",
+    },
+  });
+  assertErrorResponse(unauthorizedCreate, 401, "UNAUTHORIZED");
+
+  const wrongTokenCreate = await callJson("/api/inbox", {
+    method: "POST",
+    headers: { Authorization: "Bearer wrong-token" },
+    body: {
+      url: "https://x.com/i/web/status/1",
+      source: "x",
+      client: "ios_shortcuts",
+    },
+  });
+  assertErrorResponse(wrongTokenCreate, 401, "UNAUTHORIZED");
+
+  const invalidBody = await callJson("/api/inbox", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${inboxToken}` },
+    body: {
+      url: "https://x.com/i/web/status/1",
+      source: "x",
+      client: "not-ios",
+    },
+  });
+  assertErrorResponse(invalidBody, 400, "INVALID_INPUT");
+
+  const invalidUrl = await callJson("/api/inbox", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${inboxToken}` },
+    body: {
+      url: "http://x.com/i/web/status/123",
+      source: "x",
+      client: "ios_shortcuts",
+    },
+  });
+  assertErrorResponse(invalidUrl, 400, "INVALID_INPUT");
+
+  const statusId1 = generateStatusId(seed, 1);
+  const created = await callJson("/api/inbox", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${inboxToken}` },
+    body: {
+      url: `https://twitter.com/i/web/status/${statusId1}`,
+      source: "x",
+      client: "ios_shortcuts",
+      note: "test note",
+    },
+  });
+  assert(created.status === 201, "valid POST /api/inbox should return 201");
+  assert(
+    typeof created.data?.id === "number",
+    "inbox create response should include numeric id",
+  );
+  assert(
+    created.data?.status === "queued",
+    "inbox create response should be queued",
+  );
+  const inboxItemId1 = created.data.id;
+
+  const duplicated = await callJson("/api/inbox", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${inboxToken}` },
+    body: {
+      url: `https://x.com/i/web/status/${statusId1}`,
+      source: "x",
+      client: "ios_shortcuts",
+    },
+  });
+  assert(
+    duplicated.status === 200,
+    "duplicate POST /api/inbox should return 200",
+  );
+  assert(
+    duplicated.data?.status === "duplicate",
+    "duplicate POST /api/inbox should return duplicate status",
+  );
+  assert(
+    duplicated.data?.id === inboxItemId1,
+    "duplicate POST /api/inbox should return existing id",
+  );
+
+  const listQueued = await callJson("/api/inbox", {
+    headers: { Authorization: `Bearer ${inboxToken}` },
+  });
+  assert(listQueued.status === 200, "GET /api/inbox should return 200");
+  assert(
+    Array.isArray(listQueued.data?.items),
+    "GET /api/inbox response should include items array",
+  );
+  const queuedItem = listQueued.data.items.find(
+    (item) => item.id === inboxItemId1,
+  );
+  assert(queuedItem, "queued item must be present in GET /api/inbox");
+  assert(
+    queuedItem.url === `https://x.com/i/web/status/${statusId1}`,
+    "stored URL must be canonicalized",
+  );
+  assert(queuedItem.status === "queued", "stored status must be queued");
+
+  const invalidStatusList = await callJson("/api/inbox?status=unknown", {
+    headers: { Authorization: `Bearer ${inboxToken}` },
+  });
+  assertErrorResponse(invalidStatusList, 400, "INVALID_INPUT");
+
+  const invalidLimitList = await callJson("/api/inbox?limit=0", {
+    headers: { Authorization: `Bearer ${inboxToken}` },
+  });
+  assertErrorResponse(invalidLimitList, 400, "INVALID_INPUT");
+
+  const patchInvalidId = await callJson("/api/inbox/abc", {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${inboxToken}` },
+    body: { status: "processed" },
+  });
+  assertErrorResponse(patchInvalidId, 400, "INVALID_INPUT");
+
+  const patchMissing = await callJson("/api/inbox/999999", {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${inboxToken}` },
+    body: { status: "processed" },
+  });
+  assertErrorResponse(patchMissing, 404, "NOT_FOUND");
+
+  const patchedProcessed = await callJson(`/api/inbox/${inboxItemId1}`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${inboxToken}` },
+    body: { status: "processed" },
+  });
+  assert(
+    patchedProcessed.status === 200,
+    "PATCH /api/inbox/:id should return 200",
+  );
+  assert(
+    patchedProcessed.data?.status === "processed",
+    "PATCH /api/inbox/:id should set processed",
+  );
+
+  const listQueuedAfter = await callJson("/api/inbox", {
+    headers: { Authorization: `Bearer ${inboxToken}` },
+  });
+  assert(listQueuedAfter.status === 200, "GET /api/inbox should return 200");
+  const stillQueued = listQueuedAfter.data.items.find(
+    (item) => item.id === inboxItemId1,
+  );
+  assert(!stillQueued, "processed item must not be listed in queued items");
+
+  const listProcessed = await callJson("/api/inbox?status=processed", {
+    headers: { Authorization: `Bearer ${inboxToken}` },
+  });
+  assert(
+    listProcessed.status === 200,
+    "GET /api/inbox?status=processed should return 200",
+  );
+  const processedItem = listProcessed.data.items.find(
+    (item) => item.id === inboxItemId1,
+  );
+  assert(processedItem, "processed item must be listed in processed items");
+  assert(
+    processedItem.status === "processed",
+    "processed list entry must have processed status",
+  );
+
+  const invalidTransition = await callJson(`/api/inbox/${inboxItemId1}`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${inboxToken}` },
+    body: { status: "failed", error: "should not be allowed" },
+  });
+  assertErrorResponse(invalidTransition, 400, "INVALID_INPUT");
+
+  const statusId2 = generateStatusId(seed, 2);
+  const created2 = await callJson("/api/inbox", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${inboxToken}` },
+    body: {
+      url: `https://x.com/i/web/status/${statusId2}`,
+      source: "x",
+      client: "ios_shortcuts",
+    },
+  });
+  assert(created2.status === 201, "second inbox create should return 201");
+  const inboxItemId2 = created2.data.id;
+
+  const failedError = `failed-${seed}`;
+  const patchedFailed = await callJson(`/api/inbox/${inboxItemId2}`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${inboxToken}` },
+    body: { status: "failed", error: failedError },
+  });
+  assert(
+    patchedFailed.status === 200,
+    "PATCH /api/inbox/:id failed should return 200",
+  );
+  assert(
+    patchedFailed.data?.status === "failed",
+    "PATCH /api/inbox/:id should set failed",
+  );
+
+  const listFailed = await callJson("/api/inbox?status=failed", {
+    headers: { Authorization: `Bearer ${inboxToken}` },
+  });
+  assert(
+    listFailed.status === 200,
+    "GET /api/inbox?status=failed should return 200",
+  );
+  const failedItem = listFailed.data.items.find(
+    (item) => item.id === inboxItemId2,
+  );
+  assert(failedItem, "failed item must be listed in failed items");
+  assert(failedItem.error === failedError, "failed item should persist error");
+
+  assertNoTokenInLogs(server, inboxToken, "session-4 logs");
+}
+
+async function runInboxRateLimitSession(inboxToken, server) {
+  const seed = Date.now();
+  console.log("\n[session-5] inbox rate limit checks");
+
+  const results = [];
+  for (let index = 1; index <= 4; index += 1) {
+    const statusId = generateStatusId(seed, index);
+    const result = await callJson("/api/inbox", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${inboxToken}` },
+      body: {
+        url: `https://x.com/i/web/status/${statusId}`,
+        source: "x",
+        client: "ios_shortcuts",
+      },
+    });
+
+    results.push(result);
+  }
+
+  assert(
+    results[0].status === 201 && results[1].status === 201,
+    "first two inbox requests must be allowed",
+  );
+  assertErrorResponse(results[2], 429, "RATE_LIMITED");
+  assertErrorResponse(results[3], 429, "RATE_LIMITED");
+
+  const retryAfterMs = results[2].data?.error?.details?.retryAfterMs;
+  assert(
+    typeof retryAfterMs === "number" && retryAfterMs > 0,
+    "429 response should include retryAfterMs",
+  );
+
+  const retryAfterHeader = results[2].headers.get("Retry-After");
+  assert(
+    typeof retryAfterHeader === "string" && retryAfterHeader.length > 0,
+    "429 response should include Retry-After header",
+  );
+  const expectedSeconds = Math.max(1, Math.ceil(retryAfterMs / 1000));
+  assert(
+    retryAfterHeader === String(expectedSeconds),
+    `Retry-After must match retryAfterMs (${retryAfterHeader} vs ${expectedSeconds})`,
+  );
+
+  assertNoTokenInLogs(server, inboxToken, "session-5 logs");
+}
+
 async function cleanupUploads(uploadedFiles) {
   for (const filePath of uploadedFiles) {
     try {
@@ -750,21 +1197,37 @@ async function cleanupUploads(uploadedFiles) {
 async function main() {
   const uploadedFiles = [];
   const apiKey = await resolveApiKey();
+  const inboxToken = await resolveInboxToken();
   let server = null;
 
   try {
+    await runInboxUrlUnitTests();
     await cleanupTestDb();
 
-    server = await startServer(apiKey);
+    server = await startServer(apiKey, { inboxToken });
     await runSessionOne(apiKey, uploadedFiles);
 
     await stopServer(server);
-    server = await startServer(apiKey);
+    server = await startServer(apiKey, { inboxToken });
     await runSessionTwo(apiKey);
 
     await stopServer(server);
-    server = await startServer(apiKey);
+    server = await startServer(apiKey, { inboxToken });
     await runRateLimitSession(apiKey);
+
+    await stopServer(server);
+    server = await startServer(apiKey, { inboxToken });
+    await runInboxSession(inboxToken, server);
+
+    await stopServer(server);
+    server = await startServer(apiKey, {
+      inboxToken,
+      env: {
+        INBOX_RATE_LIMIT_MAX_REQUESTS: "2",
+        INBOX_RATE_LIMIT_WINDOW_MS: "60000",
+      },
+    });
+    await runInboxRateLimitSession(inboxToken, server);
 
     console.log("\nStep 3 checks passed.");
   } finally {

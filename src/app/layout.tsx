@@ -57,16 +57,10 @@ export default function RootLayout({
                   글 목록
                 </Link>
                 <Link
-                  href="/tags/sample"
+                  href="/tags"
                   className="rounded-md px-3 py-2 text-slate-700 hover:bg-slate-100"
                 >
                   태그
-                </Link>
-                <Link
-                  href="/admin/write"
-                  className="rounded-md px-3 py-2 text-slate-700 hover:bg-slate-100"
-                >
-                  글쓰기
                 </Link>
                 <Suspense
                   fallback={

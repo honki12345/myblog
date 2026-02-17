@@ -1,8 +1,12 @@
 import { spawn } from "node:child_process";
 import { access, readFile, readdir, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import net from "node:net";
 import process from "node:process";
 import path from "node:path";
+
+const require = createRequire(import.meta.url);
+const NEXT_BIN = require.resolve("next/dist/bin/next");
 
 let standaloneServerDir = path.join(".next", "standalone");
 
@@ -270,15 +274,11 @@ async function testDevServer() {
     3002,
   );
   const port = await findAvailablePort(portBase);
-  const dev = spawn(
-    "node",
-    ["node_modules/next/dist/bin/next", "dev", "--port", String(port)],
-    {
-      env: { ...process.env },
-      detached: true,
-      stdio: ["ignore", "pipe", "pipe"],
-    },
-  );
+  const dev = spawn("node", [NEXT_BIN, "dev", "--port", String(port)], {
+    env: { ...process.env },
+    detached: true,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
 
   dev.stdout.on("data", (chunk) => process.stdout.write(chunk.toString()));
   dev.stderr.on("data", (chunk) => process.stderr.write(chunk.toString()));

@@ -12,9 +12,7 @@ export default async function PostContent({ content }: PostContentProps) {
   return (
     <>
       <article
-        // Tailwind preflight resets heading/list styles, so we use our own
-        // markdown styling class instead of relying on @tailwindcss/typography.
-        className="markdown-preview"
+        className="markdown-content"
         dangerouslySetInnerHTML={{ __html: html }}
       />
       {hasMermaid ? <MermaidDiagram /> : null}

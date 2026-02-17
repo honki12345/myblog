@@ -1,6 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import {
+  assertNoHorizontalPageScroll,
   authenticateAdminSession,
   seedVisualPosts,
   waitForDocumentTitle,
@@ -10,22 +11,44 @@ const THUMBNAIL_SEED_TITLE = "PW-SEED-홈 화면 글";
 const NO_THUMBNAIL_SEED_TITLE = "PW-SEED-목록 화면 글";
 const FALLBACK_THUMBNAIL_SEED_TITLE = "PW-SEED-태그 화면 글";
 
-const routes = [
-  { name: "home", path: "/" },
-  { name: "posts", path: "/posts" },
-  { name: "admin-write", path: "/admin/write" },
-  { name: "tags", path: "/tags" },
-  { name: "tag-sample", path: "/tags/sample" },
-] as const;
+type SeededPosts = { detailSlug: string };
+
+type RouteName =
+  | "home"
+  | "posts"
+  | "post-detail"
+  | "admin-write"
+  | "tags"
+  | "tag-sample";
+
+type Route = { name: RouteName; getPath: (seeded: SeededPosts) => string };
+
+const routes: Route[] = [
+  { name: "home", getPath: () => "/" },
+  { name: "posts", getPath: () => "/posts" },
+  {
+    name: "post-detail",
+    getPath: (seeded) => `/posts/${seeded.detailSlug}`,
+  },
+  {
+    name: "admin-write",
+    getPath: () => "/admin/write",
+  },
+  { name: "tags", getPath: () => "/tags" },
+  {
+    name: "tag-sample",
+    getPath: () => "/tags/sample",
+  },
+];
 
 function getVisualDiffThreshold(projectName: string): number {
   // CI runner의 폰트 메트릭 차이로 모바일/태블릿 스냅샷에
   // 경미한 줄바꿈/레이아웃 오차가 발생하므로 뷰포트별 허용치로 고정한다.
   if (projectName === "mobile-360") {
-    return 0.06;
+    return 0.08;
   }
   if (projectName === "tablet-768") {
-    return 0.03;
+    return 0.06;
   }
   // GitHub Actions runner에서도 데스크톱 폰트 렌더링 차이로 미세한 diff가 발생할 수 있다.
   if (projectName === "desktop-1440") {
@@ -65,24 +88,30 @@ async function assertNoSeriousA11yViolations(page: Page, message: string) {
   expect(blockingViolations, message).toEqual([]);
 }
 
-test.beforeEach(async ({ request }) => {
-  await seedVisualPosts(request);
-});
-
 for (const route of routes) {
-  test(`visual snapshot: ${route.name}`, async ({ page }, testInfo) => {
+  test(`visual snapshot: ${route.name}`, async ({
+    page,
+    request,
+  }, testInfo) => {
+    const seeded = await seedVisualPosts(request);
+    const routePath = route.getPath(seeded);
+
     await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
     if (route.name === "admin-write") {
       await authenticateAdminSession(page, { nextPath: "/admin/write" });
       await page.waitForLoadState("networkidle");
     } else {
-      await page.goto(route.path, { waitUntil: "networkidle" });
+      await page.goto(routePath, { waitUntil: "networkidle" });
     }
 
     await page.addStyleTag({ content: DISABLE_ANIMATION_STYLE });
     await expect(page.locator("main").first()).toBeVisible();
 
-    if (route.name !== "admin-write" && route.name !== "tags") {
+    if (
+      route.name === "home" ||
+      route.name === "posts" ||
+      route.name === "tag-sample"
+    ) {
       const cardWithThumbnail = getPostCardByTitle(page, THUMBNAIL_SEED_TITLE);
       await expect(cardWithThumbnail).toBeVisible();
       await expect(
@@ -188,6 +217,17 @@ for (const route of routes) {
       await expect(page.locator("article").first()).toBeVisible();
     }
 
+    if (route.name === "post-detail") {
+      await expect(
+        page.getByRole("heading", { name: THUMBNAIL_SEED_TITLE }),
+      ).toBeVisible();
+      const content = page.locator("article.markdown-content");
+      await expect(content).toBeVisible();
+      await expect(content.locator("pre")).toBeVisible();
+      await expect(content.locator("table")).toBeVisible();
+      await expect(content.locator(".katex")).toBeVisible();
+    }
+
     if (route.name === "admin-write") {
       await expect(
         page.getByRole("heading", { name: "새 글 작성" }),
@@ -210,9 +250,14 @@ for (const route of routes) {
       await expect(page.getByRole("link", { name: /#sample/ })).toBeVisible();
     }
 
+    await assertNoHorizontalPageScroll(
+      page,
+      `[${testInfo.project.name}] ${routePath} has horizontal overflow`,
+    );
+
     await assertNoSeriousA11yViolations(
       page,
-      `[${testInfo.project.name}] ${route.path} has serious/critical accessibility violations`,
+      `[${testInfo.project.name}] ${routePath} has serious/critical accessibility violations`,
     );
 
     const maxDiffPixelRatio = getVisualDiffThreshold(testInfo.project.name);

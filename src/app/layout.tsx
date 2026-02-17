@@ -36,38 +36,26 @@ export default function RootLayout({
       >
         <div className="flex min-h-screen flex-col">
           <header className="border-b border-slate-200 bg-white/90 backdrop-blur">
-            <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
-              <Link href="/" className="text-lg font-semibold tracking-tight">
+            <div className="mx-auto flex w-full max-w-5xl flex-col items-start gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+              <Link href="/" className="min-w-0 text-lg font-semibold tracking-tight">
                 honki12345 블로그
               </Link>
               <nav
                 aria-label="주요 메뉴"
-                className="flex items-center gap-2 text-sm font-medium"
+                className="flex w-full min-w-0 flex-wrap items-center gap-1 text-sm font-medium sm:w-auto sm:justify-end sm:gap-2"
               >
-                <Link
-                  href="/"
-                  className="rounded-md px-3 py-2 text-slate-700 hover:bg-slate-100"
-                >
+                <Link href="/" className="header-nav-item">
                   홈
                 </Link>
-                <Link
-                  href="/posts"
-                  className="rounded-md px-3 py-2 text-slate-700 hover:bg-slate-100"
-                >
+                <Link href="/posts" className="header-nav-item">
                   글 목록
                 </Link>
-                <Link
-                  href="/tags"
-                  className="rounded-md px-3 py-2 text-slate-700 hover:bg-slate-100"
-                >
+                <Link href="/tags" className="header-nav-item">
                   태그
                 </Link>
                 <Suspense
                   fallback={
-                    <Link
-                      href="/admin/login"
-                      className="rounded-md px-3 py-2 text-slate-700 hover:bg-slate-100"
-                    >
+                    <Link href="/admin/login" className="header-nav-item">
                       로그인
                     </Link>
                   }
@@ -77,7 +65,7 @@ export default function RootLayout({
               </nav>
             </div>
           </header>
-          <div className="flex-1">{children}</div>
+          <div className="min-w-0 flex-1">{children}</div>
         </div>
       </body>
     </html>

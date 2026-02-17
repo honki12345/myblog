@@ -26,6 +26,10 @@ body {
 }
 
 @layer components {
+  .header-nav-item {
+    @apply inline-flex min-h-10 items-center justify-center rounded-md px-2.5 py-2 text-slate-700 hover:bg-slate-100 sm:px-3;
+  }
+
   .markdown-preview {
     @apply text-base leading-7 text-slate-800;
   }
@@ -68,5 +72,93 @@ body {
 
   .markdown-preview pre code {
     @apply bg-transparent p-0 text-inherit;
+  }
+
+  .markdown-content {
+    @apply text-base leading-7 text-slate-800;
+    overflow-wrap: anywhere;
+  }
+
+  .markdown-content h1 {
+    @apply mt-8 mb-4 text-3xl font-bold tracking-tight text-slate-900;
+  }
+
+  .markdown-content h2 {
+    @apply mt-7 mb-3 text-2xl font-semibold tracking-tight text-slate-900;
+  }
+
+  .markdown-content h3 {
+    @apply mt-6 mb-3 text-lg font-semibold text-slate-900;
+  }
+
+  .markdown-content p {
+    @apply my-4;
+  }
+
+  .markdown-content ul {
+    @apply my-4 list-disc pl-6;
+  }
+
+  .markdown-content ol {
+    @apply my-4 list-decimal pl-6;
+  }
+
+  .markdown-content li {
+    @apply my-1;
+  }
+
+  .markdown-content a {
+    @apply underline decoration-slate-300 underline-offset-2 hover:decoration-slate-500;
+  }
+
+  .markdown-content pre {
+    @apply my-4 overflow-x-auto rounded-lg bg-slate-900 p-4 text-sm text-slate-100;
+  }
+
+  .markdown-content pre:focus-visible {
+    @apply outline-none ring-2 ring-slate-400 ring-offset-2 ring-offset-white;
+  }
+
+  .markdown-content code {
+    @apply rounded bg-slate-100 px-1 py-0.5 font-mono text-sm text-slate-800;
+  }
+
+  .markdown-content pre code {
+    @apply bg-transparent p-0 text-inherit;
+  }
+
+  .markdown-content img,
+  .markdown-content video {
+    @apply my-4 max-w-full rounded-lg;
+    height: auto;
+  }
+
+  .markdown-content table {
+    @apply my-4 w-full border-collapse text-sm;
+    display: block;
+    overflow-x: auto;
+  }
+
+  .markdown-content table:focus-visible {
+    @apply outline-none ring-2 ring-slate-400 ring-offset-2 ring-offset-white;
+  }
+
+  .markdown-content th,
+  .markdown-content td {
+    @apply border border-slate-200 px-3 py-2 align-top;
+  }
+
+  .markdown-content .katex-display {
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .markdown-content .katex {
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .markdown-content .mermaid-container {
+    @apply my-4 overflow-x-auto rounded-lg border border-slate-200 bg-white p-3;
   }
 }

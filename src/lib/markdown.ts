@@ -65,11 +65,13 @@ const markdownSanitizeSchema: Schema = {
     pre: [
       ...(defaultSchema.attributes?.pre ?? []),
       ["className", CLASS_NAME_PATTERN],
+      "tabIndex",
     ],
     code: [
       ...(defaultSchema.attributes?.code ?? []),
       ["className", CLASS_NAME_PATTERN],
     ],
+    table: [...(defaultSchema.attributes?.table ?? []), "tabIndex"],
     span: [
       ...(defaultSchema.attributes?.span ?? []),
       ["className", CLASS_NAME_PATTERN],
@@ -81,6 +83,7 @@ const markdownSanitizeSchema: Schema = {
       ...(defaultSchema.attributes?.div ?? []),
       ["className", "mermaid-container"],
       "dataChart",
+      "tabIndex",
     ],
     math: [...(defaultSchema.attributes?.math ?? []), "xmlns", "display"],
     annotation: [...(defaultSchema.attributes?.annotation ?? []), "encoding"],
@@ -176,10 +179,36 @@ const rehypeMermaidPlaceholder: Plugin<[], Root> = () => {
   return (tree) => {
     let mermaidBlockCount = 0;
 
+    const hasChildren = (value: unknown): value is { children: RootContent[] } =>
+      typeof value === "object" &&
+      value !== null &&
+      "children" in value &&
+      Array.isArray((value as { children?: unknown }).children);
+
     const transform = (parent: Root | Element) => {
       parent.children = parent.children.map((child) => {
+        // Some rehype plugins (notably rehypeShiki) can emit nested root nodes.
+        // Traverse them so we can apply tabIndex to their descendants.
         if (child.type !== "element") {
+          if (hasChildren(child)) {
+            transform(child as unknown as Root | Element);
+          }
+
           return child;
+        }
+
+        if (child.tagName === "pre") {
+          child.properties = {
+            ...(child.properties ?? {}),
+            tabIndex: 0,
+          };
+        }
+
+        if (child.tagName === "table") {
+          child.properties = {
+            ...(child.properties ?? {}),
+            tabIndex: 0,
+          };
         }
 
         const chart = extractMermaidChart(child);
@@ -197,6 +226,7 @@ const rehypeMermaidPlaceholder: Plugin<[], Root> = () => {
               properties: {
                 className: ["mermaid-container"],
                 dataChart: Buffer.from(chart, "utf8").toString("base64"),
+                tabIndex: 0,
               },
               children: [],
             };

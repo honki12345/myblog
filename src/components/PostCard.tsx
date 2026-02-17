@@ -33,7 +33,7 @@ export default function PostCard({ post }: PostCardProps) {
         className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
         data-post-card
       >
-        <h2 className="text-lg font-semibold tracking-tight">
+        <h2 className="break-words text-lg font-semibold tracking-tight">
           <Link href={href} className="hover:underline">
             {post.title}
           </Link>
@@ -43,7 +43,9 @@ export default function PostCard({ post }: PostCardProps) {
             발행일: {publishedDate}
           </p>
         ) : null}
-        <p className="mt-2 text-sm text-slate-600">{post.excerpt}</p>
+        <p className="mt-2 break-words text-sm text-slate-600">
+          {post.excerpt}
+        </p>
         <div className="mt-3">
           <TagList tags={post.tags} />
         </div>
@@ -65,7 +67,7 @@ export default function PostCard({ post }: PostCardProps) {
           />
         </Link>
         <div className="min-w-0">
-          <h2 className="text-lg font-semibold tracking-tight">
+          <h2 className="break-words text-lg font-semibold tracking-tight">
             <Link href={href} className="hover:underline">
               {post.title}
             </Link>
@@ -75,7 +77,9 @@ export default function PostCard({ post }: PostCardProps) {
               발행일: {publishedDate}
             </p>
           ) : null}
-          <p className="mt-2 text-sm text-slate-600">{post.excerpt}</p>
+          <p className="mt-2 break-words text-sm text-slate-600">
+            {post.excerpt}
+          </p>
           <div className="mt-3">
             <TagList tags={post.tags} />
           </div>

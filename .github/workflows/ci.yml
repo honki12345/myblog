@@ -58,6 +58,7 @@ jobs:
         with:
           name: next-standalone
           path: .next/standalone
+          include-hidden-files: true
           if-no-files-found: error
 
       - name: Step 3 gate tests

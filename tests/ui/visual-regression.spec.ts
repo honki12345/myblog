@@ -10,21 +10,33 @@ const THUMBNAIL_SEED_TITLE = "PW-SEED-홈 화면 글";
 const NO_THUMBNAIL_SEED_TITLE = "PW-SEED-목록 화면 글";
 const FALLBACK_THUMBNAIL_SEED_TITLE = "PW-SEED-태그 화면 글";
 
-const routes = [
-  { name: "home", getPath: (_seeded: { detailSlug: string }) => "/" },
-  { name: "posts", getPath: (_seeded: { detailSlug: string }) => "/posts" },
+type SeededPosts = { detailSlug: string };
+
+type RouteName =
+  | "home"
+  | "posts"
+  | "post-detail"
+  | "admin-write"
+  | "tags"
+  | "tag-sample";
+
+type Route = { name: RouteName; getPath: (seeded: SeededPosts) => string };
+
+const routes: Route[] = [
+  { name: "home", getPath: () => "/" },
+  { name: "posts", getPath: () => "/posts" },
   {
     name: "post-detail",
-    getPath: (seeded: { detailSlug: string }) => `/posts/${seeded.detailSlug}`,
+    getPath: (seeded) => `/posts/${seeded.detailSlug}`,
   },
   {
     name: "admin-write",
-    getPath: (_seeded: { detailSlug: string }) => "/admin/write",
+    getPath: () => "/admin/write",
   },
-  { name: "tags", getPath: (_seeded: { detailSlug: string }) => "/tags" },
+  { name: "tags", getPath: () => "/tags" },
   {
     name: "tag-sample",
-    getPath: (_seeded: { detailSlug: string }) => "/tags/sample",
+    getPath: () => "/tags/sample",
   },
 ];
 

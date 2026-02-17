@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { access, readFile, rm, unlink } from "node:fs/promises";
+import net from "node:net";
 import path from "node:path";
 import process from "node:process";
 
@@ -66,6 +67,30 @@ async function pathExists(targetPath) {
   } catch {
     return false;
   }
+}
+
+function canBindPort(port) {
+  return new Promise((resolve) => {
+    const server = net.createServer();
+    server.unref();
+
+    server.once("error", () => resolve(false));
+    server.listen({ port, exclusive: true }, () => {
+      server.close(() => resolve(true));
+    });
+  });
+}
+
+async function waitForPortToBeFree(port, retries = 25, delayMs = 200) {
+  for (let attempt = 0; attempt < retries; attempt += 1) {
+    if (await canBindPort(port)) {
+      return;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
+
+  throw new Error(`Timed out waiting for port ${port} to be released`);
 }
 
 async function cleanupTestDb() {
@@ -237,6 +262,10 @@ async function stopServer(child) {
       resolve();
     });
   });
+
+  // `next dev` can keep the port occupied briefly after the parent process exits
+  // (child workers / graceful shutdown). Ensure we don't race the next start.
+  await waitForPortToBeFree(PORT);
 }
 
 async function callJson(pathname, options = {}) {

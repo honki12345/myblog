@@ -23,7 +23,7 @@
   - `page`, `per_page` 링크 생성 시 `q`를 유지한다.
 - **DB 검색 쿼리 추가 (FTS5)**
   - `posts_fts MATCH ?`를 사용해 `posts`와 조인하여 결과를 조회한다.
-  - 정렬은 `bm25(posts_fts)` 우선 + 발행/작성 시각 보조 정렬로 안정화한다.
+  - 정렬은 Step 11 정책과 동일하게 `COALESCE(published_at, created_at) DESC, id DESC`를 유지한다.
   - `COUNT(*)`도 동일 조건으로 산출해 페이지네이션에 사용한다.
   - FTS5 구문 오류(예: 따옴표 미닫힘) 발생 시 “검색어가 올바르지 않습니다” 메시지로 처리한다.
 - **검색 UI 추가**
@@ -78,8 +78,7 @@
    WHERE p.status IN (?, ?)
      AND posts_fts MATCH ?
    GROUP BY p.id
-   ORDER BY bm25(posts_fts) ASC,
-            datetime(COALESCE(p.published_at, p.created_at)) DESC,
+   ORDER BY COALESCE(p.published_at, p.created_at) DESC,
             p.id DESC
    LIMIT ? OFFSET ?;
    ```
@@ -124,4 +123,3 @@
    curl -s -o /dev/null -w "%{http_code}\n" "http://localhost:3000/posts?q=%22unclosed"
    ```
    - 기대 결과: HTTP `200` (500 금지), 페이지 내에 “검색어가 올바르지 않습니다” 등의 메시지
-

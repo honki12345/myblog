@@ -14,11 +14,13 @@
 - 정렬 기준은 기존과 동일하게 `COALESCE(published_at, created_at) DESC, id DESC`를 유지한다.
 - 공개 사용자는 `published`만, 관리자 세션이 있으면 `draft` + `published`를 모두 포함한다.
 - Step 10의 검색 파라미터(`q`)가 존재하는 경우에도 동일한 커서 규약으로 동작해야 한다(검색 상태 유지).
+  - `q`는 결과 집합 필터만 담당하며, 정렬/커서 기준은 기본 목록과 동일하게 유지한다.
 - URL만으로 다음/이전 페이지 이동이 가능해야 한다(클라이언트 상태 없이).
 - 잘못된 커서/파라미터로 500이 나지 않도록 방어한다.
 
 #### URL/쿼리 파라미터 계약
 
+- `page`: (legacy) 오프셋 기반 페이지네이션 파라미터 — Step 11에서는 정규화 redirect로 제거한다.
 - `per_page`: 페이지 크기 (기본 10, 최대 50) — 기존 유지
 - `after`: 다음(더 오래된 글) 페이지 커서
 - `before`: 이전(더 최신 글) 페이지 커서
@@ -27,11 +29,14 @@
 규칙:
 
 - `after`와 `before`는 동시에 올 수 없다.
-  - 동시 입력 시 `/posts`로 정규화 redirect (권장) 또는 400 처리 중 택1.
+  - 동시 입력 시 `/posts`로 정규화 redirect (`q`, `per_page`만 보존).
+- `page`는 Step 11 이전(오프셋 기반) 레거시 파라미터다.
+  - 입력 시 `/posts`로 정규화 redirect (`q`, `per_page`만 보존).
 - `after/before`는 base64url(JSON) 토큰이다.
 - 커서 payload는 `{ sortKey: string; id: number }`로 고정한다.
   - `sortKey`: `COALESCE(published_at, created_at)` 결과 문자열 (`YYYY-MM-DD HH:MM:SS`)
   - `id`: tie-breaker (내림차순 정렬의 2차 키)
+  - `q`, `per_page` 등 필터/표시 컨텍스트는 payload에 포함하지 않는다.
 
 #### 커서 인코딩/검증
 
@@ -48,6 +53,9 @@
 공통 정렬 키:
 
 - `sort_key = COALESCE(p.published_at, p.created_at)`
+- 커서 생성용으로 `sort_key`를 만들기 위해 쿼리에서 아래 중 하나를 반드시 조회한다.
+  - `p.created_at`도 함께 SELECT해서 애플리케이션에서 `published_at ?? created_at`로 `sortKey`를 계산
+  - 또는 `COALESCE(p.published_at, p.created_at) AS sort_key`를 SELECT해서 그대로 사용
 
 1. 첫 페이지(커서 없음) / 다음 페이지(`after`)
 
@@ -82,6 +90,8 @@ CREATE INDEX IF NOT EXISTS idx_posts_status_sort_key_id
   ON posts(status, COALESCE(published_at, created_at) DESC, id DESC);
 ```
 
+- 주의: SQLite의 expression index는 쿼리에서 **동일한 표현식**을 사용할 때 플래너가 고려한다.
+  - 예: 위 인덱스를 추가했다면 `ORDER BY`/`WHERE`에서도 `COALESCE(published_at, created_at)`를 그대로 사용하고 `datetime(...)` 등으로 감싸지 않는다.
 - `schema_versions` 버전을 4로 상향하고 Step 11 마이그레이션으로 포함한다. (현재 3까지 사용 중)
 
 #### UI 변경 (/posts)
@@ -89,12 +99,20 @@ CREATE INDEX IF NOT EXISTS idx_posts_status_sort_key_id
 - 페이지 번호 UI는 제거하고, **커서 기반 이전/다음 내비게이션**으로 전환한다.
   - `이전`: `before=<cursor(firstItem)>` (더 최신 글)
   - `다음`: `after=<cursor(lastItem)>` (더 오래된 글)
-  - `최신`: `/posts` (커서 초기화)
+  - `최신`: `/posts` (커서만 초기화)
+    - `q`, `per_page`는 보존하고, `after/before`만 제거한다.
 - `aria-label="페이지네이션"`은 유지한다.
 - `per_page`, `q`는 모든 페이지네이션 링크에 보존한다.
-- 헤더의 “1-10 / 총 N개” 형태는 cursor 모드와 맞지 않으므로 아래 중 하나로 변경한다.
-  - A(권장): `총 N개의 글`만 표시(필요 시 COUNT 쿼리 유지)
-  - B: COUNT 쿼리를 제거하고 `현재 ${posts.length}개 표시`만 표시
+- 헤더의 “1-10 / 총 N개” 형태는 cursor 모드와 맞지 않으므로 `총 N개의 글`만 표시한다.
+  - `N`은 status/q 동일 조건의 `COUNT(*)`로 산출한다.
+
+- `hasNext/hasPrev` 버튼 활성화 판정 규칙:
+  - 조회 방향(커서 종류)에 대해 `LIMIT(per_page + 1)`로 1개를 더 가져와 "그 방향으로 더 있음"을 판정한다.
+    - `after`(더 오래된 글) 조회: 초과분이 있으면 `hasNext=true` (다음 버튼 활성)
+    - `before`(더 최신 글) 조회: 초과분이 있으면 `hasPrev=true` (이전 버튼 활성)
+  - 반대 방향은 `SELECT 1 ... LIMIT 1` 존재 체크로 판정한다. (딥링크/수동 커서에도 안전)
+    - 예: 현재 페이지의 `firstItem`에 대해 "더 최신 글 존재" 여부는 `firstItem`보다 큰(`>`) 조건으로 1건이라도 있는지 확인한다.
+    - 예: 현재 페이지의 `lastItem`에 대해 "더 오래된 글 존재" 여부는 `lastItem`보다 작은(`<`) 조건으로 1건이라도 있는지 확인한다.
 
 #### 구현 범위/파일 경계
 
@@ -108,8 +126,12 @@ CREATE INDEX IF NOT EXISTS idx_posts_status_sort_key_id
   - `scripts/test-step-11.mjs` (신규)
   - `package.json`에 `test:step11` 등록
   - `scripts/test-all.mjs`에 `test:step11` 편입
+  - 실행 순서(권장): `test:step5` 직후, `test:ui` 이전
 - 회귀 영향(기존 테스트 갱신 필요)
   - `scripts/test-step-5.mjs` (페이지네이션 테스트 케이스를 cursor 기반으로 갱신)
+    - 기존 `/posts?page=1`, `/posts?page=2` 호출은 제거한다. (Step 11에서 `page`는 정규화 redirect 대상)
+    - `/posts` 첫 페이지 응답 HTML에서 "다음" 링크(`after=...`)의 `href`를 추출해 2페이지를 요청한다.
+    - 1페이지 + 2페이지에서 시드로 생성한 15개 글이 중복/누락 없이 모두 등장함을 검증한다.
   - `tests/ui/visual-regression.spec.ts` (페이지네이션 UI 변경에 따른 스냅샷 갱신 가능)
 
 #### 권장 구현 순서
@@ -136,4 +158,3 @@ CREATE INDEX IF NOT EXISTS idx_posts_status_sort_key_id
 - 무한 스크롤(infinite scroll)
 - “마지막 페이지로” 이동(끝 커서 탐색)
 - 페이지 번호 UI 유지 (cursor 모드에서는 제공하지 않음)
-

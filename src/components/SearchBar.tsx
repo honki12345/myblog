@@ -25,7 +25,7 @@ export default function SearchBar({ query }: SearchBarProps) {
           defaultValue={normalizedQuery}
           autoComplete="off"
           placeholder="예: Kubernetes…"
-          className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200"
+          className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-900 focus:ring-2 focus:ring-slate-200 focus:outline-none"
         />
         <button
           type="submit"

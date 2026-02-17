@@ -145,7 +145,8 @@ async function stopServer(child) {
     return;
   }
 
-  const port = typeof child.__step10Port === "number" ? child.__step10Port : null;
+  const port =
+    typeof child.__step10Port === "number" ? child.__step10Port : null;
   const processGroup = child.pid ? -child.pid : null;
 
   try {
@@ -308,4 +309,3 @@ main().catch((error) => {
   console.error(`[step10] failed: ${message}`);
   process.exitCode = 1;
 });
-

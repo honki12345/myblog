@@ -98,7 +98,11 @@ function isFtsQuerySyntaxError(error: unknown): boolean {
   );
 }
 
-function buildPageHref(page: number, perPage: number, q: string | null): string {
+function buildPageHref(
+  page: number,
+  perPage: number,
+  q: string | null,
+): string {
   const search = new URLSearchParams();
   search.set("page", String(page));
   if (perPage !== 10) {
@@ -125,7 +129,10 @@ function buildStatusFilter(
   };
 }
 
-function loadTotalPosts(statuses: readonly PostStatus[], q: string | null): number {
+function loadTotalPosts(
+  statuses: readonly PostStatus[],
+  q: string | null,
+): number {
   const db = getDb();
   const statusFilter = buildStatusFilter(statuses, "p");
 

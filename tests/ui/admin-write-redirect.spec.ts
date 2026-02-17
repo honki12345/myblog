@@ -30,10 +30,9 @@ async function assertNoSeriousA11yViolations(page: Page, message: string) {
   expect(blockingViolations, message).toEqual([]);
 }
 
-test("write compatibility route redirects to admin write", async (
-  { page },
-  testInfo,
-) => {
+test("write compatibility route redirects to admin write", async ({
+  page,
+}, testInfo) => {
   const maxDiffPixelRatio = getRedirectDiffThreshold(testInfo.project.name);
   await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
   await page.goto("/write", { waitUntil: "networkidle" });
@@ -56,10 +55,9 @@ test("write compatibility route redirects to admin write", async (
   });
 });
 
-test("write?id compatibility route preserves query on redirect", async (
-  { page },
-  testInfo,
-) => {
+test("write?id compatibility route preserves query on redirect", async ({
+  page,
+}, testInfo) => {
   const maxDiffPixelRatio = getRedirectDiffThreshold(testInfo.project.name);
   await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
   await page.goto("/write?id=123", { waitUntil: "networkidle" });
@@ -81,4 +79,3 @@ test("write?id compatibility route preserves query on redirect", async (
     maxDiffPixelRatio,
   });
 });
-

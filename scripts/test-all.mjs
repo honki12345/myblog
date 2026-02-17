@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import net from "node:net";
 import process from "node:process";
 
 const ROOT = process.cwd();
@@ -41,6 +42,31 @@ function pipeWithPrefix(stream, prefix, output = process.stdout) {
 
 function isRunning(child) {
   return child.exitCode === null && child.signalCode === null;
+}
+
+function canBindPort(port) {
+  return new Promise((resolve) => {
+    const server = net.createServer();
+    server.unref();
+
+    server.once("error", () => {
+      resolve(false);
+    });
+
+    server.listen({ port, host: "127.0.0.1" }, () => {
+      server.close(() => resolve(true));
+    });
+  });
+}
+
+async function findAvailablePort(startPort, maxAttempts = 100) {
+  for (let port = startPort; port < startPort + maxAttempts; port += 1) {
+    if (await canBindPort(port)) {
+      return port;
+    }
+  }
+
+  throw new Error(`unable to find available port from ${startPort}`);
 }
 
 async function stopProcess(
@@ -158,7 +184,12 @@ async function main() {
     env: { STEP8_PORT_BASE: "3200" },
   });
   await runSingle("test:step9");
-  await runSingle("test:ui");
+  const playwrightPort =
+    Number.parseInt(process.env.PLAYWRIGHT_PORT ?? "", 10) ||
+    (await findAvailablePort(3400));
+  await runSingle("test:ui", {
+    env: { PLAYWRIGHT_PORT: String(playwrightPort) },
+  });
 
   const totalDurationMs = Date.now() - totalStartedAt;
   console.log(

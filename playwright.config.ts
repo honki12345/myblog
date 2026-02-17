@@ -1,7 +1,8 @@
 import { defineConfig } from "@playwright/test";
 
 const PLAYWRIGHT_DB_PATH = `${process.cwd()}/data/playwright-ui.db`;
-const PLAYWRIGHT_PORT = 3400;
+const PLAYWRIGHT_PORT =
+  Number.parseInt(process.env.PLAYWRIGHT_PORT ?? "", 10) || 3400;
 const PLAYWRIGHT_BASE_URL = `http://127.0.0.1:${PLAYWRIGHT_PORT}`;
 const PLAYWRIGHT_WEB_SERVER_COMMAND = `set -eu;
 set -a;

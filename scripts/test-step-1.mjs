@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { access, readFile, readdir, writeFile } from "node:fs/promises";
+import net from "node:net";
 import process from "node:process";
 import path from "node:path";
 
@@ -64,6 +65,41 @@ async function assertFile(pathname) {
   } catch {
     throw new Error(`Missing expected path: ${pathname}`);
   }
+}
+
+function parsePositiveIntegerEnv(envValue, fallback, { minimum = 1 } = {}) {
+  if (!envValue) {
+    return fallback;
+  }
+
+  const parsed = Number(envValue);
+  if (!Number.isFinite(parsed) || parsed < minimum) {
+    return fallback;
+  }
+
+  return Math.floor(parsed);
+}
+
+function canBindPort(port) {
+  return new Promise((resolve) => {
+    const server = net.createServer();
+    server.unref();
+
+    server.once("error", () => resolve(false));
+    server.listen({ port, host: "127.0.0.1" }, () => {
+      server.close(() => resolve(true));
+    });
+  });
+}
+
+async function findAvailablePort(startPort, maxAttempts = 50) {
+  for (let port = startPort; port < startPort + maxAttempts; port += 1) {
+    if (await canBindPort(port)) {
+      return port;
+    }
+  }
+
+  throw new Error(`unable to find available port from ${startPort}`);
 }
 
 async function resolveStandaloneServerDir() {
@@ -229,7 +265,11 @@ async function testDevServer() {
   console.log("\n[4/6] dev server health check");
   // Use a different port from other test steps to avoid flakey EADDRINUSE
   // when previous Next dev server shutdown is still in progress.
-  const port = 3002;
+  const portBase = parsePositiveIntegerEnv(
+    process.env.STEP1_DEV_PORT_BASE,
+    3002,
+  );
+  const port = await findAvailablePort(portBase);
   const dev = spawn(
     "node",
     ["node_modules/next/dist/bin/next", "dev", "--port", String(port)],

@@ -150,6 +150,24 @@ CREATE INDEX IF NOT EXISTS idx_admin_schedules_start_at
   ON admin_schedules(start_at, id DESC);
 `;
 
+const ISSUE45_SCHEMA_SQL = `
+CREATE TABLE IF NOT EXISTS inbox_items (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  url        TEXT NOT NULL UNIQUE,
+  source     TEXT NOT NULL,
+  client     TEXT NOT NULL,
+  note       TEXT,
+  status     TEXT NOT NULL DEFAULT 'queued'
+    CHECK (status IN ('queued', 'processed', 'failed')),
+  error      TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_inbox_items_status_id
+  ON inbox_items(status, id);
+`;
+
 type DbGlobals = {
   __blogDb?: Database.Database;
   __blogDbPath?: string;
@@ -203,6 +221,17 @@ export function runMigrations(database: Database.Database): void {
           "INSERT INTO schema_versions (version, description) VALUES (?, ?)",
         )
         .run(2, "Admin workspace schema for Step 9");
+      currentVersion = 2;
+    }
+
+    if (currentVersion < 3) {
+      database.exec(ISSUE45_SCHEMA_SQL);
+      database
+        .prepare(
+          "INSERT INTO schema_versions (version, description) VALUES (?, ?)",
+        )
+        .run(3, "Inbox ingestion queue schema for Issue #45");
+      currentVersion = 3;
     }
   });
 

@@ -97,50 +97,31 @@ mermaid                   # 클라이언트에서 다이어그램 렌더링
 
 ## 3. 구현 순서 개요
 
-전체 구현을 **4개 Phase (Step 1~11)**로 나눈다.
+전체 구현은 **4개 Phase (Step 1~21)** 기준으로 설계했고, 분리된 Step은 완료 처리로 간주한다.
+
+### 2026-02-16 기준 진행 상태
+
+- 완료(분리/처리): **Step 1~9**
+- 남은 Step: **Step 10 → Step 21**
+
+### 남은 Step 실행 순서
 
 ```
-Phase 1: MVP (Step 1~7) — 로컬 개발 + 배포까지 완전한 블로그
-  Step 1: 프로젝트 초기화 & 설정
+Phase 3: 사용자 편의 (Step 10~15)
+  Step 10: 전문 검색 UI (FTS5 연동)
+  Step 11: 커서 기반 페이지네이션 전환
+  Step 12: 반응형 디자인 개선 (360/768/1440 기준)
+  Step 13: RSS/Atom 피드 구현
+  Step 14: Step 10~13 통합 검증 (기능 + 스크린샷 회귀 + 접근성)
+  Step 15: 회귀 게이트 실행 (`npm run test:all`)
     ↓
-  Step 2: SQLite DB 연결 & 스키마 생성
-    ↓
-  Step 3: API Routes (AI 포스팅 API)
-    ↓
-  Step 4: 마크다운 렌더링 파이프라인
-    ↓
-  Step 5: 프론트엔드 페이지 (SSR)
-    ↓
-  Step 6: GitHub Actions CI/CD
-    ↓
-  Step 7: Oracle VM 배포 설정
-
-Phase 2: 운영 확장 (Step 8~9)
-  Step 8: AI 친화 기능
-    - 벌크 포스팅 API (최대 10건: 1GB VM 메모리 예산과 SQLite 트랜잭션 시간 고려)
-    - 이미지 포함 포스팅 E2E 흐름 테스트
-    - sources 테이블 활용 (ai_model, prompt_hint 기록)
-    - 로깅 개선 (API 요청 JSON 로그)
-  Step 9: 관리자 워크스페이스 (Step 5 이후)
-    - 관리자 로그인 도입 (단일 admin 계정 + 비밀번호 + TOTP 2FA + HttpOnly 세션)
-    - 글쓰기/수정 UI를 admin 인증 기반으로 전환 (`/write` → `/admin/write`)
-    - 메모 관리 기능 (`/admin/notes`, CRUD)
-    - 일정/TODO 관리 기능 (`/admin/todos`, `/admin/schedules`, CRUD)
-
-Phase 3: 사용자 편의 (Step 10)
-  Step 10: 사용자 편의 기능
-    - 전문 검색 UI (FTS5 연동)
-    - 커서 기반 페이지네이션
-    - 반응형 디자인 개선
-    - RSS/Atom 피드
-
-Phase 4: 고급 기능 (Step 11)
-  Step 11: 고급 기능
-    - 조회수 통계
-    - 북마크/읽음 표시
-    - 구독 메일링 (일간/주간 다이제스트 발송, 비MVP)
-    - DB 자동 백업 (cron, 7일 보관, 오래된 백업 자동 삭제)
-    - 디스크 사용량 모니터링 (80% 이상 알림)
+Phase 4: 고급 기능 (Step 16~21)
+  Step 16: 조회수 통계
+  Step 17: 북마크/읽음 표시
+  Step 18: 구독 메일링 (일간/주간 다이제스트, 비MVP)
+  Step 19: DB 자동 백업 (cron, 7일 보관, 자동 삭제)
+  Step 20: 디스크 사용량 모니터링 (80% 이상 알림)
+  Step 21: 최종 회귀/운영 검증 (`npm run test:all`, `npm run test:step7-remote`)
 ```
 
 ### 전체 의존성 맵
@@ -507,21 +488,24 @@ npm run test:step1
 
 > 상세 구현 계획은 `plans/step9-plan.md`를 참고.
 > 분리일: 2026-02-16
+> 구현 완료일: 2026-02-16 (분리 처리 기준)
 
 ---
 
-## Phase 3: 사용자 편의 (Step 10)
+## Phase 3: 사용자 편의 (Step 10~15)
 
-> Phase 2 Step 9 완료 후 진행.
+> Phase 2 Step 9 완료 상태를 기준으로 진행.
 
-### Step 10: 사용자 편의 기능
+### Step 10~15: 사용자 편의 기능
 
 #### 구현 항목
 
-- **전문 검색 UI (FTS5)** — `/posts?q=검색어` 파라미터, SearchBar 컴포넌트 추가
-- **커서 기반 페이지네이션** — 오프셋 기반에서 커서 기반으로 전환
-- **반응형 디자인 개선** — 모바일 최적화
-- **RSS/Atom 피드** — 카테고리별, 태그별 동적 피드 생성
+- **Step 10. 전문 검색 UI (FTS5)** — `/posts?q=검색어` 파라미터, SearchBar 컴포넌트 추가
+- **Step 11. 커서 기반 페이지네이션** — 오프셋 기반에서 커서 기반으로 전환
+- **Step 12. 반응형 디자인 개선** — 모바일 최적화
+- **Step 13. RSS/Atom 피드** — 카테고리별, 태그별 동적 피드 생성
+- **Step 14. Step 10~13 통합 검증** — 기능 assertion + 스크린샷 회귀 + 접근성 검사
+- **Step 15. Step 10 종료 회귀** — `npm run test:all`
 
 #### 예정 테스트
 
@@ -544,118 +528,54 @@ npm run test:step1
 
 ---
 
-## Phase 4: 고급 기능 (Step 11)
+## Phase 4: 고급 기능 (Step 16~21)
 
-> Phase 3 완료 후 진행.
+> Step 15 완료 후 진행.
 
-### Step 11: 고급 기능
+### Step 16~21: 고급 기능
 
 #### 구현 항목
 
-- **조회수 통계** — 인기 글, 카테고리별 통계, AI 글 vs 직접 쓴 글 구분
-- **북마크/읽음 표시** — 사용자 읽은 글 추적, "안 읽은 글만 보기"
-- **구독 메일링 (비MVP 확장)** — 일간/주간 다이제스트 발송
+- **Step 16. 조회수 통계** — 인기 글, 카테고리별 통계, AI 글 vs 직접 쓴 글 구분
+- **Step 17. 북마크/읽음 표시** — 사용자 읽은 글 추적, "안 읽은 글만 보기"
+- **Step 18. 구독 메일링 (비MVP 확장)** — 일간/주간 다이제스트 발송
   - 구독자 주기(`daily`/`weekly`) 저장
   - `published_at` 구간 조회로 발송 대상 글 선정
   - 발송 이력(구독자+기간) 저장으로 중복 발송 방지
-- **DB 자동 백업** — cron, 7일 보관, 오래된 백업 자동 삭제
-- **디스크 사용량 모니터링** — 80% 이상 시 알림
+- **Step 19. DB 자동 백업** — cron, 7일 보관, 오래된 백업 자동 삭제
+- **Step 20. 디스크 사용량 모니터링** — 80% 이상 시 알림
+- **Step 21. 최종 회귀/운영 검증** — `npm run test:all`, `npm run test:step7-remote`
 
 ---
 
 ## 체크리스트
 
-### Phase 1: MVP (Step 1~5 로컬 + Step 6~7 배포)
+### 완료 처리된 Step (분리 문서 기준)
 
-- [ ] **Step 1**: 프로젝트 초기화
-  - [ ] Next.js 프로젝트 생성 (App Router, standalone, TypeScript, Tailwind)
-  - [ ] 의존성 설치
-  - [ ] 환경변수 설정
-  - [ ] 디렉토리 구조 생성
-  - [ ] .gitignore 설정
+- [x] **Step 1**: 프로젝트 초기화 & 설정 (`plans/step1-plan.md`)
+- [x] **Step 2**: SQLite DB 연결 & 스키마 생성 (`plans/step2-plan.md`)
+- [x] **Step 3**: API Routes (AI 포스팅 API) (`plans/step3-plan.md`)
+- [x] **Step 4**: 마크다운 렌더링 파이프라인 (`plans/step4-plan.md`)
+- [x] **Step 5**: 프론트엔드 페이지 (SSR) (`plans/step5-plan.md`)
+- [x] **Step 6**: GitHub Actions CI/CD (`plans/step6-plan.md`)
+- [x] **Step 7**: Oracle VM 배포 설정 (`plans/step7-plan.md`)
+- [x] **Step 8**: AI 친화 기능 (`plans/step8-plan.md`)
+- [x] **Step 9**: 관리자 워크스페이스 (`plans/step9-plan.md`)
 
-- [ ] **Step 2**: DB 설정
-  - [ ] `src/lib/db.ts` — DB 연결 싱글턴
-  - [ ] `scripts/migrate.ts` — 스키마 마이그레이션
-  - [ ] npm script 등록 (`db:migrate`)
-  - [ ] 마이그레이션 실행 테스트
+### 남은 Step (실행 순서)
 
-- [ ] **Step 3**: API 구현
-  - [ ] `src/lib/auth.ts` — API Key 검증
-  - [ ] `src/lib/slug.ts` — Slug 생성
-  - [ ] `src/lib/rate-limit.ts` — Rate Limiting
-  - [ ] API 에러 응답 포맷 통일 (`{ error, code }`)
-  - [ ] `POST /api/posts` — 글 생성 (source_url 중복 시 409)
-  - [ ] `GET /api/posts/check` — source_url 중복 체크
-  - [ ] `POST /api/uploads` — 이미지 업로드
-  - [ ] `GET /api/health` — 헬스체크
-  - [ ] `GET /api/posts/[id]` — 글 조회
-  - [ ] `PATCH /api/posts/[id]` — 글 수정
-
-- [ ] **Step 4**: 마크다운 렌더링
-  - [ ] `src/lib/markdown.ts` — unified 파이프라인
-  - [ ] rehypeSanitize 커스텀 스키마
-  - [ ] Mermaid 코드 블록 → placeholder 변환
-  - [ ] `src/components/MermaidDiagram.tsx` — 클라이언트 렌더링
-  - [ ] KaTeX CSS 설정
-
-- [ ] **Step 5**: 프론트엔드 페이지
-  - [ ] 공통 레이아웃 (네비게이션, 반응형)
-  - [ ] 홈 페이지 (최신 글 목록)
-  - [ ] 글 목록 페이지 (오프셋 페이지네이션)
-  - [ ] 개별 글 페이지 (마크다운 렌더링)
-  - [ ] 태그별 글 목록
-  - [ ] 글쓰기/수정 페이지 (API Key 인증, 마크다운 에디터, 이미지 업로드)
-  - [ ] PostCard, PostContent, MermaidDiagram, TagList, WriteEditor 컴포넌트
-
-- [ ] **Step 6**: CI/CD 파이프라인
-  - [ ] GitHub Actions 워크플로우 작성
-  - [ ] GitHub Secrets 설정
-  - [ ] 심볼릭 링크 전환 배포 스크립트
-  - [ ] 빌드 & 배포 테스트
-
-- [ ] **Step 7**: VM 배포
-  - [ ] Oracle VM 프로비저닝
-  - [ ] 보안 하드닝 (fail2ban, firewall, SSH 키 인증, OCI Security List)
-  - [ ] 서버 초기 설정 (Node.js 22, Caddy, blog 사용자)
-  - [ ] systemd 서비스 등록
-  - [ ] Caddy 설정
-  - [ ] DB 백업 절차 수립
-  - [ ] UptimeRobot 모니터링 설정
-  - [ ] 도메인 연결 & HTTPS 확인
-  - [ ] 롤백 테스트
-  - [ ] 엔드투엔드 테스트
-
-### Phase 2: 운영 확장 (Step 8~9)
-
-- [x] **Step 8**: AI 친화 기능
-  - [x] POST /api/posts/bulk (최대 10건, 메모리/처리시간 기준)
-  - [x] 이미지 포함 포스팅 E2E 흐름 테스트
-  - [x] sources 테이블 ai_model, prompt_hint 활용
-  - [x] 로깅 개선 (JSON 구조화 로그)
-
-- [ ] **Step 9**: 관리자 워크스페이스 (Step 5 이후 신규)
-  - [ ] 관리자 로그인 (단일 계정 + 비밀번호 + TOTP 2FA + HttpOnly 세션, CSRF 방어)
-  - [ ] 관리자 글쓰기/수정 페이지 전환 (`/admin/write`)
-  - [ ] 메모 관리 CRUD (`/admin/notes`)
-  - [ ] 일정/TODO 관리 CRUD (`/admin/schedules`, `/admin/todos`)
-
-### Phase 3: 사용자 편의 (Step 10)
-
-- [ ] **Step 10**: 사용자 편의 기능
-  - [ ] 전문 검색 UI (FTS5, SearchBar 컴포넌트)
-  - [ ] 커서 기반 페이지네이션
-  - [ ] 반응형 디자인 개선
-  - [ ] RSS/Atom 피드
-
-### Phase 4: 고급 기능 (Step 11)
-
-- [ ] **Step 11**: 고급 기능
-  - [ ] 조회수 통계
-  - [ ] 북마크/읽음 표시
-  - [ ] 구독 메일링 (일간/주간 다이제스트, 비MVP)
-  - [ ] DB 자동 백업 (cron, 7일 보관, 자동 삭제)
-  - [ ] 디스크 사용량 모니터링 (80% 이상 알림)
+1. [ ] **Step 10**: 전문 검색 UI (FTS5, SearchBar 컴포넌트)
+2. [ ] **Step 11**: 커서 기반 페이지네이션
+3. [ ] **Step 12**: 반응형 디자인 개선
+4. [ ] **Step 13**: RSS/Atom 피드
+5. [ ] **Step 14**: Step 10~13 통합 검증 (기능 assertion + `toHaveScreenshot` + a11y)
+6. [ ] **Step 15**: Step 10 종료 회귀 (`npm run test:all`)
+7. [ ] **Step 16**: 조회수 통계
+8. [ ] **Step 17**: 북마크/읽음 표시
+9. [ ] **Step 18**: 구독 메일링 (일간/주간 다이제스트, 비MVP)
+10. [ ] **Step 19**: DB 자동 백업 (cron, 7일 보관, 자동 삭제)
+11. [ ] **Step 20**: 디스크 사용량 모니터링 (80% 이상 알림)
+12. [ ] **Step 21**: 최종 회귀/운영 검증 (`npm run test:all`, `npm run test:step7-remote`)
 
 ---
 

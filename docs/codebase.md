@@ -12,6 +12,7 @@
 - Next.js App Router 기반 웹 페이지: `/`, `/posts`, `/posts/[slug]`, `/tags/[tag]`, `/write`
 - SQLite(better-sqlite3) 기반 글/태그/출처 저장 및 FTS5 인덱스 유지
 - API Key(Bearer) 기반 보호 API: 단건/벌크 글 생성, 글 수정/조회, 출처 중복 확인, 이미지 업로드
+- iOS Shortcuts URL 수집 큐 API: `/api/inbox`(POST/GET) + `/api/inbox/:id`(PATCH), Bearer `INBOX_TOKEN` 기반 적재/조회/상태 갱신
 - 마크다운 렌더링 파이프라인: GFM + 수식(KaTeX) + 코드 하이라이트(Shiki) + sanitize + Mermaid placeholder
 - API 요청 구조화 로그(JSON): `timestamp`, `route`, `status`, `durationMs`, `postCount`, `contentLengthSum`, `sourceUrlCount`, `payloadHash`
 - Playwright 기반 시각 회귀 + 접근성 + 작성 E2E 테스트
@@ -43,7 +44,7 @@ Sources: `AGENTS.md`, `src/app/layout.tsx`, `src/app/page.tsx`, `src/app/posts/p
 ### Data/control flow
 
 - 읽기 경로: Server Component가 `getDb()`로 SQLite 조회 -> 게시 상태(`published`) 중심 필터 -> JSX 렌더링
-- 작성 경로: `/write`에서 API Key 확인(`/api/health`) -> `POST /api/posts`, `POST /api/posts/bulk`, `PATCH /api/posts/:id` -> DB 트랜잭션 -> `revalidatePath`로 홈/목록/상세/태그 갱신 -> 상태 기반 라우팅(`published`는 `/posts/{slug}`, `draft`는 `/write?id={id}`)
+- 작성 경로: `/write`에서 API Key 확인(`/api/health`) -> `POST /api/posts`, `POST /api/posts/bulk`, `PATCH /api/posts/:id` -> DB 트랜잭션 -> `revalidatePath`로 홈/목록/상세/태그 갱신 -> 상태 기반 라우팅(`published`는 `/posts/{slug}`, 목록에서 `draft`는 `/admin/write?id={id}`)
 - 렌더링 경로: 상세 페이지에서 `renderMarkdown()` 호출 -> Mermaid 블록은 base64 placeholder로 출력 -> 클라이언트에서 `mermaid` 동적 import 후 SVG 변환
 - 업로드 경로: `/api/uploads`가 MIME + 매직바이트 검증 후 `uploads/YYYY/MM/uuid.ext` 저장 -> URL 반환
 - 관측 경로: `POST /api/posts`, `POST /api/posts/bulk`는 요청 요약(JSON) 로그를 stdout으로 출력하며 systemd journal에서 수집 가능
@@ -74,6 +75,7 @@ Sources: `src/lib/db.ts`, `src/app/api/posts/route.ts`, `src/app/api/posts/bulk/
 ```
 
 - 인증: `Authorization: Bearer <BLOG_API_KEY>`
+- Inbox ingestion API 인증: `Authorization: Bearer <INBOX_TOKEN>`
 - 인증 함수는 `crypto.timingSafeEqual` 기반 비교를 사용한다.
 
 ### Endpoints
@@ -81,13 +83,42 @@ Sources: `src/lib/db.ts`, `src/app/api/posts/route.ts`, `src/app/api/posts/bulk/
 | Method  | Path                       | Auth                                     | Behavior                                                                                          | 주요 오류 코드                                                                          |
 | ------- | -------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
 | `GET`   | `/api/health`              | 선택적(Authorization 헤더가 있으면 검증) | DB 연결 확인. 인증 헤더 유효 시 `auth: "valid"` 포함                                              | `UNAUTHORIZED`, `INTERNAL_ERROR`                                                        |
-| `GET`   | `/api/posts`               | 없음                                     | 최신 100개 글 반환(현재 구현은 draft/published 모두 반환)                                         | -                                                                                       |
+| `POST`  | `/api/inbox`               | 필수(`INBOX_TOKEN`)                      | iOS Shortcuts URL 인입. X/Twitter URL 검증/정규화 후 `queued`로 적재(중복은 200 duplicate)        | `UNAUTHORIZED`, `INVALID_INPUT`, `RATE_LIMITED`, `INTERNAL_ERROR`                       |
+| `GET`   | `/api/inbox`               | 필수(`INBOX_TOKEN`)                      | 수집 큐 조회. 기본 `status=queued`, `limit=50`(max 100), 오래된 순(`id ASC`)                      | `UNAUTHORIZED`, `INVALID_INPUT`, `INTERNAL_ERROR`                                       |
+| `PATCH` | `/api/inbox/:id`           | 필수(`INBOX_TOKEN`)                      | 수집 큐 상태 갱신. `queued`만 `processed`/`failed`로 전이 허용, `failed`에서 `error` 저장         | `UNAUTHORIZED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`                          |
+| `GET`   | `/api/posts`               | 없음                                     | 최신 100개 공개 글(`published`)만 반환                                                            | -                                                                                       |
 | `POST`  | `/api/posts`               | 필수                                     | 단건 글 생성, slug 자동 생성, 태그/출처(ai metadata 포함) 저장, 구조화 로그 출력, 경로 revalidate | `UNAUTHORIZED`, `INVALID_INPUT`, `DUPLICATE_SOURCE`, `RATE_LIMITED`, `INTERNAL_ERROR`   |
 | `POST`  | `/api/posts/bulk`          | 필수                                     | 벌크 글 생성(최대 10건), 단일 트랜잭션(all-or-nothing), 구조화 로그 출력, 경로 revalidate         | `UNAUTHORIZED`, `INVALID_INPUT`, `DUPLICATE_SOURCE`, `RATE_LIMITED`, `INTERNAL_ERROR`   |
 | `GET`   | `/api/posts/check?url=...` | 필수                                     | `source_url` 중복 여부 확인                                                                       | `UNAUTHORIZED`, `INVALID_INPUT`, `INTERNAL_ERROR`                                       |
 | `GET`   | `/api/posts/:id`           | 필수                                     | 글 단건 + 태그 배열 반환                                                                          | `UNAUTHORIZED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`                          |
 | `PATCH` | `/api/posts/:id`           | 필수                                     | 제목/본문/상태/태그 부분 수정, `published_at` 전이 처리, 경로 revalidate                          | `UNAUTHORIZED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`                          |
 | `POST`  | `/api/uploads`             | 필수                                     | 이미지 업로드(최대 5MB, png/jpeg/webp/gif) 후 URL 반환                                            | `UNAUTHORIZED`, `INVALID_INPUT`, `FILE_TOO_LARGE`, `UNSUPPORTED_TYPE`, `INTERNAL_ERROR` |
+
+### Inbox curl quickstart
+
+```bash
+# enqueue (201 queued, 200 duplicate)
+curl -sS -X POST "https://<host>/api/inbox" \
+  -H "Authorization: Bearer $INBOX_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://x.com/i/web/status/123","source":"x","client":"ios_shortcuts","note":"optional note"}'
+
+# list queued
+curl -sS "https://<host>/api/inbox" \
+  -H "Authorization: Bearer $INBOX_TOKEN"
+
+# update status (queued -> processed|failed)
+curl -sS -X PATCH "https://<host>/api/inbox/1" \
+  -H "Authorization: Bearer $INBOX_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"status":"processed"}'
+
+# rate limit (repeat quickly until you get 429 + Retry-After header)
+curl -i -sS -X POST "https://<host>/api/inbox" \
+  -H "Authorization: Bearer $INBOX_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://x.com/i/web/status/123","source":"x","client":"ios_shortcuts"}'
+```
 
 ### Input/output contracts (selected)
 
@@ -111,30 +142,37 @@ Sources: `src/lib/db.ts`, `src/app/api/posts/route.ts`, `src/app/api/posts/bulk/
 
 ### Auth / permissions and cache behavior
 
-- 공개 페이지(`/`, `/posts`, `/posts/[slug]`, `/tags/[tag]`)는 `status='published'`만 노출한다.
+- 공개 페이지(`/`, `/posts`, `/tags/[tag]`)는 기본적으로 `status='published'`만 노출한다.
+  - 단, 관리자 세션(`admin_session` 쿠키)이 유효하면 목록 페이지에서 `draft`도 함께 노출한다.
+  - 목록에서 `draft` 클릭 시 편집기로 이동한다: `/admin/write?id={id}`
+- 상세 페이지(`/posts/[slug]`)는 `published`만 노출한다.
 - `/write` 페이지는 클라이언트에서 `/api/health`를 호출해 API Key를 검증한다.
 - 생성/수정 API는 `revalidatePath`로 홈/목록/상세/태그 캐시 갱신을 트리거한다.
 - 상세 페이지 slug 조회는 decode-safe + `NFKC` 정규화를 적용한다.
 - malformed 퍼센트 인코딩 slug(`%E0%A4%A`)는 Next.js 라우팅 레벨에서 `400`으로 처리된다.
 - `POST /api/posts`는 토큰 기준 10회/60초, `POST /api/posts/bulk`는 3회/60초 레이트 리밋을 적용한다(프로세스 메모리 기준, 카운터 분리).
+- `POST /api/inbox`는 토큰+IP 기준 10회/60초 레이트 리밋을 적용한다(프로세스 메모리 기준).
 - `POST /api/posts`, `POST /api/posts/bulk`는 공통 JSON 구조화 로그를 출력하며 요청 본문 원문(`title`, `content`, `promptHint`)은 기록하지 않는다.
 
-Sources: `src/app/api/health/route.ts`, `src/app/api/posts/route.ts`, `src/app/api/posts/bulk/route.ts`, `src/app/api/posts/check/route.ts`, `src/app/api/posts/[id]/route.ts`, `src/app/api/uploads/route.ts`, `src/lib/auth.ts`, `src/lib/rate-limit.ts`, `src/lib/api-log.ts`, `src/app/page.tsx`, `src/app/posts/page.tsx`, `src/app/posts/[slug]/page.tsx`, `src/app/tags/[tag]/page.tsx`, `src/app/write/page.tsx`, `scripts/test-step-3.mjs`, `scripts/test-step-5.mjs`, `scripts/test-step-8.mjs`
+Sources: `src/app/api/health/route.ts`, `src/app/api/inbox/route.ts`, `src/app/api/inbox/[id]/route.ts`, `src/app/api/posts/route.ts`, `src/app/api/posts/bulk/route.ts`, `src/app/api/posts/check/route.ts`, `src/app/api/posts/[id]/route.ts`, `src/app/api/uploads/route.ts`, `src/lib/auth.ts`, `src/lib/inbox-url.ts`, `src/lib/rate-limit.ts`, `src/lib/api-log.ts`, `src/app/page.tsx`, `src/app/posts/page.tsx`, `src/app/posts/[slug]/page.tsx`, `src/app/tags/[tag]/page.tsx`, `src/app/write/page.tsx`, `scripts/test-step-3.mjs`, `scripts/test-step-5.mjs`, `scripts/test-step-8.mjs`
 
 ## 4. Configuration and Deployment
 
 ### Environment variables
 
-| Name                           | Required   | Used by                             | Description                                                                                      |
-| ------------------------------ | ---------- | ----------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `BLOG_API_KEY`                 | Yes (운영) | API routes, write auth, tests       | 보호 API 인증 키                                                                                 |
-| `DATABASE_PATH`                | No         | DB layer, tests                     | SQLite 파일 경로 오버라이드. 기본값은 `data/blog.db`, 운영 권장값은 `/var/lib/blog/data/blog.db` |
-| `NEXT_PUBLIC_SITE_URL`         | No         | post metadata, Playwright webServer | 상세 페이지 canonical URL 생성 기준                                                              |
-| `API_KEY`                      | No         | UI 테스트 헬퍼                      | 테스트 시 `BLOG_API_KEY` 대체 입력값                                                             |
-| `RATE_LIMIT_MAX_REQUESTS`      | No         | `POST /api/posts`                   | 단건 글 생성 레이트 리밋 최대 요청 수(기본 10)                                                   |
-| `RATE_LIMIT_WINDOW_MS`         | No         | `POST /api/posts`                   | 단건 글 생성 레이트 리밋 윈도우 ms(기본 60000)                                                   |
-| `RATE_LIMIT_BULK_MAX_REQUESTS` | No         | `POST /api/posts/bulk`              | 벌크 글 생성 레이트 리밋 최대 요청 수(기본 3)                                                    |
-| `RATE_LIMIT_BULK_WINDOW_MS`    | No         | `POST /api/posts/bulk`              | 벌크 글 생성 레이트 리밋 윈도우 ms(기본 60000)                                                   |
+| Name                            | Required   | Used by                             | Description                                                                                      |
+| ------------------------------- | ---------- | ----------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `BLOG_API_KEY`                  | Yes (운영) | API routes, write auth, tests       | 보호 API 인증 키                                                                                 |
+| `INBOX_TOKEN`                   | Yes (운영) | `/api/inbox`, tests                 | iOS Shortcuts URL 수집 큐 인입/조회/상태 갱신 인증 토큰                                          |
+| `DATABASE_PATH`                 | No         | DB layer, tests                     | SQLite 파일 경로 오버라이드. 기본값은 `data/blog.db`, 운영 권장값은 `/var/lib/blog/data/blog.db` |
+| `NEXT_PUBLIC_SITE_URL`          | No         | post metadata, Playwright webServer | 상세 페이지 canonical URL 생성 기준                                                              |
+| `API_KEY`                       | No         | UI 테스트 헬퍼                      | 테스트 시 `BLOG_API_KEY` 대체 입력값                                                             |
+| `RATE_LIMIT_MAX_REQUESTS`       | No         | `POST /api/posts`                   | 단건 글 생성 레이트 리밋 최대 요청 수(기본 10)                                                   |
+| `RATE_LIMIT_WINDOW_MS`          | No         | `POST /api/posts`                   | 단건 글 생성 레이트 리밋 윈도우 ms(기본 60000)                                                   |
+| `RATE_LIMIT_BULK_MAX_REQUESTS`  | No         | `POST /api/posts/bulk`              | 벌크 글 생성 레이트 리밋 최대 요청 수(기본 3)                                                    |
+| `RATE_LIMIT_BULK_WINDOW_MS`     | No         | `POST /api/posts/bulk`              | 벌크 글 생성 레이트 리밋 윈도우 ms(기본 60000)                                                   |
+| `INBOX_RATE_LIMIT_MAX_REQUESTS` | No         | `POST /api/inbox`                   | 수집 큐 인입 레이트 리밋 최대 요청 수(기본 10)                                                   |
+| `INBOX_RATE_LIMIT_WINDOW_MS`    | No         | `POST /api/inbox`                   | 수집 큐 인입 레이트 리밋 윈도우 ms(기본 60000)                                                   |
 
 ### Build/deploy paths
 

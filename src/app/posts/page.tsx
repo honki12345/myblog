@@ -1,5 +1,8 @@
 import PostCard from "@/components/PostCard";
+import { getAdminSessionFromServerCookies } from "@/lib/admin-auth";
 import { getDb } from "@/lib/db";
+
+type PostStatus = "draft" | "published";
 
 type PageProps = {
   searchParams: Promise<{
@@ -13,6 +16,7 @@ type PostListRow = {
   slug: string;
   title: string;
   content: string;
+  status: PostStatus;
   published_at: string | null;
   tags_csv: string;
 };
@@ -64,16 +68,37 @@ function buildPageHref(page: number, perPage: number): string {
   return `/posts?${search.toString()}`;
 }
 
-function loadTotalPublishedPosts(): number {
+function buildStatusFilter(
+  statuses: readonly PostStatus[],
+  alias?: string,
+): {
+  clause: string;
+  params: PostStatus[];
+} {
+  const column = alias ? `${alias}.status` : "status";
+  const placeholders = statuses.map(() => "?").join(", ");
+  return {
+    clause: `${column} IN (${placeholders})`,
+    params: [...statuses],
+  };
+}
+
+function loadTotalPosts(statuses: readonly PostStatus[]): number {
   const db = getDb();
+  const statusFilter = buildStatusFilter(statuses);
   const row = db
-    .prepare("SELECT COUNT(*) AS count FROM posts WHERE status = 'published'")
-    .get() as { count: number } | undefined;
+    .prepare(`SELECT COUNT(*) AS count FROM posts WHERE ${statusFilter.clause}`)
+    .get(...statusFilter.params) as { count: number } | undefined;
   return row?.count ?? 0;
 }
 
-function loadPublishedPosts(page: number, perPage: number) {
+function loadPosts(
+  statuses: readonly PostStatus[],
+  page: number,
+  perPage: number,
+) {
   const db = getDb();
+  const statusFilter = buildStatusFilter(statuses, "p");
   const offset = (page - 1) * perPage;
   const rows = db
     .prepare(
@@ -83,18 +108,19 @@ function loadPublishedPosts(page: number, perPage: number) {
         p.slug,
         p.title,
         p.content,
+        p.status,
         p.published_at,
         COALESCE(GROUP_CONCAT(t.name, char(31)), '') AS tags_csv
       FROM posts p
       LEFT JOIN post_tags pt ON pt.post_id = p.id
       LEFT JOIN tags t ON t.id = pt.tag_id
-      WHERE p.status = 'published'
+      WHERE ${statusFilter.clause}
       GROUP BY p.id
       ORDER BY datetime(COALESCE(p.published_at, p.created_at)) DESC, p.id DESC
       LIMIT ? OFFSET ?
       `,
     )
-    .all(perPage, offset) as PostListRow[];
+    .all(...statusFilter.params, perPage, offset) as PostListRow[];
 
   return rows.map((row) => ({
     id: row.id,
@@ -106,17 +132,22 @@ function loadPublishedPosts(page: number, perPage: number) {
         ? row.tags_csv.split("\u001f").filter((tag) => tag.length > 0)
         : [],
     publishedAt: row.published_at,
+    status: row.status,
   }));
 }
 
 export default async function PostsPage({ searchParams }: PageProps) {
   const params = await searchParams;
+  const session = await getAdminSessionFromServerCookies();
+  const statuses: readonly PostStatus[] = session
+    ? ["draft", "published"]
+    : ["published"];
   const requestedPage = parsePositiveInteger(params.page, 1);
   const perPage = Math.min(50, parsePositiveInteger(params.per_page, 10));
-  const totalCount = loadTotalPublishedPosts();
+  const totalCount = loadTotalPosts(statuses);
   const totalPages = Math.max(1, Math.ceil(totalCount / perPage));
   const page = Math.min(requestedPage, totalPages);
-  const posts = loadPublishedPosts(page, perPage);
+  const posts = loadPosts(statuses, page, perPage);
 
   const startIndex = totalCount === 0 ? 0 : (page - 1) * perPage + 1;
   const endIndex = Math.min(page * perPage, totalCount);

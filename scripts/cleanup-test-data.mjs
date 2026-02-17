@@ -9,6 +9,7 @@ const DATABASE_PATH =
 const TITLE_PATTERNS = [
   "STEP5-%",
   "UI-E2E-%",
+  "UI-ADMIN-%",
   "PW-SEED-%",
   "PLAYWRIGHT-%",
   "홈 테스트 글 %",

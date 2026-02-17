@@ -17,6 +17,10 @@ function getVisualDiffThreshold(projectName: string): number {
   if (projectName === "tablet-768") {
     return 0.03;
   }
+  // GitHub Actions runner에서도 데스크톱 폰트 렌더링 차이로 미세한 diff가 발생할 수 있다.
+  if (projectName === "desktop-1440") {
+    return 0.02;
+  }
   return 0.01;
 }
 
@@ -70,6 +74,9 @@ for (const route of routes) {
         page.getByRole("heading", { name: "새 글 작성" }),
       ).toBeVisible();
       await expect(page.getByLabel("제목")).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "관리자 로그아웃" }),
+      ).toBeVisible();
     }
 
     if (route.name === "tag-sample") {

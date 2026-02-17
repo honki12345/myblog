@@ -161,8 +161,8 @@ Sources: `src/app/api/health/route.ts`, `src/app/api/posts/route.ts`, `src/app/a
 
 ### CI summary
 
-- `verify` job: `npm ci` -> `lint` -> `format:check` -> `build` -> `test:step3`
-- `ui-visual` job(verify 이후): Playwright Chromium 설치 -> `npm run test:ui` -> 아티팩트 업로드
+- `verify` job: `npm ci` -> `lint` -> `format:check` -> `build` -> Next.js standalone 산출물 아티팩트 업로드 -> `test:step3`
+- `ui-visual` job(verify 이후, viewport matrix): standalone 아티팩트 다운로드 -> Playwright Chromium 설치 -> `PLAYWRIGHT_SKIP_BUILD=1 npm run test:ui -- --project=<viewport>` -> 아티팩트 업로드
 - `deploy` workflow: `push(main + paths filter)` 또는 `workflow_dispatch` -> `npm ci/build` -> standalone tar 패키징 -> SCP/SSH 배포 -> `systemctl` + `/api/health` 점검 -> 실패 시 롤백
 
 Sources: `package.json`, `.env.example`, `next.config.ts`, `src/lib/db.ts`, `src/app/posts/[slug]/page.tsx`, `.gitignore`, `playwright.config.ts`, `.github/workflows/ci.yml`, `.github/workflows/deploy.yml`, `scripts/test-step-1.mjs`, `scripts/test-step-2.mjs`, `AGENTS.md`
@@ -187,10 +187,13 @@ Sources: `package.json`, `.env.example`, `next.config.ts`, `src/lib/db.ts`, `src
     - 동적 포트 탐색 + 네트워크 오류 재시도로 `next dev` 충돌/일시적 fetch 실패를 완화한다.
   - `npm run test:step6`: CI/CD 게이트(클린 빌드, standalone 패키징/무결성, better-sqlite3 바인딩, 워크플로우 정책) 검증
   - `npm run test:step8`: bulk API 계약(최대 10건/원자성/중복/경합/레이트리밋), `aiModel`/`promptHint` 저장, 구조화 로그 키 검증
+  - `npm run test:step9`: 관리자 워크스페이스(auth/notes/todos/schedules/uploads) 계약 검증
   - `npm run test:ui`: Playwright 시각 회귀 + 접근성 + 작성 E2E
-- 전체 회귀: `npm run test:all` (`step1~5 + step8 + ui`)
-  - 실행 오케스트레이션: `step1` -> (`step2` + `step4` 병렬) -> `step3` -> `step5` -> `step8` -> `ui`
+- 로컬 반복: `npm run test:ui:fast` (viewport 1개만 실행)
+- 전체 회귀: `npm run test:all` (`step1~5 + step8 + step9 + ui`)
+  - 실행 오케스트레이션: `step1` -> (`step2` + `step4` 병렬) -> `step3` -> `step5` -> `step8` -> `step9` -> `ui`
   - 각 단계/그룹의 소요 시간과 총 소요 시간을 로그로 출력한다.
+  - `test:all`은 Playwright의 `webServer` build를 스킵해(`PLAYWRIGHT_SKIP_BUILD=1`) build 중복을 방지한다.
 - UI 테스트 특징:
   - 뷰포트 고정: `360`, `768`, `1440`
   - `toHaveScreenshot` 비교(애니메이션 비활성화)
@@ -199,7 +202,7 @@ Sources: `package.json`, `.env.example`, `next.config.ts`, `src/lib/db.ts`, `src
 
 ### CI/CD workflow summary
 
-- `ci.yml`: PR/지정 브랜치 push에서 검증 전용(`lint`, `format:check`, `build`, `test:step3`, `test:ui`)
+- `ci.yml`: PR/지정 브랜치 push에서 검증 전용(`lint`, `format:check`, `build`, `test:step3`, `test:ui` viewport matrix)
 - `deploy.yml`: `main` push + 경로 필터(`src/**`, `package*.json`, `next.config.*`) 또는 `workflow_dispatch`에서 배포 전용 실행
 - 배포 워크플로우는 필수 Secrets(`BLOG_DOMAIN`, `VM_HOST`, `VM_USER`, `VM_SSH_KEY`) fail-fast 검증과 롤백 단계를 포함한다
 

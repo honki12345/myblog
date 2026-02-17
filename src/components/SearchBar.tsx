@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 type SearchBarProps = {
   query: string | null;
 };
@@ -34,9 +36,9 @@ export default function SearchBar({ query }: SearchBarProps) {
       </form>
 
       {hasQuery ? (
-        <a href="/posts" className="text-sm text-slate-600 hover:underline">
+        <Link href="/posts" className="text-sm text-slate-600 hover:underline">
           초기화
-        </a>
+        </Link>
       ) : null}
     </div>
   );

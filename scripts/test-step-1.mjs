@@ -199,9 +199,12 @@ async function testStandaloneServer() {
 
 async function testDevServer() {
   console.log("\n[4/6] dev server health check");
+  // Use a different port from other test steps to avoid flakey EADDRINUSE
+  // when previous Next dev server shutdown is still in progress.
+  const port = 3002;
   const dev = spawn(
     "node",
-    ["node_modules/next/dist/bin/next", "dev", "--port", "3000"],
+    ["node_modules/next/dist/bin/next", "dev", "--port", String(port)],
     {
       env: { ...process.env },
       detached: true,
@@ -213,7 +216,7 @@ async function testDevServer() {
   dev.stderr.on("data", (chunk) => process.stderr.write(chunk.toString()));
 
   try {
-    await waitForHttpOk("http://127.0.0.1:3000/api/health");
+    await waitForHttpOk(`http://127.0.0.1:${port}/api/health`);
   } finally {
     await stopProcess(dev);
   }

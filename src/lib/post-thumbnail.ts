@@ -30,7 +30,9 @@ function isAllowedThumbnailUrl(url: string): boolean {
 
 // 옵션 A: 목록 렌더 시점에 마크다운에서 첫 번째 이미지 URL을 추출한다.
 // 유효한 후보가 없으면 null을 반환한다.
-export function extractThumbnailUrlFromMarkdown(markdown: string): string | null {
+export function extractThumbnailUrlFromMarkdown(
+  markdown: string,
+): string | null {
   if (markdown.trim().length === 0) {
     return null;
   }

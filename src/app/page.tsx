@@ -53,7 +53,10 @@ function toPostCardData(row: HomePostRow): PostCardData {
         : [],
     publishedAt: row.published_at,
     status: row.status,
-    thumbnailUrl: extractThumbnailUrlFromMarkdownCached(thumbnailKey, row.content),
+    thumbnailUrl: extractThumbnailUrlFromMarkdownCached(
+      thumbnailKey,
+      row.content,
+    ),
   };
 }
 

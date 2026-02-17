@@ -68,23 +68,27 @@ for (const route of routes) {
     if (route.name !== "admin-write") {
       const cardWithThumbnail = getPostCardByTitle(page, THUMBNAIL_SEED_TITLE);
       await expect(cardWithThumbnail).toBeVisible();
-      await expect(cardWithThumbnail.locator("[data-post-thumbnail]")).toBeVisible();
+      await expect(
+        cardWithThumbnail.locator("[data-post-thumbnail]"),
+      ).toBeVisible();
 
       const cardWithoutThumbnail = getPostCardByTitle(
         page,
         NO_THUMBNAIL_SEED_TITLE,
       );
       await expect(cardWithoutThumbnail).toBeVisible();
-      await expect(cardWithoutThumbnail.locator("[data-post-thumbnail]")).toHaveCount(
-        0,
-      );
+      await expect(
+        cardWithoutThumbnail.locator("[data-post-thumbnail]"),
+      ).toHaveCount(0);
 
       const cardWithFallback = getPostCardByTitle(
         page,
         FALLBACK_THUMBNAIL_SEED_TITLE,
       );
       await expect(cardWithFallback).toBeVisible();
-      await expect(cardWithFallback.locator("[data-post-thumbnail]")).toBeVisible();
+      await expect(
+        cardWithFallback.locator("[data-post-thumbnail]"),
+      ).toBeVisible();
 
       // Wait until all thumbnails on the page settle (loaded or fallback),
       // so screenshots don't capture hydration timing issues.
@@ -94,7 +98,9 @@ for (const route of routes) {
         await expect
           .poll(async () => {
             const states = await thumbnails.evaluateAll((nodes) =>
-              nodes.map((node) => node.getAttribute("data-post-thumbnail-state")),
+              nodes.map((node) =>
+                node.getAttribute("data-post-thumbnail-state"),
+              ),
             );
             return states.every(
               (value) => value === "loaded" || value === "fallback",

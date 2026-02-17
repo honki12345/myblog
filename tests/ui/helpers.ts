@@ -29,9 +29,7 @@ export type SeededPost = {
 export async function waitForDocumentTitle(page: Page): Promise<void> {
   // Next.js navigation can briefly clear `document.title` while applying metadata.
   // Wait until it settles so axe doesn't fail flakily on `document-title`.
-  await expect
-    .poll(async () => (await page.title()).trim())
-    .toBeTruthy();
+  await expect.poll(async () => (await page.title()).trim()).toBeTruthy();
 }
 
 function parseEnvValueFromEnvFile(targetKey: string): string | null {

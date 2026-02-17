@@ -168,6 +168,17 @@ CREATE INDEX IF NOT EXISTS idx_inbox_items_status_id
   ON inbox_items(status, id);
 `;
 
+const ISSUE59_SCHEMA_SQL = `
+ALTER TABLE admin_auth
+  ADD COLUMN totp_enabled_at TEXT;
+
+-- Existing production DBs already have 2FA configured, so lock down TOTP setup
+-- immediately after deploying this migration.
+UPDATE admin_auth
+SET totp_enabled_at = datetime('now')
+WHERE id = 1 AND totp_enabled_at IS NULL;
+`;
+
 type DbGlobals = {
   __blogDb?: Database.Database;
   __blogDbPath?: string;
@@ -232,6 +243,16 @@ export function runMigrations(database: Database.Database): void {
         )
         .run(3, "Inbox ingestion queue schema for Issue #45");
       currentVersion = 3;
+    }
+
+    if (currentVersion < 4) {
+      database.exec(ISSUE59_SCHEMA_SQL);
+      database
+        .prepare(
+          "INSERT INTO schema_versions (version, description) VALUES (?, ?)",
+        )
+        .run(4, "Admin 2FA enabled state for Issue #59");
+      currentVersion = 4;
     }
   });
 

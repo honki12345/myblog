@@ -184,6 +184,7 @@ async function main() {
     env: { STEP8_PORT_BASE: "3200" },
   });
   await runSingle("test:step9");
+  await runSingle("test:step10");
   const playwrightPort =
     Number.parseInt(process.env.PLAYWRIGHT_PORT ?? "", 10) ||
     (await findAvailablePort(3400));

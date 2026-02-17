@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   clearLoginChallengeCookie,
   ensureAdminConfigSynced,
+  isAdminTotpEnabled,
   setLoginChallengeCookie,
   verifyAdminPrimaryCredentials,
 } from "@/lib/admin-auth";
@@ -139,8 +140,9 @@ export async function POST(request: NextRequest) {
     return errorResponse(401, "UNAUTHORIZED", "Invalid username or password.");
   }
 
+  const totpEnabled = isAdminTotpEnabled();
   const response = NextResponse.json(
-    { requiresTwoFactor: true },
+    { requiresTwoFactor: true, totpEnabled },
     { status: 200 },
   );
   clearLoginChallengeCookie(response);

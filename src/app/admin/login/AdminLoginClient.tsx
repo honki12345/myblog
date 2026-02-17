@@ -8,8 +8,14 @@ type Stage = "primary" | "verify";
 
 type ApiError = {
   error?: {
+    code?: string;
     message?: string;
   };
+};
+
+type LoginResponse = {
+  requiresTwoFactor: boolean;
+  totpEnabled?: boolean;
 };
 
 type TotpSetupResponse = {
@@ -33,6 +39,7 @@ export default function AdminLoginClient({ nextPath }: AdminLoginClientProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingTotpSetup, setIsLoadingTotpSetup] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [totpEnabled, setTotpEnabled] = useState(false);
   const [totpSetupError, setTotpSetupError] = useState("");
   const [totpSetup, setTotpSetup] = useState<TotpSetupResponse | null>(null);
 
@@ -59,14 +66,29 @@ export default function AdminLoginClient({ nextPath }: AdminLoginClientProps) {
         }),
       });
 
-      const data = (await response.json().catch(() => null)) as ApiError | null;
+      const data = (await response.json().catch(() => null)) as
+        | LoginResponse
+        | ApiError
+        | null;
       if (!response.ok) {
-        const message = data?.error?.message ?? "로그인에 실패했습니다.";
+        const message =
+          data && "error" in data && data.error?.message
+            ? data.error.message
+            : "로그인에 실패했습니다.";
         throw new Error(message);
       }
 
+      const nextTotpEnabled =
+        data &&
+        typeof data === "object" &&
+        "totpEnabled" in data &&
+        typeof data.totpEnabled === "boolean"
+          ? data.totpEnabled
+          : false;
+
       setStage("verify");
       setCode("");
+      setTotpEnabled(nextTotpEnabled);
       setTotpSetup(null);
       setTotpSetupError("");
     } catch (error) {
@@ -82,6 +104,10 @@ export default function AdminLoginClient({ nextPath }: AdminLoginClientProps) {
 
   const handleLoadTotpSetup = async () => {
     setTotpSetupError("");
+    if (totpEnabled) {
+      setTotpSetupError("이미 2FA가 활성화되어 있습니다.");
+      return;
+    }
     setIsLoadingTotpSetup(true);
 
     try {
@@ -96,6 +122,15 @@ export default function AdminLoginClient({ nextPath }: AdminLoginClientProps) {
         | null;
 
       if (!response.ok) {
+        if (
+          response.status === 409 &&
+          data &&
+          "error" in data &&
+          data.error?.code === "TOTP_ALREADY_ENABLED"
+        ) {
+          throw new Error("이미 2FA가 활성화되어 있습니다.");
+        }
+
         const message =
           data && "error" in data && data.error?.message
             ? data.error.message
@@ -240,6 +275,7 @@ export default function AdminLoginClient({ nextPath }: AdminLoginClientProps) {
               onClick={() => {
                 setStage("primary");
                 setCode("");
+                setTotpEnabled(false);
                 setTotpSetup(null);
                 setTotpSetupError("");
               }}
@@ -249,47 +285,57 @@ export default function AdminLoginClient({ nextPath }: AdminLoginClientProps) {
             </button>
 
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs text-slate-700">
-                Google Authenticator 등록이 아직 안 되어 있으면 QR을 먼저 스캔해
-                주세요.
-              </p>
-              <button
-                type="button"
-                className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-60"
-                onClick={handleLoadTotpSetup}
-                disabled={isSubmitting || isLoadingTotpSetup}
-              >
-                {isLoadingTotpSetup
-                  ? "QR 준비 중..."
-                  : "Authenticator 등록 QR 보기"}
-              </button>
-
-              {totpSetupError ? (
-                <p className="mt-2 text-xs text-red-700">{totpSetupError}</p>
-              ) : null}
-
-              {totpSetup ? (
-                <div className="mt-3 space-y-2">
-                  <Image
-                    src={totpSetup.qrDataUrl}
-                    alt="Authenticator 앱 등록 QR 코드"
-                    width={192}
-                    height={192}
-                    unoptimized
-                    className="mx-auto h-48 w-48 rounded border border-slate-300 bg-white p-2"
-                  />
+              {totpEnabled ? (
+                <p className="text-xs text-slate-700">
+                  이미 2FA가 활성화되어 있어 QR을 다시 표시할 수 없습니다.
+                </p>
+              ) : (
+                <>
                   <p className="text-xs text-slate-700">
-                    수동 등록 키:{" "}
-                    <code className="rounded bg-slate-200 px-1 py-0.5">
-                      {totpSetup.secret}
-                    </code>
+                    Google Authenticator 등록이 아직 안 되어 있으면 QR을 먼저
+                    스캔해 주세요.
                   </p>
-                  <p className="text-xs text-slate-600">
-                    Issuer: {totpSetup.issuer} / Account:{" "}
-                    {totpSetup.accountName}
-                  </p>
-                </div>
-              ) : null}
+                  <button
+                    type="button"
+                    className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+                    onClick={handleLoadTotpSetup}
+                    disabled={isSubmitting || isLoadingTotpSetup}
+                  >
+                    {isLoadingTotpSetup
+                      ? "QR 준비 중..."
+                      : "Authenticator 등록 QR 보기"}
+                  </button>
+
+                  {totpSetupError ? (
+                    <p className="mt-2 text-xs text-red-700">
+                      {totpSetupError}
+                    </p>
+                  ) : null}
+
+                  {totpSetup ? (
+                    <div className="mt-3 space-y-2">
+                      <Image
+                        src={totpSetup.qrDataUrl}
+                        alt="Authenticator 앱 등록 QR 코드"
+                        width={192}
+                        height={192}
+                        unoptimized
+                        className="mx-auto h-48 w-48 rounded border border-slate-300 bg-white p-2"
+                      />
+                      <p className="text-xs text-slate-700">
+                        수동 등록 키:{" "}
+                        <code className="rounded bg-slate-200 px-1 py-0.5">
+                          {totpSetup.secret}
+                        </code>
+                      </p>
+                      <p className="text-xs text-slate-600">
+                        Issuer: {totpSetup.issuer} / Account:{" "}
+                        {totpSetup.accountName}
+                      </p>
+                    </div>
+                  ) : null}
+                </>
+              )}
             </div>
           </form>
         )}

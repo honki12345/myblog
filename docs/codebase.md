@@ -12,7 +12,7 @@
 - Next.js App Router 기반 웹 페이지: `/`, `/posts`, `/posts/[slug]`, `/tags/[tag]`, `/write`
 - SQLite(better-sqlite3) 기반 글/태그/출처 저장 및 FTS5 인덱스 유지
 - API Key(Bearer) 기반 보호 API: 단건/벌크 글 생성, 글 수정/조회, 출처 중복 확인, 이미지 업로드
-- iOS Shortcuts URL 수집 큐 API: `/api/inbox`(POST/GET/PATCH), Bearer `INBOX_TOKEN` 기반 적재/조회/상태 갱신
+- iOS Shortcuts URL 수집 큐 API: `/api/inbox`(POST/GET) + `/api/inbox/:id`(PATCH), Bearer `INBOX_TOKEN` 기반 적재/조회/상태 갱신
 - 마크다운 렌더링 파이프라인: GFM + 수식(KaTeX) + 코드 하이라이트(Shiki) + sanitize + Mermaid placeholder
 - API 요청 구조화 로그(JSON): `timestamp`, `route`, `status`, `durationMs`, `postCount`, `contentLengthSum`, `sourceUrlCount`, `payloadHash`
 - Playwright 기반 시각 회귀 + 접근성 + 작성 E2E 테스트

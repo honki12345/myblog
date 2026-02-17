@@ -192,8 +192,14 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const authError = validateApiKey(request);
+  if (authError) {
+    return authError;
+  }
+
   const token = getBearerToken(request);
-  if (!verifyApiKey(token)) {
+  if (!token) {
+    // Should not happen because validateApiKey() already passed.
     return errorResponse(401, "UNAUTHORIZED", "Invalid or missing API key.");
   }
 

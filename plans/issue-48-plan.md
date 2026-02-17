@@ -78,6 +78,6 @@
 ## PR 리뷰 반영 내역 (2026-02-17)
 - 코멘트: CodeRabbit inline review (`discussion_r2815608602`) - `write-link-auth`에 스냅샷 + a11y 보강 제안
 - 반영:
-  - `tests/ui/write-link-auth.spec.ts`: `nav[aria-label="주요 메뉴"]` 기준으로 `toHaveScreenshot` 추가 + AxeBuilder로 serious/critical 0건 확인
+  - `tests/ui/write-link-auth.spec.ts`: 기능 assertion 유지 + AxeBuilder로 serious/critical 0건 확인 + 페이지 스냅샷(`toHaveScreenshot`) 추가(뷰포트별 `maxDiffPixelRatio` 적용)
   - `tests/ui/write-link-auth.spec.ts-snapshots/`: `mobile-360/tablet-768/desktop-1440` 기준 스냅샷 추가
 - 검증: `npm run test:all`

@@ -107,3 +107,8 @@
   - [ ] 시각 회귀: `/tags` 스냅샷 추가 (`tests/ui/visual-regression.spec.ts`)
   - [ ] 접근성: `/tags`, `/tags/[tag]` axe 검사 대상 포함 (`tests/ui/accessibility.spec.ts`)
 - [ ] 통과 기준: `npm run test:ui` 및 `npm run test:all` 통과
+
+## PR 리뷰 반영 내역 (2026-02-17)
+- `scripts/test-step-8.mjs`: `stopServer()` 종료 과정에서 프로세스가 이미 종료된 경우(ESRCH 등)에도 테스트가 실패하지 않도록 `kill` fallback 예외 안전성 보강 (Copilot 리뷰 코멘트 반영)
+- `plans/step1-plan.md`, `plans/implementation-plan.md`: 탭(`\t`) 들여쓰기 때문에 리스트가 코드 블록처럼 렌더링되는 문제를 공백 기반 들여쓰기로 정리 (CodeRabbit/Copilot 리뷰 코멘트 반영)
+- 검증: `npm run format:check`, `npm run test:step8`, `npm run test:all`

@@ -154,3 +154,10 @@
 - [x] DB에 `queued -> processed/failed` 상태 전이가 정확히 기록됨
 - [x] 토큰 없는 요청/잘못된 토큰이 항상 401로 차단됨
 - [x] PR 전 `npm run test:all` 실행 및 실패 시 수정 후 전체 재실행
+
+## PR 리뷰 반영 내역 (2026-02-17)
+- (CodeRabbit inline #2812802454) `/api/inbox` PATCH 경로 문서 수정: `docs/codebase.md`
+- (Copilot inline #2812806712) totp-setup 라우트에서 설정 오류를 JSON 에러 응답으로 처리: `src/app/api/admin/auth/totp-setup/route.ts`
+- (Copilot inline #2812806740, #2812806760) inbox 요청 JSON 파싱 실패만 400으로 처리: `src/app/api/inbox/route.ts`, `src/app/api/inbox/[id]/route.ts`
+- (Copilot inline #2812806775) inbox 상태 갱신을 원자적으로 처리: `src/app/api/inbox/[id]/route.ts`
+- 검증: `npm run format:check`, `npm run test:all`

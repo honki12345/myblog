@@ -88,6 +88,18 @@ for (const route of routes) {
       await expect(
         cardWithThumbnail.locator("[data-post-thumbnail]"),
       ).toBeVisible();
+      await expect(
+        cardWithThumbnail.getByRole("link", {
+          name: `${THUMBNAIL_SEED_TITLE} 썸네일`,
+        }),
+      ).toHaveCount(0);
+      await expect(
+        cardWithThumbnail
+          .locator(
+            'a, button, input, textarea, select, summary, [tabindex]:not([tabindex="-1"])',
+          )
+          .first(),
+      ).toHaveAccessibleName(THUMBNAIL_SEED_TITLE);
 
       const cardWithoutThumbnail = getPostCardByTitle(
         page,
@@ -97,6 +109,13 @@ for (const route of routes) {
       await expect(
         cardWithoutThumbnail.locator("[data-post-thumbnail]"),
       ).toHaveCount(0);
+      await expect(
+        cardWithoutThumbnail
+          .locator(
+            'a, button, input, textarea, select, summary, [tabindex]:not([tabindex="-1"])',
+          )
+          .first(),
+      ).toHaveAccessibleName(NO_THUMBNAIL_SEED_TITLE);
 
       const cardWithFallback = getPostCardByTitle(
         page,
@@ -106,6 +125,18 @@ for (const route of routes) {
       await expect(
         cardWithFallback.locator("[data-post-thumbnail]"),
       ).toBeVisible();
+      await expect(
+        cardWithFallback.getByRole("link", {
+          name: `${FALLBACK_THUMBNAIL_SEED_TITLE} 썸네일`,
+        }),
+      ).toHaveCount(0);
+      await expect(
+        cardWithFallback
+          .locator(
+            'a, button, input, textarea, select, summary, [tabindex]:not([tabindex="-1"])',
+          )
+          .first(),
+      ).toHaveAccessibleName(FALLBACK_THUMBNAIL_SEED_TITLE);
 
       // Wait until all thumbnails on the page settle (loaded or fallback),
       // so screenshots don't capture hydration timing issues.

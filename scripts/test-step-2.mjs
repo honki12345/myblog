@@ -356,6 +356,15 @@ function testOriginMigrationBackfill() {
         prompt_hint TEXT
       );
 
+      CREATE TABLE admin_auth (
+        id                    INTEGER PRIMARY KEY CHECK (id = 1),
+        username              TEXT NOT NULL UNIQUE,
+        password_hash         TEXT NOT NULL,
+        totp_secret_encrypted TEXT NOT NULL,
+        created_at            TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at            TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
       CREATE TABLE schema_versions (
         version     INTEGER PRIMARY KEY,
         applied_at  TEXT NOT NULL DEFAULT (datetime('now')),
@@ -493,7 +502,7 @@ function testOriginMigrationBackfill() {
       .prepare("SELECT MAX(version) AS version FROM schema_versions")
       .get();
     assert(
-      schemaVersionRow?.version === 4,
+      schemaVersionRow?.version === 5,
       `unexpected schema version: ${schemaVersionRow?.version}`,
     );
   } finally {

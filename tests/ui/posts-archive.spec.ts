@@ -161,7 +161,11 @@ test("public: q with special characters does not crash (no 500)", async ({
   });
   expect(response?.ok()).toBeTruthy();
   await expect(page.getByRole("heading", { name: "글 목록" })).toBeVisible();
-  await expect(page.getByText(/검색어를 해석할 수 없습니다/)).toBeVisible();
+  await expect(
+    page
+      .locator("main > header")
+      .getByText(/검색 결과가 없습니다|검색어가 올바르지 않습니다/),
+  ).toBeVisible();
 });
 
 test("public: type/q/tag combination returns expected results", async ({

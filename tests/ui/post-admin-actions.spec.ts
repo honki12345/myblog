@@ -5,6 +5,7 @@ import {
   insertPostDirect,
   resolveApiKey,
   runCleanupScript,
+  waitForDocumentTitle,
   type SeededPost,
 } from "./helpers";
 
@@ -109,6 +110,8 @@ test("admin can see edit/delete actions on public detail and delete post", async
   await expect(page).toHaveTitle(
     new RegExp(seed.title.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")),
   );
+
+  await waitForDocumentTitle(page);
 
   const axeResults = await new AxeBuilder({ page }).analyze();
   const blockingViolations = axeResults.violations.filter((violation) => {

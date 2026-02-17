@@ -27,6 +27,12 @@ export type SeededPost = {
   origin?: "original" | "ai";
 };
 
+export async function waitForDocumentTitle(page: Page): Promise<void> {
+  // Next.js navigation can briefly clear `document.title` while applying metadata.
+  // Wait until it settles so axe doesn't fail flakily on `document-title`.
+  await expect.poll(async () => (await page.title()).trim()).toBeTruthy();
+}
+
 function parseEnvValueFromEnvFile(targetKey: string): string | null {
   if (!existsSync(ENV_PATH)) {
     return null;
@@ -88,7 +94,7 @@ function decodeBase32(value: string): Buffer {
   return Buffer.from(output);
 }
 
-function generateTotpCode(secret: string, now = Date.now()): string {
+export function generateTotpCode(secret: string, now = Date.now()): string {
   const key = decodeBase32(secret);
   const counter = Math.floor(now / 1000 / 30);
   const counterBuffer = Buffer.alloc(8);

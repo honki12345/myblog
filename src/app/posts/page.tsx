@@ -7,6 +7,8 @@ import {
   type PostTypeFilter,
 } from "@/lib/post-list";
 
+const MAX_SEARCH_QUERY_LENGTH = 100;
+
 type PageProps = {
   searchParams: Promise<{
     page?: string;
@@ -49,6 +51,17 @@ function normalizeOptionalString(value: string | undefined): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+function normalizeSearchQuery(value: string | undefined): string | null {
+  const normalized = normalizeOptionalString(value);
+  if (!normalized) {
+    return null;
+  }
+
+  return normalized.length > MAX_SEARCH_QUERY_LENGTH
+    ? normalized.slice(0, MAX_SEARCH_QUERY_LENGTH)
+    : normalized;
+}
+
 function normalizeOptionalDecodedString(
   value: string | undefined,
 ): string | null {
@@ -65,23 +78,21 @@ function normalizeOptionalDecodedString(
   }
 }
 
-function buildFtsQuery(raw: string): string | null {
-  const cleaned = raw
-    .normalize("NFKC")
-    .replace(/[^\p{L}\p{N}_-]+/gu, " ")
-    .trim();
-
-  const tokens = cleaned
-    .split(/\s+/)
-    .map((token) => token.replace(/^[-_]+|[-_]+$/g, ""))
-    .filter((token) => token.length > 0)
-    .slice(0, 10);
-
-  if (tokens.length === 0) {
-    return null;
+function isFtsQuerySyntaxError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
   }
 
-  return tokens.map((token) => `"${token.replace(/"/g, '""')}"`).join(" AND ");
+  const message = error.message.toLowerCase();
+  if (message.includes("fts5:")) {
+    return true;
+  }
+
+  return (
+    message.includes("unterminated") ||
+    message.includes("malformed match") ||
+    (message.includes("match") && message.includes("syntax"))
+  );
 }
 
 function buildPageHref(options: {
@@ -129,40 +140,64 @@ export default async function PostsPage({ searchParams }: PageProps) {
     : ["published"];
 
   const type = parsePostType(params.type);
-  const q = normalizeOptionalString(params.q);
+  const q = normalizeSearchQuery(params.q);
   const tag = normalizeOptionalDecodedString(params.tag);
-  const ftsQuery = q ? buildFtsQuery(q) : null;
-  const invalidSearch = Boolean(q && !ftsQuery);
+  const ftsQuery = q;
 
   const requestedPage = parsePositiveInteger(params.page, 1);
   const perPage = Math.min(50, parsePositiveInteger(params.per_page, 10));
 
-  const { items, totalCount } = invalidSearch
-    ? { items: [], totalCount: 0 }
-    : listPostsWithTotalCount({
+  const requestedOffset = (requestedPage - 1) * perPage;
+  let items: PostListItem[] = [];
+  let totalCount = 0;
+  let searchErrorMessage: string | null = null;
+
+  try {
+    const result = listPostsWithTotalCount({
         statuses,
         type,
         tag,
         ftsQuery,
         limit: perPage,
-        offset: (requestedPage - 1) * perPage,
+        offset: requestedOffset,
       });
+    items = result.items;
+    totalCount = result.totalCount;
+  } catch (error) {
+    if (ftsQuery && isFtsQuerySyntaxError(error)) {
+      searchErrorMessage = "검색어가 올바르지 않습니다";
+      items = [];
+      totalCount = 0;
+    } else {
+      throw error;
+    }
+  }
 
   const totalPages = Math.max(1, Math.ceil(totalCount / perPage));
   const page = Math.min(requestedPage, totalPages);
   const offset = (page - 1) * perPage;
 
-  const { items: posts } =
-    invalidSearch || offset === (requestedPage - 1) * perPage
-      ? { items }
-      : listPostsWithTotalCount({
-          statuses,
-          type,
-          tag,
-          ftsQuery,
-          limit: perPage,
-          offset,
-        });
+  let posts: PostListItem[] = items;
+  if (!searchErrorMessage && offset !== requestedOffset) {
+    try {
+      posts = listPostsWithTotalCount({
+        statuses,
+        type,
+        tag,
+        ftsQuery,
+        limit: perPage,
+        offset,
+      }).items;
+    } catch (error) {
+      if (ftsQuery && isFtsQuerySyntaxError(error)) {
+        searchErrorMessage = "검색어가 올바르지 않습니다";
+        posts = [];
+        totalCount = 0;
+      } else {
+        throw error;
+      }
+    }
+  }
 
   const startIndex = totalCount === 0 ? 0 : (page - 1) * perPage + 1;
   const endIndex = Math.min(page * perPage, totalCount);
@@ -176,13 +211,15 @@ export default async function PostsPage({ searchParams }: PageProps) {
       <header className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight">글 목록</h1>
         <p className="text-sm text-slate-600">
-          {invalidSearch
-            ? "검색어를 해석할 수 없습니다. 다른 검색어로 다시 시도해 주세요."
-            : totalCount > 0
-              ? `${startIndex}-${endIndex} / 총 ${totalCount}개의 글`
-              : q || tag || type !== "all"
-                ? "조건에 맞는 글이 없습니다."
-                : "공개된 글이 없습니다."}
+          {totalCount > 0
+            ? `${startIndex}-${endIndex} / 총 ${totalCount}개의 글`
+            : searchErrorMessage
+              ? `${searchErrorMessage}.`
+              : q
+                ? "검색 결과가 없습니다."
+                : tag || type !== "all"
+                  ? "조건에 맞는 글이 없습니다."
+                  : "아직 글이 없습니다."}
         </p>
       </header>
 
@@ -279,11 +316,23 @@ export default async function PostsPage({ searchParams }: PageProps) {
 
       {posts.length === 0 ? (
         <section className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
-          <h2 className="text-lg font-semibold text-slate-800">빈 목록</h2>
+          <h2 className="text-lg font-semibold text-slate-800">
+            {q
+              ? searchErrorMessage
+                ? "검색어가 올바르지 않습니다"
+                : "검색 결과가 없습니다"
+              : tag || type !== "all"
+                ? "조건에 맞는 글이 없습니다"
+                : "아직 글이 없습니다"}
+          </h2>
           <p className="mt-2 text-sm text-slate-600">
-            {invalidSearch
-              ? "검색어를 바꾸거나 필터를 초기화해 보세요."
-              : "조건에 맞는 글이 없습니다."}
+            {q
+              ? searchErrorMessage
+                ? "따옴표 등 특수 문자가 포함되어 있지 않은지 확인해 주세요."
+                : "다른 키워드로 다시 검색해 보세요."
+              : tag || type !== "all"
+                ? "필터를 초기화해 보세요."
+                : "공개 상태로 저장된 글이 생기면 목록에 표시됩니다."}
           </p>
         </section>
       ) : (

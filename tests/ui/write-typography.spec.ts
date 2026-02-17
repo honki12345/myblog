@@ -1,6 +1,10 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
-import { authenticateAdminSession, runCleanupScript } from "./helpers";
+import {
+  authenticateAdminSession,
+  runCleanupScript,
+  waitForDocumentTitle,
+} from "./helpers";
 
 test.beforeEach(() => {
   runCleanupScript();
@@ -19,6 +23,8 @@ test("write preview applies typography styles", async ({ page }) => {
   await expect(preview.locator("ul")).toBeVisible();
   await expect(preview.locator("pre")).toBeVisible();
   await expect(preview).toHaveScreenshot("write-preview-typography.png");
+
+  await waitForDocumentTitle(page);
 
   const accessibility = await new AxeBuilder({ page })
     .include("article.markdown-preview")

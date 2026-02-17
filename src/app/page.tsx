@@ -114,7 +114,7 @@ export default async function Home() {
     isAdmin && posts.some((post) => post.status === "draft");
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-10 sm:px-6 lg:px-8">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 sm:px-6 lg:px-8">
       <header className="space-y-2">
         <p className="text-sm font-semibold tracking-wide text-slate-500 uppercase">
           Latest Posts
@@ -149,7 +149,7 @@ export default async function Home() {
           ) : null}
         </section>
       ) : (
-        <section className="grid gap-4">
+        <section className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
           {posts.map((post) => (
             <PostCard key={post.id} post={post} />
           ))}

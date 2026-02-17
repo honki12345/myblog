@@ -12,7 +12,7 @@ export default async function PostContent({ content }: PostContentProps) {
   return (
     <>
       <article
-        className="prose prose-slate max-w-none"
+        className="markdown-content"
         dangerouslySetInnerHTML={{ __html: html }}
       />
       {hasMermaid ? <MermaidDiagram /> : null}

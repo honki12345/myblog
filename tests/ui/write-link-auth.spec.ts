@@ -1,6 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import {
+  assertNoHorizontalPageScroll,
   authenticateAdminSession,
   runCleanupScript,
   waitForDocumentTitle,
@@ -38,6 +39,10 @@ test("logged out pages hide admin write entry links", async ({
   await expect(nav).toBeVisible();
   await expect(loginLink).toHaveAttribute("href", "/admin/login?next=%2F");
   await expect(page.locator("main").first()).toBeVisible();
+  await assertNoHorizontalPageScroll(
+    page,
+    `[${testInfo.project.name}] / has horizontal overflow (logged out)`,
+  );
 
   const maxDiffPixelRatio = getVisualDiffThreshold(testInfo.project.name);
   await expect(page).toHaveScreenshot("write-link-auth-logged-out.png", {
@@ -70,6 +75,10 @@ test("admin session shows write link in header navigation", async ({
   await expect(writeLink).toBeVisible({ timeout: 10_000 });
   await expect(writeLink).toHaveAttribute("href", "/admin/write");
   await expect(page.locator("main").first()).toBeVisible();
+  await assertNoHorizontalPageScroll(
+    page,
+    `[${testInfo.project.name}] / has horizontal overflow (admin)`,
+  );
 
   const maxDiffPixelRatio = getVisualDiffThreshold(testInfo.project.name);
   await expect(page).toHaveScreenshot("write-link-auth-logged-in.png", {

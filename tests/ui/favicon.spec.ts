@@ -64,4 +64,3 @@ test("icons links exist and resources are reachable", async ({
     await expectImageResponse(request, href);
   }
 });
-

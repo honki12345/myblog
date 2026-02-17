@@ -60,12 +60,12 @@ export default function PostCard({ post }: PostCardProps) {
       data-post-has-thumbnail
     >
       <div className="flex flex-col gap-4 sm:flex-row-reverse sm:items-start">
-        <Link href={href} className="block w-full sm:w-52 sm:shrink-0">
+        <div className="w-full sm:w-52 sm:shrink-0">
           <PostCardThumbnail
             src={thumbnailUrl ?? ""}
             alt={`${post.title} 썸네일`}
           />
-        </Link>
+        </div>
         <div className="min-w-0 sm:flex-1">
           <h2 className="text-lg font-semibold tracking-tight break-words">
             <Link href={href} className="hover:underline">

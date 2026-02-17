@@ -139,7 +139,16 @@ for (const route of routes) {
 
     if (route.name === "home") {
       await expect(
-        page.getByRole("heading", { name: "최신 공개 글" }),
+        page.getByRole("heading", { name: "홈", exact: true }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("heading", { name: "태그 허브" }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("heading", { name: "최신 직접 작성" }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("heading", { name: "최신 AI 수집" }),
       ).toBeVisible();
       await expect(page.getByRole("link", { name: "글 목록" })).toBeVisible();
     }

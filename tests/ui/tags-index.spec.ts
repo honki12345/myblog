@@ -1,5 +1,10 @@
 import { expect, test } from "@playwright/test";
-import { insertPostDirect, runCleanupScript, seedVisualPosts } from "./helpers";
+import {
+  authenticateAdminSession,
+  insertPostDirect,
+  runCleanupScript,
+  seedVisualPosts,
+} from "./helpers";
 
 test.describe("tags index", () => {
   test.beforeEach(async ({ request }) => {
@@ -45,6 +50,25 @@ test.describe("tags index", () => {
     );
     await expect(page.getByRole("link", { name: /#sample/ })).toContainText(
       "3개",
+    );
+  });
+
+  test("admin can see draft-only tags", async ({ page, request }) => {
+    await insertPostDirect(request, {
+      title: "PW-SEED-드래프트 전용 태그 글",
+      content: "draft only tags should be listed for admin",
+      tags: ["draft-only"],
+      status: "draft",
+      sourceUrl: "https://playwright.seed/draft-only-tags",
+    });
+
+    await authenticateAdminSession(page, { nextPath: "/tags" });
+    await page.waitForLoadState("networkidle");
+
+    await expect(page.getByRole("heading", { name: "태그" })).toBeVisible();
+    await expect(page.getByRole("link", { name: /#draft-only/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: /#draft-only/ })).toContainText(
+      "1개",
     );
   });
 });

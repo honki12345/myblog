@@ -23,7 +23,8 @@ export type SeededPost = {
   content: string;
   tags: string[];
   status: "draft" | "published";
-  sourceUrl: string;
+  sourceUrl?: string | null;
+  origin?: "original" | "ai";
 };
 
 function parseEnvValueFromEnvFile(targetKey: string): string | null {
@@ -286,12 +287,17 @@ export async function insertPostDirect(
       }
 
       const now = "2026-01-01 00:00:00";
+      const sourceUrl =
+        typeof post.sourceUrl === "string" && post.sourceUrl.trim().length > 0
+          ? post.sourceUrl.trim()
+          : null;
+      const origin = post.origin ?? (sourceUrl ? "ai" : "original");
 
       const postResult = db
         .prepare(
           `
-          INSERT INTO posts (title, slug, content, status, source_url, created_at, updated_at, published_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, CASE WHEN ? = 'published' THEN ? ELSE NULL END)
+          INSERT INTO posts (title, slug, content, status, origin, source_url, created_at, updated_at, published_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? = 'published' THEN ? ELSE NULL END)
           `,
         )
         .run(
@@ -299,7 +305,8 @@ export async function insertPostDirect(
           slug,
           post.content,
           post.status,
-          post.sourceUrl,
+          origin,
+          sourceUrl,
           now,
           now,
           post.status,
@@ -325,9 +332,11 @@ export async function insertPostDirect(
         ).run(postId, tagRow.id);
       }
 
-      db.prepare(
-        "INSERT OR IGNORE INTO sources (url, post_id) VALUES (?, ?)",
-      ).run(post.sourceUrl, postId);
+      if (sourceUrl) {
+        db.prepare(
+          "INSERT OR IGNORE INTO sources (url, post_id) VALUES (?, ?)",
+        ).run(sourceUrl, postId);
+      }
 
       return { id: postId, slug };
     })();
@@ -373,7 +382,8 @@ export async function seedVisualPosts(
       "![thumbnail](/uploads/pw-seed-thumbnail.svg)\n\n시각 회귀 테스트용 홈 콘텐츠",
     tags: ["sample", "visual"],
     status: "published",
-    sourceUrl: "https://playwright.seed/home",
+    sourceUrl: null,
+    origin: "original",
   };
   const postA = await insertPostDirect(request, homeSeed);
   seededPosts.push({ ...homeSeed, ...postA });
@@ -383,7 +393,8 @@ export async function seedVisualPosts(
     content: "시각 회귀 테스트용 목록 콘텐츠",
     tags: ["sample"],
     status: "published",
-    sourceUrl: "https://playwright.seed/list",
+    sourceUrl: null,
+    origin: "original",
   };
   const postB = await insertPostDirect(request, listSeed);
   seededPosts.push({ ...listSeed, ...postB });
@@ -394,17 +405,29 @@ export async function seedVisualPosts(
       "![missing](/uploads/pw-seed-missing.svg)\n\nsample 태그를 가진 글",
     tags: ["sample", "react"],
     status: "published",
-    sourceUrl: "https://playwright.seed/tag",
+    sourceUrl: null,
+    origin: "original",
   };
   const postC = await insertPostDirect(request, tagSeed);
   seededPosts.push({ ...tagSeed, ...postC });
+
+  const aiSeed: SeededPost = {
+    title: "PW-SEED-AI-수집 글",
+    content: "AI 수집 글 시드",
+    tags: ["ai-seed"],
+    status: "published",
+    sourceUrl: "https://playwright.seed/ai",
+  };
+  const postD = await insertPostDirect(request, aiSeed);
+  seededPosts.push({ ...aiSeed, ...postD });
 
   const draftSeed: SeededPost = {
     title: "PW-SEED-비공개 초안",
     content: "보이면 안 됩니다",
     tags: ["sample"],
     status: "draft",
-    sourceUrl: "https://playwright.seed/draft",
+    sourceUrl: null,
+    origin: "original",
   };
   const draftPost = await insertPostDirect(request, draftSeed);
   seededPosts.push({ ...draftSeed, ...draftPost });

@@ -117,6 +117,20 @@ jobs:
             exit 1
           fi
 
+          if [ ! -f .next/standalone/server.js ]; then
+            echo "Expected Next.js standalone server entrypoint '.next/standalone/server.js' not found after restoring artifact" >&2
+            echo "Available server.js files under .next/standalone (if any):" >&2
+            find .next/standalone -maxdepth 4 -type f -name server.js -print || true
+            exit 1
+          fi
+
+          if [ ! -d .next/standalone/.next/static ]; then
+            echo "Expected static assets directory '.next/standalone/.next/static' not found after restoring artifact" >&2
+            echo "Directory tree under .next/standalone/.next (if any):" >&2
+            find .next/standalone/.next -maxdepth 4 -type d -print || true
+            exit 1
+          fi
+
       - name: Cache Playwright browsers
         uses: actions/cache@v4
         with:

@@ -74,3 +74,10 @@
 - [ ] Playwright: 비로그인 `/`에서 `a[href^="/admin/write"]`가 0개인지 확인 (헤더 외 CTA 포함)
 - [ ] (선택) Playwright: 로그아웃 후 헤더에서 `글쓰기` 링크가 다시 미노출되는지 확인
 - [ ] (선택) 시각적 회귀: 관련 페이지 헤더 스냅샷이 불안정하면 안정화(애니메이션 비활성화/고정 데이터). 헤더 변경으로 스냅샷 업데이트가 필요할 수 있음
+
+## PR 리뷰 반영 내역 (2026-02-17)
+- 코멘트: CodeRabbit inline review (`discussion_r2815608602`) - `write-link-auth`에 스냅샷 + a11y 보강 제안
+- 반영:
+  - `tests/ui/write-link-auth.spec.ts`: `nav[aria-label="주요 메뉴"]` 기준으로 `toHaveScreenshot` 추가 + AxeBuilder로 serious/critical 0건 확인
+  - `tests/ui/write-link-auth.spec.ts-snapshots/`: `mobile-360/tablet-768/desktop-1440` 기준 스냅샷 추가
+- 검증: `npm run test:all`

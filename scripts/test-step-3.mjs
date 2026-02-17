@@ -1,9 +1,13 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { access, readFile, rm, unlink } from "node:fs/promises";
+import { createRequire } from "node:module";
 import net from "node:net";
 import path from "node:path";
 import process from "node:process";
+
+const require = createRequire(import.meta.url);
+const NEXT_BIN = require.resolve("next/dist/bin/next");
 
 const ROOT = process.cwd();
 const PORT = 3000;
@@ -192,7 +196,7 @@ async function startServer(apiKey, options = {}) {
   const output = { stdout: "", stderr: "" };
   const child = spawn(
     "node",
-    ["node_modules/next/dist/bin/next", "dev", "--port", String(PORT)],
+    [NEXT_BIN, "dev", "--port", String(PORT)],
     {
       cwd: ROOT,
       env: {

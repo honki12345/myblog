@@ -1,9 +1,13 @@
 import { spawn } from "node:child_process";
 import { readFile, rm } from "node:fs/promises";
+import { createRequire } from "node:module";
 import net from "node:net";
 import path from "node:path";
 import process from "node:process";
 import Database from "better-sqlite3";
+
+const require = createRequire(import.meta.url);
+const NEXT_BIN = require.resolve("next/dist/bin/next");
 
 const ROOT = process.cwd();
 const DEFAULT_PORT = 3200;
@@ -189,7 +193,7 @@ async function startServer(apiKey, logs) {
   const child = spawn(
     "node",
     [
-      "node_modules/next/dist/bin/next",
+      NEXT_BIN,
       "dev",
       "--hostname",
       DEV_SERVER_HOST,

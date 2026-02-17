@@ -1,9 +1,13 @@
 import { spawn } from "node:child_process";
 import { createHmac } from "node:crypto";
 import { rm, stat } from "node:fs/promises";
+import { createRequire } from "node:module";
 import net from "node:net";
 import path from "node:path";
 import process from "node:process";
+
+const require = createRequire(import.meta.url);
+const NEXT_BIN = require.resolve("next/dist/bin/next");
 
 const ROOT = process.cwd();
 const DEFAULT_PORT = 3300;
@@ -204,7 +208,7 @@ async function startServer(logs) {
 
   const child = spawn(
     "node",
-    ["node_modules/next/dist/bin/next", "dev", "--port", String(port)],
+    [NEXT_BIN, "dev", "--port", String(port)],
     {
       cwd: ROOT,
       env: {

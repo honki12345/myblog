@@ -7,6 +7,7 @@ import Database from "better-sqlite3";
 
 const ROOT = process.cwd();
 const DEFAULT_PORT = 3200;
+const DEV_SERVER_HOST = "127.0.0.1";
 const TEST_DB_PATH = path.join(ROOT, "data", "test-step8.db");
 const TEST_DB_WAL_PATH = `${TEST_DB_PATH}-wal`;
 const TEST_DB_SHM_PATH = `${TEST_DB_PATH}-shm`;
@@ -47,7 +48,7 @@ function canBindPort(port) {
     server.unref();
 
     server.once("error", () => resolve(false));
-    server.listen({ port, host: "127.0.0.1" }, () => {
+    server.listen({ port, host: DEV_SERVER_HOST }, () => {
       server.close(() => resolve(true));
     });
   });
@@ -183,11 +184,18 @@ async function startServer(apiKey, logs) {
     DEFAULT_PORT,
   );
   const port = await findAvailablePort(startPort);
-  apiBase = `http://127.0.0.1:${port}`;
+  apiBase = `http://${DEV_SERVER_HOST}:${port}`;
 
   const child = spawn(
     "node",
-    ["node_modules/next/dist/bin/next", "dev", "--port", String(port)],
+    [
+      "node_modules/next/dist/bin/next",
+      "dev",
+      "--hostname",
+      DEV_SERVER_HOST,
+      "--port",
+      String(port),
+    ],
     {
       cwd: ROOT,
       env: {
@@ -201,9 +209,11 @@ async function startServer(apiKey, logs) {
           process.env.RATE_LIMIT_BULK_WINDOW_MS ?? "60000",
         NEXT_TELEMETRY_DISABLED: "1",
       },
+      detached: true,
       stdio: ["ignore", "pipe", "pipe"],
     },
   );
+  child.__step8Port = port;
 
   attachOutput(child.stdout, logs, process.stdout);
   attachOutput(child.stderr, logs, process.stderr);
@@ -222,12 +232,31 @@ async function stopServer(child) {
     return;
   }
 
-  child.kill("SIGTERM");
+  const port = typeof child.__step8Port === "number" ? child.__step8Port : null;
+  const processGroup = child.pid ? -child.pid : null;
+
+  try {
+    if (processGroup !== null) {
+      process.kill(processGroup, "SIGTERM");
+    } else {
+      child.kill("SIGTERM");
+    }
+  } catch {
+    child.kill("SIGTERM");
+  }
 
   await new Promise((resolve) => {
     const timeout = setTimeout(() => {
       if (child.exitCode === null && child.signalCode === null) {
-        child.kill("SIGKILL");
+        try {
+          if (processGroup !== null) {
+            process.kill(processGroup, "SIGKILL");
+          } else {
+            child.kill("SIGKILL");
+          }
+        } catch {
+          child.kill("SIGKILL");
+        }
       }
     }, 5000);
 
@@ -236,6 +265,16 @@ async function stopServer(child) {
       resolve();
     });
   });
+
+  if (port !== null) {
+    // Ensure the port is actually free before starting the next session.
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      if (await canBindPort(port)) {
+        return;
+      }
+      await sleep(100);
+    }
+  }
 }
 
 async function requestJson(pathname, options = {}) {

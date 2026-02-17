@@ -1,6 +1,10 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
-import { authenticateAdminSession, seedVisualPosts } from "./helpers";
+import {
+  authenticateAdminSession,
+  seedVisualPosts,
+  waitForDocumentTitle,
+} from "./helpers";
 
 const THUMBNAIL_SEED_TITLE = "PW-SEED-홈 화면 글";
 const NO_THUMBNAIL_SEED_TITLE = "PW-SEED-목록 화면 글";
@@ -51,6 +55,8 @@ function getPostCardByTitle(page: Page, title: string) {
 }
 
 async function assertNoSeriousA11yViolations(page: Page, message: string) {
+  await waitForDocumentTitle(page);
+
   const results = await new AxeBuilder({ page }).analyze();
   const blockingViolations = results.violations.filter((violation) => {
     return violation.impact === "critical" || violation.impact === "serious";

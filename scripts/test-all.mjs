@@ -158,7 +158,9 @@ async function main() {
     env: { STEP8_PORT_BASE: "3200" },
   });
   await runSingle("test:step9");
-  await runSingle("test:ui");
+  await runSingle("test:ui", {
+    env: { PLAYWRIGHT_SKIP_BUILD: "1" },
+  });
 
   const totalDurationMs = Date.now() - totalStartedAt;
   console.log(

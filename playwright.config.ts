@@ -16,6 +16,10 @@ ADMIN_LOGIN_RATE_LIMIT_MAX=\${ADMIN_LOGIN_RATE_LIMIT_MAX:-200}
 ADMIN_LOGIN_RATE_LIMIT_WINDOW_MS=\${ADMIN_LOGIN_RATE_LIMIT_WINDOW_MS:-60000}
 ADMIN_VERIFY_RATE_LIMIT_MAX=\${ADMIN_VERIFY_RATE_LIMIT_MAX:-200}
 ADMIN_VERIFY_RATE_LIMIT_WINDOW_MS=\${ADMIN_VERIFY_RATE_LIMIT_WINDOW_MS:-60000}
+if [ -n "\${PLAYWRIGHT_SKIP_BUILD:-}" ] && [ "\${PLAYWRIGHT_SKIP_BUILD:-}" != "0" ]; then
+  echo "[playwright:webServer] skip build (PLAYWRIGHT_SKIP_BUILD=\${PLAYWRIGHT_SKIP_BUILD})" >&2;
+else
+  echo "[playwright:webServer] running build" >&2;
 DATABASE_PATH=${PLAYWRIGHT_DB_PATH} NEXT_PUBLIC_SITE_URL=http://127.0.0.1:3000 \\
 ADMIN_USERNAME="$ADMIN_USERNAME" \\
 ADMIN_PASSWORD_HASH="$ADMIN_PASSWORD_HASH" \\
@@ -29,6 +33,7 @@ ADMIN_LOGIN_RATE_LIMIT_WINDOW_MS="$ADMIN_LOGIN_RATE_LIMIT_WINDOW_MS" \\
 ADMIN_VERIFY_RATE_LIMIT_MAX="$ADMIN_VERIFY_RATE_LIMIT_MAX" \\
 ADMIN_VERIFY_RATE_LIMIT_WINDOW_MS="$ADMIN_VERIFY_RATE_LIMIT_WINDOW_MS" \\
 npm run build;
+fi;
 STANDALONE_DIR=.next/standalone;
 if [ ! -f "$STANDALONE_DIR/server.js" ]; then
   SERVER_PATH="";
@@ -42,12 +47,19 @@ if [ ! -f "$STANDALONE_DIR/server.js" ]; then
   STANDALONE_DIR=$(dirname "$SERVER_PATH");
 fi;
 mkdir -p "$STANDALONE_DIR/.next";
-rm -rf "$STANDALONE_DIR/.next/static";
-cp -R .next/static "$STANDALONE_DIR/.next/static";
+if [ -d .next/static ]; then
+  rm -rf "$STANDALONE_DIR/.next/static";
+  cp -R .next/static "$STANDALONE_DIR/.next/static";
+fi;
 if [ -d public ]; then
   rm -rf "$STANDALONE_DIR/public";
   cp -R public "$STANDALONE_DIR/public";
 fi;
+if [ ! -d "$STANDALONE_DIR/.next/static" ]; then
+  echo "standalone .next/static not found (run without PLAYWRIGHT_SKIP_BUILD or prepare the artifact)." >&2;
+  exit 1;
+fi;
+cd "$STANDALONE_DIR";
 DATABASE_PATH=${PLAYWRIGHT_DB_PATH} NEXT_PUBLIC_SITE_URL=http://127.0.0.1:3000 PORT=3000 \\
 ADMIN_USERNAME="$ADMIN_USERNAME" \\
 ADMIN_PASSWORD_HASH="$ADMIN_PASSWORD_HASH" \\
@@ -60,7 +72,7 @@ ADMIN_LOGIN_RATE_LIMIT_MAX="$ADMIN_LOGIN_RATE_LIMIT_MAX" \\
 ADMIN_LOGIN_RATE_LIMIT_WINDOW_MS="$ADMIN_LOGIN_RATE_LIMIT_WINDOW_MS" \\
 ADMIN_VERIFY_RATE_LIMIT_MAX="$ADMIN_VERIFY_RATE_LIMIT_MAX" \\
 ADMIN_VERIFY_RATE_LIMIT_WINDOW_MS="$ADMIN_VERIFY_RATE_LIMIT_WINDOW_MS" \\
-node "$STANDALONE_DIR/server.js"`;
+node server.js`;
 
 export default defineConfig({
   testDir: "./tests/ui",

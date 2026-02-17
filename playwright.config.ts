@@ -1,5 +1,13 @@
 import { defineConfig } from "@playwright/test";
 
+// UI tests require a stable API key for route revalidation. Relying on a local
+// `.env.local` is brittle in git-worktree setups (multiple `.env.local` files).
+// Prefer an explicit default unless the caller provides one.
+const DEFAULT_PLAYWRIGHT_BLOG_API_KEY = "playwright-blog-api-key";
+if (!process.env.BLOG_API_KEY && !process.env.API_KEY) {
+  process.env.BLOG_API_KEY = DEFAULT_PLAYWRIGHT_BLOG_API_KEY;
+}
+
 const PLAYWRIGHT_DB_PATH = `${process.cwd()}/data/playwright-ui.db`;
 const PLAYWRIGHT_PORT =
   Number.parseInt(process.env.PLAYWRIGHT_PORT ?? "", 10) || 3400;

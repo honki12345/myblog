@@ -1,3 +1,4 @@
+import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { authenticateAdminSession, seedVisualPosts } from "./helpers";
 
@@ -46,6 +47,15 @@ function getPostCardByTitle(page: Page, title: string) {
   return page
     .locator("article[data-post-card]")
     .filter({ has: page.getByRole("link", { name: title }) });
+}
+
+async function assertNoSeriousA11yViolations(page: Page, message: string) {
+  const results = await new AxeBuilder({ page }).analyze();
+  const blockingViolations = results.violations.filter((violation) => {
+    return violation.impact === "critical" || violation.impact === "serious";
+  });
+
+  expect(blockingViolations, message).toEqual([]);
 }
 
 test.beforeEach(async ({ request }) => {
@@ -156,6 +166,11 @@ for (const route of routes) {
       ).toBeVisible();
       await expect(page.locator("article").first()).toBeVisible();
     }
+
+    await assertNoSeriousA11yViolations(
+      page,
+      `[${testInfo.project.name}] ${route.path} has serious/critical accessibility violations`,
+    );
 
     const maxDiffPixelRatio = getVisualDiffThreshold(testInfo.project.name);
     await expect(page).toHaveScreenshot(`${route.name}.png`, {

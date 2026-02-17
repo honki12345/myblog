@@ -168,6 +168,17 @@ CREATE INDEX IF NOT EXISTS idx_inbox_items_status_id
   ON inbox_items(status, id);
 `;
 
+function hasTableColumn(
+  database: Database.Database,
+  tableName: string,
+  columnName: string,
+): boolean {
+  const rows = database
+    .prepare(`PRAGMA table_info(${tableName})`)
+    .all() as Array<{ name?: unknown }>;
+  return rows.some((row) => row.name === columnName);
+}
+
 type DbGlobals = {
   __blogDb?: Database.Database;
   __blogDbPath?: string;
@@ -232,6 +243,42 @@ export function runMigrations(database: Database.Database): void {
         )
         .run(3, "Inbox ingestion queue schema for Issue #45");
       currentVersion = 3;
+    }
+
+    if (currentVersion < 4) {
+      if (!hasTableColumn(database, "posts", "origin")) {
+        database.exec(
+          "ALTER TABLE posts ADD COLUMN origin TEXT NOT NULL DEFAULT 'original' CHECK (origin IN ('original','ai'))",
+        );
+      }
+
+      database.exec(
+        `
+        UPDATE posts
+        SET origin = 'ai'
+        WHERE source_url IS NOT NULL
+          OR EXISTS (SELECT 1 FROM sources s WHERE s.post_id = posts.id)
+        `,
+      );
+
+      database.exec(
+        "CREATE INDEX IF NOT EXISTS idx_posts_origin ON posts(origin)",
+      );
+
+      database.exec(`
+        CREATE TRIGGER IF NOT EXISTS posts_origin_immutable
+        BEFORE UPDATE OF origin ON posts
+        BEGIN
+          SELECT RAISE(ABORT, 'origin is immutable');
+        END;
+      `);
+
+      database
+        .prepare(
+          "INSERT INTO schema_versions (version, description) VALUES (?, ?)",
+        )
+        .run(4, "posts.origin schema for Issue #54 (home/posts role split)");
+      currentVersion = 4;
     }
   });
 

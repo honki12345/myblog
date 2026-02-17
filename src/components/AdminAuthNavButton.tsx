@@ -49,6 +49,15 @@ export default function AdminAuthNavButton() {
     );
   }
 
+  const writeLink = (
+    <Link
+      href="/admin/write"
+      className="rounded-md px-3 py-2 text-slate-700 hover:bg-slate-100"
+    >
+      글쓰기
+    </Link>
+  );
+
   const handleLogout = async () => {
     // Redirect regardless of API outcome: the user's intent is to leave the admin UI.
     // Server-side session/cookie cleanup is best-effort via the logout endpoint.
@@ -72,13 +81,16 @@ export default function AdminAuthNavButton() {
   };
 
   return (
-    <button
-      type="button"
-      onClick={handleLogout}
-      className="rounded-md px-3 py-2 text-slate-700 hover:bg-slate-100"
-      aria-label="관리자 로그아웃"
-    >
-      로그아웃
-    </button>
+    <>
+      {writeLink}
+      <button
+        type="button"
+        onClick={handleLogout}
+        className="rounded-md px-3 py-2 text-slate-700 hover:bg-slate-100"
+        aria-label="관리자 로그아웃"
+      >
+        로그아웃
+      </button>
+    </>
   );
 }

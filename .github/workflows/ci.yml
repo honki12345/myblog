@@ -34,7 +34,32 @@ jobs:
         run: npm run format:check
 
       - name: Build
+        env:
+          NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3000
         run: npm run build
+
+      - name: Prepare standalone artifact
+        run: |
+          set -eu
+          STANDALONE_DIR=.next/standalone
+          test -f "$STANDALONE_DIR/server.js"
+
+          # Next.js standalone output excludes `.next/static` and `public/`.
+          mkdir -p "$STANDALONE_DIR/.next"
+          rm -rf "$STANDALONE_DIR/.next/static"
+          cp -R .next/static "$STANDALONE_DIR/.next/static"
+          if [ -d public ]; then
+            rm -rf "$STANDALONE_DIR/public"
+            cp -R public "$STANDALONE_DIR/public"
+          fi
+
+      - name: Upload standalone artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: next-standalone
+          path: .next/standalone
+          include-hidden-files: true
+          if-no-files-found: error
 
       - name: Step 3 gate tests
         env:
@@ -45,8 +70,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: verify
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+          - mobile-360
+          - tablet-768
+          - desktop-1440
     env:
       BLOG_API_KEY: ci-ui-test-key
+      PLAYWRIGHT_SKIP_BUILD: "1"
 
     steps:
       - name: Checkout
@@ -61,17 +94,62 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Download standalone build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: next-standalone
+          path: .artifact/next-standalone
+
+      - name: Restore standalone build
+        run: |
+          set -eu
+          rm -rf .next/standalone
+          mkdir -p .next
+          if [ -d .artifact/next-standalone/.next/standalone ]; then
+            mv .artifact/next-standalone/.next/standalone .next/standalone
+          elif [ -d .artifact/next-standalone/standalone ]; then
+            mv .artifact/next-standalone/standalone .next/standalone
+          elif [ -f .artifact/next-standalone/server.js ]; then
+            mv .artifact/next-standalone .next/standalone
+          else
+            echo "standalone artifact not found in expected paths" >&2
+            find .artifact/next-standalone -maxdepth 4 -type f -name server.js -print
+            exit 1
+          fi
+
+          if [ ! -f .next/standalone/server.js ]; then
+            echo "Expected Next.js standalone server entrypoint '.next/standalone/server.js' not found after restoring artifact" >&2
+            echo "Available server.js files under .next/standalone (if any):" >&2
+            find .next/standalone -maxdepth 4 -type f -name server.js -print || true
+            exit 1
+          fi
+
+          if [ ! -d .next/standalone/.next/static ]; then
+            echo "Expected static assets directory '.next/standalone/.next/static' not found after restoring artifact" >&2
+            echo "Directory tree under .next/standalone/.next (if any):" >&2
+            find .next/standalone/.next -maxdepth 4 -type d -print || true
+            exit 1
+          fi
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-ms-playwright-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-ms-playwright-
+
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 
       - name: Run visual UI tests
-        run: npm run test:ui
+        run: npm run test:ui -- --project=${{ matrix.project }}
 
       - name: Upload Playwright artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-artifacts
+          name: playwright-artifacts-${{ matrix.project }}
           path: |
             playwright-report/
             test-results/

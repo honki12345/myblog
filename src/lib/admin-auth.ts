@@ -46,6 +46,7 @@ type AdminAuthRow = {
   username: string;
   password_hash: string;
   totp_secret_encrypted: string;
+  totp_enabled_at: string | null;
 };
 
 export type AdminTotpSetupInfo = {
@@ -233,7 +234,7 @@ function loadAdminAuthRow(): AdminAuthRow {
   const row = db
     .prepare(
       `
-      SELECT id, username, password_hash, totp_secret_encrypted
+      SELECT id, username, password_hash, totp_secret_encrypted, totp_enabled_at
       FROM admin_auth
       WHERE id = 1
       LIMIT 1
@@ -246,6 +247,24 @@ function loadAdminAuthRow(): AdminAuthRow {
   }
 
   return row;
+}
+
+export function isAdminTotpEnabled(): boolean {
+  ensureAdminConfigSynced();
+  const auth = loadAdminAuthRow();
+  return Boolean(auth.totp_enabled_at);
+}
+
+export function markAdminTotpEnabledAtIfUnset(): void {
+  const db = getDb();
+  db.prepare(
+    `
+    UPDATE admin_auth
+    SET totp_enabled_at = datetime('now'),
+        updated_at = datetime('now')
+    WHERE id = 1 AND totp_enabled_at IS NULL
+    `,
+  ).run();
 }
 
 function syncRecoveryCodesFromEnv(config: AdminAuthConfig): void {

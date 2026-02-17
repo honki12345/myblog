@@ -3,16 +3,26 @@ import QRCode from "qrcode";
 import {
   ensureAdminConfigSynced,
   getAdminTotpSetupInfoFromLoginChallenge,
+  isAdminTotpEnabled,
 } from "@/lib/admin-auth";
 
-type ApiErrorCode = "UNAUTHORIZED" | "INTERNAL_ERROR";
+type ApiErrorCode =
+  | "UNAUTHORIZED"
+  | "TOTP_ALREADY_ENABLED"
+  | "INTERNAL_ERROR";
 
-function errorResponse(status: number, code: ApiErrorCode, message: string) {
+function errorResponse(
+  status: number,
+  code: ApiErrorCode,
+  message: string,
+  details?: unknown,
+) {
   return NextResponse.json(
     {
       error: {
         code,
         message,
+        details: details ?? null,
       },
     },
     { status },
@@ -39,6 +49,10 @@ export async function GET(request: NextRequest) {
       "UNAUTHORIZED",
       "Two-factor challenge is missing or expired.",
     );
+  }
+
+  if (isAdminTotpEnabled()) {
+    return errorResponse(409, "TOTP_ALREADY_ENABLED", "TOTP is already enabled.");
   }
 
   try {

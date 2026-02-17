@@ -87,6 +87,12 @@
 6. [ ] 문서/정리
 - 구현 결정(옵션 A/B)과 이유를 이 문서에 기록
 
+## 구현 기록 (2026-02-17)
+- 선택: 옵션 A(렌더 시 파싱)
+  - 이유: DB 스키마 변경 없이 빠르게 도입 가능하며, 현재 목록 쿼리에서 본문(`content`)을 이미 조회하고 있음
+- 캐시 전략: in-memory LRU(Map 기반, 500개)로 `post:{id}:{updated_at}` 키에 대해 썸네일 URL 추출 결과를 캐시
+- 썸네일 UI: `img` 기반(Next/Image 미사용), 로드 실패 시 `/thumbnail-placeholder.svg`로 대체하도록 Client Component(`PostCardThumbnail`)에서 처리
+
 ## 리스크 및 확인 필요 사항
 - 현재 홈/목록/태그 페이지가 `posts.content`를 조회하고 있어 옵션 A(렌더 시 파싱)는 적용 가능. 다만 향후 목록 쿼리를 최적화하며 `content`를 제외하면 썸네일 추출 방식(옵션 B 등)도 함께 재검토 필요
 - 외부 이미지 사용 시 CSP(있다면)/핫링크/프라이버시 및 로드 실패 fallback 영향

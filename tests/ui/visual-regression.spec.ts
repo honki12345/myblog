@@ -1,5 +1,9 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { authenticateAdminSession, seedVisualPosts } from "./helpers";
+
+const THUMBNAIL_SEED_TITLE = "PW-SEED-홈 화면 글";
+const NO_THUMBNAIL_SEED_TITLE = "PW-SEED-목록 화면 글";
+const FALLBACK_THUMBNAIL_SEED_TITLE = "PW-SEED-태그 화면 글";
 
 const routes = [
   { name: "home", path: "/" },
@@ -38,6 +42,12 @@ const DISABLE_ANIMATION_STYLE = `
   }
 `;
 
+function getPostCardByTitle(page: Page, title: string) {
+  return page
+    .locator("article[data-post-card]")
+    .filter({ has: page.getByRole("link", { name: title }) });
+}
+
 test.beforeEach(async ({ request }) => {
   await seedVisualPosts(request);
 });
@@ -54,6 +64,61 @@ for (const route of routes) {
 
     await page.addStyleTag({ content: DISABLE_ANIMATION_STYLE });
     await expect(page.locator("main").first()).toBeVisible();
+
+    if (route.name !== "admin-write") {
+      const cardWithThumbnail = getPostCardByTitle(page, THUMBNAIL_SEED_TITLE);
+      await expect(cardWithThumbnail).toBeVisible();
+      await expect(cardWithThumbnail.locator("[data-post-thumbnail]")).toBeVisible();
+
+      const cardWithoutThumbnail = getPostCardByTitle(
+        page,
+        NO_THUMBNAIL_SEED_TITLE,
+      );
+      await expect(cardWithoutThumbnail).toBeVisible();
+      await expect(cardWithoutThumbnail.locator("[data-post-thumbnail]")).toHaveCount(
+        0,
+      );
+
+      const cardWithFallback = getPostCardByTitle(
+        page,
+        FALLBACK_THUMBNAIL_SEED_TITLE,
+      );
+      await expect(cardWithFallback).toBeVisible();
+      await expect(cardWithFallback.locator("[data-post-thumbnail]")).toBeVisible();
+
+      // Wait until all thumbnails on the page settle (loaded or fallback),
+      // so screenshots don't capture hydration timing issues.
+      const thumbnails = page.locator("[data-post-thumbnail]");
+      const thumbnailCount = await thumbnails.count();
+      if (thumbnailCount > 0) {
+        await expect
+          .poll(async () => {
+            const states = await thumbnails.evaluateAll((nodes) =>
+              nodes.map((node) => node.getAttribute("data-post-thumbnail-state")),
+            );
+            return states.every(
+              (value) => value === "loaded" || value === "fallback",
+            );
+          })
+          .toBe(true);
+      }
+
+      await expect
+        .poll(async () => {
+          return await cardWithThumbnail
+            .locator("[data-post-thumbnail]")
+            .getAttribute("data-post-thumbnail-state");
+        })
+        .toBe("loaded");
+
+      await expect
+        .poll(async () => {
+          return await cardWithFallback
+            .locator("[data-post-thumbnail]")
+            .getAttribute("data-post-thumbnail-state");
+        })
+        .toBe("fallback");
+    }
 
     if (route.name === "home") {
       await expect(

@@ -2,6 +2,7 @@ import Link from "next/link";
 import PostCard, { type PostCardData } from "@/components/PostCard";
 import { getAdminSessionFromServerCookies } from "@/lib/admin-auth";
 import { getDb } from "@/lib/db";
+import { extractThumbnailUrlFromMarkdownCached } from "@/lib/post-thumbnail";
 
 type PostStatus = "draft" | "published";
 
@@ -12,6 +13,7 @@ type HomePostRow = {
   content: string;
   status: PostStatus;
   published_at: string | null;
+  updated_at: string;
   tags_csv: string;
 };
 
@@ -38,6 +40,8 @@ function createExcerpt(content: string, maxLength = 200): string {
 }
 
 function toPostCardData(row: HomePostRow): PostCardData {
+  const thumbnailKey = `post:${row.id}:${row.updated_at}`;
+
   return {
     id: row.id,
     slug: row.slug,
@@ -49,6 +53,7 @@ function toPostCardData(row: HomePostRow): PostCardData {
         : [],
     publishedAt: row.published_at,
     status: row.status,
+    thumbnailUrl: extractThumbnailUrlFromMarkdownCached(thumbnailKey, row.content),
   };
 }
 
@@ -79,6 +84,7 @@ function loadLatestPosts(
         p.content,
         p.status,
         p.published_at,
+        p.updated_at,
         COALESCE(GROUP_CONCAT(t.name, char(31)), '') AS tags_csv
       FROM posts p
       LEFT JOIN post_tags pt ON pt.post_id = p.id

@@ -1,6 +1,7 @@
 import PostCard from "@/components/PostCard";
 import { getAdminSessionFromServerCookies } from "@/lib/admin-auth";
 import { getDb } from "@/lib/db";
+import { extractThumbnailUrlFromMarkdownCached } from "@/lib/post-thumbnail";
 
 type PostStatus = "draft" | "published";
 
@@ -15,6 +16,7 @@ type TaggedPostRow = {
   content: string;
   status: PostStatus;
   published_at: string | null;
+  updated_at: string;
   tags_csv: string;
 };
 
@@ -64,6 +66,7 @@ function loadPostsByTag(tag: string, statuses: readonly PostStatus[]) {
         p.content,
         p.status,
         p.published_at,
+        p.updated_at,
         COALESCE(all_tags.tags_csv, '') AS tags_csv
       FROM posts p
       INNER JOIN post_tags pt ON pt.post_id = p.id
@@ -83,6 +86,10 @@ function loadPostsByTag(tag: string, statuses: readonly PostStatus[]) {
     .all(tag, ...statusFilter.params) as TaggedPostRow[];
 
   return rows.map((row) => ({
+    thumbnailUrl: extractThumbnailUrlFromMarkdownCached(
+      `post:${row.id}:${row.updated_at}`,
+      row.content,
+    ),
     id: row.id,
     slug: row.slug,
     title: row.title,

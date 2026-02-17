@@ -369,7 +369,8 @@ export async function seedVisualPosts(
 
   const homeSeed: SeededPost = {
     title: "PW-SEED-홈 화면 글",
-    content: "시각 회귀 테스트용 홈 콘텐츠",
+    content:
+      "![thumbnail](/uploads/pw-seed-thumbnail.svg)\n\n시각 회귀 테스트용 홈 콘텐츠",
     tags: ["sample", "visual"],
     status: "published",
     sourceUrl: "https://playwright.seed/home",
@@ -389,7 +390,8 @@ export async function seedVisualPosts(
 
   const tagSeed: SeededPost = {
     title: "PW-SEED-태그 화면 글",
-    content: "sample 태그를 가진 글",
+    content:
+      "![missing](/uploads/pw-seed-missing.svg)\n\nsample 태그를 가진 글",
     tags: ["sample", "react"],
     status: "published",
     sourceUrl: "https://playwright.seed/tag",

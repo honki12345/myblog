@@ -332,7 +332,7 @@ node scripts/cleanup-test-data.mjs   # 테스트 종료 후 데이터 정리
 
 17. **뷰포트별 시각 회귀 테스트** (Playwright `toHaveScreenshot`)
     - 뷰포트: `360`, `768`, `1440`
-    - 대상 경로: `/`, `/posts`, `/write`, `/tags/sample`
+    - 대상 경로: `/`, `/posts`, `/write`, `/tags`, `/tags/sample`
     - 기대 결과: 기준 스냅샷 대비 diff 허용 범위 내
 
 18. **접근성 검사** (`@axe-core/playwright`)

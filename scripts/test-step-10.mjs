@@ -5,9 +5,10 @@ import net from "node:net";
 import path from "node:path";
 import process from "node:process";
 
-const ROOT = process.cwd();
 const require = createRequire(import.meta.url);
-const NEXT_DEV_BIN = require.resolve("next/dist/bin/next");
+const NEXT_BIN = require.resolve("next/dist/bin/next");
+
+const ROOT = process.cwd();
 const DEFAULT_PORT = 3350;
 const DEV_SERVER_HOST = "127.0.0.1";
 const TEST_DB_PATH = path.join(ROOT, "data", "test-step10.db");
@@ -109,7 +110,7 @@ async function startServer(logs) {
   const child = spawn(
     process.execPath,
     [
-      NEXT_DEV_BIN,
+      NEXT_BIN,
       "dev",
       "--hostname",
       DEV_SERVER_HOST,

@@ -336,7 +336,7 @@ export default async function PostsPage({ searchParams }: PageProps) {
           </p>
         </section>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
           {posts.map((post) => (
             <PostCard key={post.id} post={toPostCardData(post)} />
           ))}

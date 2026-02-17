@@ -57,7 +57,7 @@ export default async function Home() {
     [...originalPosts, ...aiPosts].some((post) => post.status === "draft");
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-10 sm:px-6 lg:px-8">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 sm:px-6 lg:px-8">
       <header className="space-y-2">
         <p className="text-sm font-semibold tracking-wide text-slate-500 uppercase">
           Explore
@@ -73,8 +73,18 @@ export default async function Home() {
 
       {!hasAnyPosts ? (
         <section className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-600">
-          아직 글이 없습니다. 아래의 태그 허브나 아카이브 링크로 탐색을 시작해
-          보세요.
+          <p>
+            아직 글이 없습니다. 아래의 태그 허브나 아카이브 링크로 탐색을
+            시작해 보세요.
+          </p>
+          {isAdmin ? (
+            <Link
+              href="/admin/write"
+              className="mt-4 inline-flex rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+            >
+              글 작성하기
+            </Link>
+          ) : null}
         </section>
       ) : null}
 

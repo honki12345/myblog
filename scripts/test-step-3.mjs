@@ -6,9 +6,10 @@ import net from "node:net";
 import path from "node:path";
 import process from "node:process";
 
-const ROOT = process.cwd();
 const require = createRequire(import.meta.url);
-const NEXT_DEV_BIN = require.resolve("next/dist/bin/next");
+const NEXT_BIN = require.resolve("next/dist/bin/next");
+
+const ROOT = process.cwd();
 const DEV_SERVER_HOST = "127.0.0.1";
 const DEFAULT_PORT = 3000;
 let apiBase = `http://${DEV_SERVER_HOST}:${DEFAULT_PORT}`;
@@ -175,7 +176,7 @@ async function startServer(apiKey, options = {}) {
   const child = spawn(
     process.execPath,
     [
-      NEXT_DEV_BIN,
+      NEXT_BIN,
       "dev",
       "--hostname",
       DEV_SERVER_HOST,

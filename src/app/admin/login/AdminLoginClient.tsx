@@ -204,7 +204,7 @@ export default function AdminLoginClient({ nextPath }: AdminLoginClientProps) {
   };
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-col gap-5 px-4 py-10 sm:px-6 lg:px-8">
+    <main className="mx-auto flex w-full max-w-md flex-col gap-5 px-4 py-8 sm:px-6 lg:px-8">
       <header className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight">관리자 로그인</h1>
         <p className="text-sm text-slate-600">

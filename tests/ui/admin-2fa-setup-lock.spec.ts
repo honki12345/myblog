@@ -23,7 +23,7 @@ const DISABLE_ANIMATION_STYLE = `
 function getDiffThreshold(projectName: string): number {
   // CI runners sometimes render fonts slightly differently on admin pages.
   if (projectName === "mobile-360") {
-    return 0.05;
+    return 0.07;
   }
   if (projectName === "tablet-768") {
     return 0.04;

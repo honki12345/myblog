@@ -220,6 +220,7 @@ export async function assertNoHorizontalPageScroll(
           label,
           right: rect.right,
           width: rect.width,
+          height: rect.height,
           left: rect.left,
           scrollWidth: element.scrollWidth,
           clientWidth: element.clientWidth,
@@ -230,8 +231,8 @@ export async function assertNoHorizontalPageScroll(
       .filter((item) => {
         return (
           item.rightOverflow > 1 &&
-          item.width > clientWidth + 1 &&
-          item.left > -1
+          item.width > 0 &&
+          item.height > 0
         );
       })
       .sort((a, b) => b.rightOverflow - a.rightOverflow)

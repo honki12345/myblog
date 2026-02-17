@@ -6,8 +6,8 @@ import path from "node:path";
 import process from "node:process";
 
 const ROOT = process.cwd();
-const PORT = 3000;
-const API_BASE = `http://localhost:${PORT}`;
+let PORT = 3000;
+let API_BASE = `http://localhost:${PORT}`;
 const TEST_DB_PATH = path.join(ROOT, "data", "test-step3.db");
 const TEST_DB_WAL_PATH = `${TEST_DB_PATH}-wal`;
 const TEST_DB_SHM_PATH = `${TEST_DB_PATH}-shm`;
@@ -79,6 +79,16 @@ function canBindPort(port) {
       server.close(() => resolve(true));
     });
   });
+}
+
+async function findAvailablePort(basePort, attempts = 50) {
+  for (let port = basePort; port < basePort + attempts; port += 1) {
+    if (await canBindPort(port)) {
+      return port;
+    }
+  }
+
+  throw new Error(`Failed to find an available port starting from ${basePort}`);
 }
 
 async function waitForPortToBeFree(port, retries = 25, delayMs = 200) {
@@ -190,23 +200,19 @@ async function waitForServer(url, retries = 60, delayMs = 500) {
 async function startServer(apiKey, options = {}) {
   const { inboxToken, env = {} } = options;
   const output = { stdout: "", stderr: "" };
-  const child = spawn(
-    "node",
-    ["node_modules/next/dist/bin/next", "dev", "--port", String(PORT)],
-    {
-      cwd: ROOT,
-      env: {
-        ...process.env,
-        BLOG_API_KEY: apiKey,
-        INBOX_TOKEN: inboxToken ?? process.env.INBOX_TOKEN ?? "",
-        DATABASE_PATH: TEST_DB_PATH,
-        NEXT_TELEMETRY_DISABLED: "1",
-        ...env,
-      },
-      detached: true,
-      stdio: ["ignore", "pipe", "pipe"],
+  const child = spawn("npm", ["run", "dev", "--", "--port", String(PORT)], {
+    cwd: ROOT,
+    env: {
+      ...process.env,
+      BLOG_API_KEY: apiKey,
+      INBOX_TOKEN: inboxToken ?? process.env.INBOX_TOKEN ?? "",
+      DATABASE_PATH: TEST_DB_PATH,
+      NEXT_TELEMETRY_DISABLED: "1",
+      ...env,
     },
-  );
+    detached: true,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
 
   child.__output = output;
   child.stdout.on("data", (chunk) => {
@@ -1232,6 +1238,8 @@ async function main() {
   try {
     await runInboxUrlUnitTests();
     await cleanupTestDb();
+    PORT = await findAvailablePort(PORT);
+    API_BASE = `http://localhost:${PORT}`;
 
     server = await startServer(apiKey, { inboxToken });
     await runSessionOne(apiKey, uploadedFiles);

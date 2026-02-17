@@ -187,10 +187,11 @@ async function startServer(apiKey, logs) {
   apiBase = `http://${DEV_SERVER_HOST}:${port}`;
 
   const child = spawn(
-    "node",
+    "npm",
     [
-      "node_modules/next/dist/bin/next",
+      "run",
       "dev",
+      "--",
       "--hostname",
       DEV_SERVER_HOST,
       "--port",

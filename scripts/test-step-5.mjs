@@ -176,8 +176,8 @@ async function startServer(apiKey) {
   apiBase = `http://127.0.0.1:${port}`;
 
   const child = spawn(
-    "node",
-    ["node_modules/next/dist/bin/next", "dev", "--port", String(port)],
+    "npm",
+    ["run", "dev", "--", "--port", String(port)],
     {
       cwd: ROOT,
       env: {
@@ -195,6 +195,7 @@ async function startServer(apiKey) {
           "1000",
         NEXT_TELEMETRY_DISABLED: "1",
       },
+      detached: true,
       stdio: ["ignore", "pipe", "pipe"],
     },
   );
@@ -216,12 +217,37 @@ async function stopServer(child) {
     return;
   }
 
-  child.kill("SIGTERM");
+  const processGroup = child.pid ? -child.pid : null;
+  try {
+    if (processGroup !== null) {
+      process.kill(processGroup, "SIGTERM");
+    } else {
+      child.kill("SIGTERM");
+    }
+  } catch {
+    try {
+      child.kill("SIGTERM");
+    } catch {
+      // ignore shutdown races
+    }
+  }
 
   await new Promise((resolve) => {
     const timeout = setTimeout(() => {
       if (child.exitCode === null && child.signalCode === null) {
-        child.kill("SIGKILL");
+        try {
+          if (processGroup !== null) {
+            process.kill(processGroup, "SIGKILL");
+          } else {
+            child.kill("SIGKILL");
+          }
+        } catch {
+          try {
+            child.kill("SIGKILL");
+          } catch {
+            // ignore shutdown races
+          }
+        }
       }
     }, 5000);
 

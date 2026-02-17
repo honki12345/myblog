@@ -5,7 +5,7 @@
 - Issue 번호: 61
 - 기준 브랜치: main
 - 작업 브랜치: issue-61-fix-inbox-auth-blog-api-key
-- Worktree 경로: /home/fpg123/Workspace/honki12345/.worktrees/issue-61-fix-inbox-auth-blog-api-key
+- Worktree 경로: .../.worktrees/issue-61-fix-inbox-auth-blog-api-key
 - 작성일: 2026-02-17
 
 ## 배경/문제

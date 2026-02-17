@@ -149,7 +149,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     const result = db
       .prepare(
-      `
+        `
       UPDATE inbox_items
       SET status = ?, error = ?, updated_at = datetime('now')
       WHERE id = ? AND status = 'queued'

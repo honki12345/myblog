@@ -1,3 +1,4 @@
+import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type APIRequestContext } from "@playwright/test";
 import {
   authenticateAdminSession,
@@ -105,6 +106,13 @@ test("admin can see edit/delete actions on public detail and delete post", async
     new RegExp(`/admin/write\\?id=${created.id}$`),
   );
   await expect(page.getByRole("button", { name: "삭제" })).toBeVisible();
+
+  const axeResults = await new AxeBuilder({ page }).analyze();
+  const blockingViolations = axeResults.violations.filter((violation) => {
+    return violation.impact === "critical" || violation.impact === "serious";
+  });
+  expect(blockingViolations).toEqual([]);
+
   await expect(page.locator("main")).toHaveScreenshot(
     "post-detail-admin-actions.png",
     {

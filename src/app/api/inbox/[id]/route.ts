@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getBearerToken, verifyInboxToken } from "@/lib/auth";
+import { getBearerToken, verifyApiKey } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 
 type ApiErrorCode =
@@ -38,14 +38,10 @@ function errorResponse(
   );
 }
 
-function validateInboxToken(request: Request): NextResponse | null {
+function validateApiKey(request: Request): NextResponse | null {
   const token = getBearerToken(request);
-  if (!verifyInboxToken(token)) {
-    return errorResponse(
-      401,
-      "UNAUTHORIZED",
-      "Invalid or missing inbox token.",
-    );
+  if (!verifyApiKey(token)) {
+    return errorResponse(401, "UNAUTHORIZED", "Invalid or missing API key.");
   }
 
   return null;
@@ -87,7 +83,7 @@ const patchInboxItemSchema = z
 export const dynamic = "force-dynamic";
 
 export async function PATCH(request: Request, context: RouteContext) {
-  const authError = validateInboxToken(request);
+  const authError = validateApiKey(request);
   if (authError) {
     return authError;
   }

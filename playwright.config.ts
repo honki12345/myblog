@@ -9,9 +9,16 @@ if (!process.env.BLOG_API_KEY && !process.env.API_KEY) {
 }
 
 const PLAYWRIGHT_DB_PATH = `${process.cwd()}/data/playwright-ui.db`;
-const PLAYWRIGHT_PORT =
-  Number.parseInt(process.env.PLAYWRIGHT_PORT ?? "", 10) || 3400;
-const PLAYWRIGHT_BASE_URL = `http://127.0.0.1:${PLAYWRIGHT_PORT}`;
+const DEFAULT_PLAYWRIGHT_PORT = process.env.CI ? 3000 : 3400;
+const PLAYWRIGHT_PORT_RAW = process.env.PLAYWRIGHT_PORT?.trim();
+const PLAYWRIGHT_PORT = PLAYWRIGHT_PORT_RAW
+  ? Number.parseInt(PLAYWRIGHT_PORT_RAW, 10)
+  : DEFAULT_PLAYWRIGHT_PORT;
+const PLAYWRIGHT_PORT_NORMALIZED =
+  Number.isFinite(PLAYWRIGHT_PORT) && PLAYWRIGHT_PORT > 0
+    ? PLAYWRIGHT_PORT
+    : DEFAULT_PLAYWRIGHT_PORT;
+const PLAYWRIGHT_BASE_URL = `http://127.0.0.1:${PLAYWRIGHT_PORT_NORMALIZED}`;
 const PLAYWRIGHT_WEB_SERVER_COMMAND = `set -eu;
 set -a;
 [ -z "\${BLOG_API_KEY:-}" ] && [ -f ./.env.local ] && . ./.env.local;
@@ -27,6 +34,10 @@ ADMIN_LOGIN_RATE_LIMIT_MAX=\${ADMIN_LOGIN_RATE_LIMIT_MAX:-200}
 ADMIN_LOGIN_RATE_LIMIT_WINDOW_MS=\${ADMIN_LOGIN_RATE_LIMIT_WINDOW_MS:-60000}
 ADMIN_VERIFY_RATE_LIMIT_MAX=\${ADMIN_VERIFY_RATE_LIMIT_MAX:-200}
 ADMIN_VERIFY_RATE_LIMIT_WINDOW_MS=\${ADMIN_VERIFY_RATE_LIMIT_WINDOW_MS:-60000}
+if [ -n "\${PLAYWRIGHT_SKIP_BUILD:-}" ] && [ "\${PLAYWRIGHT_SKIP_BUILD:-}" != "0" ]; then
+  echo "[playwright:webServer] skip build (PLAYWRIGHT_SKIP_BUILD=\${PLAYWRIGHT_SKIP_BUILD})" >&2;
+else
+  echo "[playwright:webServer] running build" >&2;
 DATABASE_PATH=${PLAYWRIGHT_DB_PATH} NEXT_PUBLIC_SITE_URL=${PLAYWRIGHT_BASE_URL} \\
 ADMIN_USERNAME="$ADMIN_USERNAME" \\
 ADMIN_PASSWORD_HASH="$ADMIN_PASSWORD_HASH" \\
@@ -40,6 +51,7 @@ ADMIN_LOGIN_RATE_LIMIT_WINDOW_MS="$ADMIN_LOGIN_RATE_LIMIT_WINDOW_MS" \\
 ADMIN_VERIFY_RATE_LIMIT_MAX="$ADMIN_VERIFY_RATE_LIMIT_MAX" \\
 ADMIN_VERIFY_RATE_LIMIT_WINDOW_MS="$ADMIN_VERIFY_RATE_LIMIT_WINDOW_MS" \\
 npm run build;
+fi;
 STANDALONE_DIR=.next/standalone;
 if [ ! -f "$STANDALONE_DIR/server.js" ]; then
   SERVER_PATH="";
@@ -53,13 +65,20 @@ if [ ! -f "$STANDALONE_DIR/server.js" ]; then
   STANDALONE_DIR=$(dirname "$SERVER_PATH");
 fi;
 mkdir -p "$STANDALONE_DIR/.next";
-rm -rf "$STANDALONE_DIR/.next/static";
-cp -R .next/static "$STANDALONE_DIR/.next/static";
+if [ -d .next/static ]; then
+  rm -rf "$STANDALONE_DIR/.next/static";
+  cp -R .next/static "$STANDALONE_DIR/.next/static";
+fi;
 if [ -d public ]; then
   rm -rf "$STANDALONE_DIR/public";
   cp -R public "$STANDALONE_DIR/public";
 fi;
-DATABASE_PATH=${PLAYWRIGHT_DB_PATH} NEXT_PUBLIC_SITE_URL=${PLAYWRIGHT_BASE_URL} PORT=${PLAYWRIGHT_PORT} \\
+if [ ! -d "$STANDALONE_DIR/.next/static" ]; then
+  echo "standalone .next/static not found (run without PLAYWRIGHT_SKIP_BUILD or prepare the artifact)." >&2;
+  exit 1;
+fi;
+cd "$STANDALONE_DIR";
+DATABASE_PATH=${PLAYWRIGHT_DB_PATH} NEXT_PUBLIC_SITE_URL=${PLAYWRIGHT_BASE_URL} PORT=${PLAYWRIGHT_PORT_NORMALIZED} \\
 ADMIN_USERNAME="$ADMIN_USERNAME" \\
 ADMIN_PASSWORD_HASH="$ADMIN_PASSWORD_HASH" \\
 ADMIN_SESSION_SECRET="$ADMIN_SESSION_SECRET" \\
@@ -71,7 +90,7 @@ ADMIN_LOGIN_RATE_LIMIT_MAX="$ADMIN_LOGIN_RATE_LIMIT_MAX" \\
 ADMIN_LOGIN_RATE_LIMIT_WINDOW_MS="$ADMIN_LOGIN_RATE_LIMIT_WINDOW_MS" \\
 ADMIN_VERIFY_RATE_LIMIT_MAX="$ADMIN_VERIFY_RATE_LIMIT_MAX" \\
 ADMIN_VERIFY_RATE_LIMIT_WINDOW_MS="$ADMIN_VERIFY_RATE_LIMIT_WINDOW_MS" \\
-node "$STANDALONE_DIR/server.js"`;
+node server.js`;
 
 export default defineConfig({
   testDir: "./tests/ui",

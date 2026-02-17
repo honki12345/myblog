@@ -12,7 +12,7 @@
 - Next.js App Router 기반 웹 페이지: `/`, `/posts`, `/posts/[slug]`, `/tags/[tag]`, `/write`
 - SQLite(better-sqlite3) 기반 글/태그/출처 저장 및 FTS5 인덱스 유지
 - API Key(Bearer) 기반 보호 API: 단건/벌크 글 생성, 글 수정/조회, 출처 중복 확인, 이미지 업로드
-- iOS Shortcuts URL 수집 큐 API: `/api/inbox`(POST/GET) + `/api/inbox/:id`(PATCH), Bearer `INBOX_TOKEN` 기반 적재/조회/상태 갱신
+- iOS Shortcuts URL 수집 큐 API: `/api/inbox`(POST/GET) + `/api/inbox/:id`(PATCH), Bearer `BLOG_API_KEY` 기반 적재/조회/상태 갱신
 - 마크다운 렌더링 파이프라인: GFM + 수식(KaTeX) + 코드 하이라이트(Shiki) + sanitize + Mermaid placeholder
 - API 요청 구조화 로그(JSON): `timestamp`, `route`, `status`, `durationMs`, `postCount`, `contentLengthSum`, `sourceUrlCount`, `payloadHash`
 - Playwright 기반 시각 회귀 + 접근성 + 작성 E2E 테스트
@@ -75,7 +75,6 @@ Sources: `src/lib/db.ts`, `src/app/api/posts/route.ts`, `src/app/api/posts/bulk/
 ```
 
 - 인증: `Authorization: Bearer <BLOG_API_KEY>`
-- Inbox ingestion API 인증: `Authorization: Bearer <INBOX_TOKEN>`
 - 인증 함수는 `crypto.timingSafeEqual` 기반 비교를 사용한다.
 
 ### Endpoints
@@ -83,9 +82,9 @@ Sources: `src/lib/db.ts`, `src/app/api/posts/route.ts`, `src/app/api/posts/bulk/
 | Method  | Path                       | Auth                                     | Behavior                                                                                          | 주요 오류 코드                                                                          |
 | ------- | -------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
 | `GET`   | `/api/health`              | 선택적(Authorization 헤더가 있으면 검증) | DB 연결 확인. 인증 헤더 유효 시 `auth: "valid"` 포함                                              | `UNAUTHORIZED`, `INTERNAL_ERROR`                                                        |
-| `POST`  | `/api/inbox`               | 필수(`INBOX_TOKEN`)                      | iOS Shortcuts URL 인입. X/Twitter URL 검증/정규화 후 `queued`로 적재(중복은 200 duplicate)        | `UNAUTHORIZED`, `INVALID_INPUT`, `RATE_LIMITED`, `INTERNAL_ERROR`                       |
-| `GET`   | `/api/inbox`               | 필수(`INBOX_TOKEN`)                      | 수집 큐 조회. 기본 `status=queued`, `limit=50`(max 100), 오래된 순(`id ASC`)                      | `UNAUTHORIZED`, `INVALID_INPUT`, `INTERNAL_ERROR`                                       |
-| `PATCH` | `/api/inbox/:id`           | 필수(`INBOX_TOKEN`)                      | 수집 큐 상태 갱신. `queued`만 `processed`/`failed`로 전이 허용, `failed`에서 `error` 저장         | `UNAUTHORIZED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`                          |
+| `POST`  | `/api/inbox`               | 필수                                     | iOS Shortcuts URL 인입. X/Twitter URL 검증/정규화 후 `queued`로 적재(중복은 200 duplicate)        | `UNAUTHORIZED`, `INVALID_INPUT`, `RATE_LIMITED`, `INTERNAL_ERROR`                       |
+| `GET`   | `/api/inbox`               | 필수                                     | 수집 큐 조회. 기본 `status=queued`, `limit=50`(max 100), 오래된 순(`id ASC`)                      | `UNAUTHORIZED`, `INVALID_INPUT`, `INTERNAL_ERROR`                                       |
+| `PATCH` | `/api/inbox/:id`           | 필수                                     | 수집 큐 상태 갱신. `queued`만 `processed`/`failed`로 전이 허용, `failed`에서 `error` 저장         | `UNAUTHORIZED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`                          |
 | `GET`   | `/api/posts`               | 없음                                     | 최신 100개 공개 글(`published`)만 반환                                                            | -                                                                                       |
 | `POST`  | `/api/posts`               | 필수                                     | 단건 글 생성, slug 자동 생성, 태그/출처(ai metadata 포함) 저장, 구조화 로그 출력, 경로 revalidate | `UNAUTHORIZED`, `INVALID_INPUT`, `DUPLICATE_SOURCE`, `RATE_LIMITED`, `INTERNAL_ERROR`   |
 | `POST`  | `/api/posts/bulk`          | 필수                                     | 벌크 글 생성(최대 10건), 단일 트랜잭션(all-or-nothing), 구조화 로그 출력, 경로 revalidate         | `UNAUTHORIZED`, `INVALID_INPUT`, `DUPLICATE_SOURCE`, `RATE_LIMITED`, `INTERNAL_ERROR`   |
@@ -99,23 +98,23 @@ Sources: `src/lib/db.ts`, `src/app/api/posts/route.ts`, `src/app/api/posts/bulk/
 ```bash
 # enqueue (201 queued, 200 duplicate)
 curl -sS -X POST "https://<host>/api/inbox" \
-  -H "Authorization: Bearer $INBOX_TOKEN" \
+  -H "Authorization: Bearer $BLOG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"url":"https://x.com/i/web/status/123","source":"x","client":"ios_shortcuts","note":"optional note"}'
 
 # list queued
 curl -sS "https://<host>/api/inbox" \
-  -H "Authorization: Bearer $INBOX_TOKEN"
+  -H "Authorization: Bearer $BLOG_API_KEY"
 
 # update status (queued -> processed|failed)
 curl -sS -X PATCH "https://<host>/api/inbox/1" \
-  -H "Authorization: Bearer $INBOX_TOKEN" \
+  -H "Authorization: Bearer $BLOG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"status":"processed"}'
 
 # rate limit (repeat quickly until you get 429 + Retry-After header)
 curl -i -sS -X POST "https://<host>/api/inbox" \
-  -H "Authorization: Bearer $INBOX_TOKEN" \
+  -H "Authorization: Bearer $BLOG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"url":"https://x.com/i/web/status/123","source":"x","client":"ios_shortcuts"}'
 ```
@@ -163,7 +162,6 @@ Sources: `src/app/api/health/route.ts`, `src/app/api/inbox/route.ts`, `src/app/a
 | Name                            | Required   | Used by                             | Description                                                                                      |
 | ------------------------------- | ---------- | ----------------------------------- | ------------------------------------------------------------------------------------------------ |
 | `BLOG_API_KEY`                  | Yes (운영) | API routes, write auth, tests       | 보호 API 인증 키                                                                                 |
-| `INBOX_TOKEN`                   | Yes (운영) | `/api/inbox`, tests                 | iOS Shortcuts URL 수집 큐 인입/조회/상태 갱신 인증 토큰                                          |
 | `DATABASE_PATH`                 | No         | DB layer, tests                     | SQLite 파일 경로 오버라이드. 기본값은 `data/blog.db`, 운영 권장값은 `/var/lib/blog/data/blog.db` |
 | `NEXT_PUBLIC_SITE_URL`          | No         | post metadata, Playwright webServer | 상세 페이지 canonical URL 생성 기준                                                              |
 | `API_KEY`                       | No         | UI 테스트 헬퍼                      | 테스트 시 `BLOG_API_KEY` 대체 입력값                                                             |
@@ -196,8 +194,8 @@ Sources: `src/app/api/health/route.ts`, `src/app/api/inbox/route.ts`, `src/app/a
 
 ### CI summary
 
-- `verify` job: `npm ci` -> `lint` -> `format:check` -> `build` -> `test:step3`
-- `ui-visual` job(verify 이후): Playwright Chromium 설치 -> `npm run test:ui` -> 아티팩트 업로드
+- `verify` job: `npm ci` -> `lint` -> `format:check` -> `build` -> Next.js standalone 산출물 아티팩트 업로드 -> `test:step3`
+- `ui-visual` job(verify 이후, viewport matrix): standalone 아티팩트 다운로드 -> Playwright Chromium 설치 -> `PLAYWRIGHT_SKIP_BUILD=1 npm run test:ui -- --project=<viewport>` -> 아티팩트 업로드
 - `deploy` workflow: `push(main + paths filter)` 또는 `workflow_dispatch` -> `npm ci/build` -> standalone tar 패키징 -> SCP/SSH 배포 -> `systemctl` + `/api/health` 점검 -> 실패 시 롤백
 
 Sources: `package.json`, `.env.example`, `next.config.ts`, `src/lib/db.ts`, `src/app/posts/[slug]/page.tsx`, `.gitignore`, `playwright.config.ts`, `.github/workflows/ci.yml`, `.github/workflows/deploy.yml`, `scripts/test-step-1.mjs`, `scripts/test-step-2.mjs`, `AGENTS.md`
@@ -222,10 +220,13 @@ Sources: `package.json`, `.env.example`, `next.config.ts`, `src/lib/db.ts`, `src
     - 동적 포트 탐색 + 네트워크 오류 재시도로 `next dev` 충돌/일시적 fetch 실패를 완화한다.
   - `npm run test:step6`: CI/CD 게이트(클린 빌드, standalone 패키징/무결성, better-sqlite3 바인딩, 워크플로우 정책) 검증
   - `npm run test:step8`: bulk API 계약(최대 10건/원자성/중복/경합/레이트리밋), `aiModel`/`promptHint` 저장, 구조화 로그 키 검증
+  - `npm run test:step9`: 관리자 워크스페이스(auth/notes/todos/schedules/uploads) 계약 검증
   - `npm run test:ui`: Playwright 시각 회귀 + 접근성 + 작성 E2E
-- 전체 회귀: `npm run test:all` (`step1~5 + step8 + ui`)
-  - 실행 오케스트레이션: `step1` -> (`step2` + `step4` 병렬) -> `step3` -> `step5` -> `step8` -> `ui`
+- 로컬 반복: `npm run test:ui:fast` (viewport 1개만 실행)
+- 전체 회귀: `npm run test:all` (`step1~5 + step8 + step9 + ui`)
+  - 실행 오케스트레이션: `step1` -> (`step2` + `step4` 병렬) -> `step3` -> `step5` -> `step8` -> `step9` -> `ui`
   - 각 단계/그룹의 소요 시간과 총 소요 시간을 로그로 출력한다.
+  - `test:all`은 Playwright의 `webServer` build를 스킵해(`PLAYWRIGHT_SKIP_BUILD=1`) build 중복을 방지한다.
 - UI 테스트 특징:
   - 뷰포트 고정: `360`, `768`, `1440`
   - `toHaveScreenshot` 비교(애니메이션 비활성화)
@@ -234,7 +235,7 @@ Sources: `package.json`, `.env.example`, `next.config.ts`, `src/lib/db.ts`, `src
 
 ### CI/CD workflow summary
 
-- `ci.yml`: PR/지정 브랜치 push에서 검증 전용(`lint`, `format:check`, `build`, `test:step3`, `test:ui`)
+- `ci.yml`: PR/지정 브랜치 push에서 검증 전용(`lint`, `format:check`, `build`, `test:step3`, `test:ui` viewport matrix)
 - `deploy.yml`: `main` push + 경로 필터(`src/**`, `package*.json`, `next.config.*`) 또는 `workflow_dispatch`에서 배포 전용 실행
 - 배포 워크플로우는 필수 Secrets(`BLOG_DOMAIN`, `VM_HOST`, `VM_USER`, `VM_SSH_KEY`) fail-fast 검증과 롤백 단계를 포함한다
 

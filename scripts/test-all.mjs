@@ -188,7 +188,10 @@ async function main() {
     Number.parseInt(process.env.PLAYWRIGHT_PORT ?? "", 10) ||
     (await findAvailablePort(3400));
   await runSingle("test:ui", {
-    env: { PLAYWRIGHT_PORT: String(playwrightPort) },
+    env: {
+      PLAYWRIGHT_PORT: String(playwrightPort),
+      PLAYWRIGHT_SKIP_BUILD: "1",
+    },
   });
 
   const totalDurationMs = Date.now() - totalStartedAt;

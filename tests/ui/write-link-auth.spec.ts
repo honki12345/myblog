@@ -12,7 +12,9 @@ test("logged out pages hide admin write entry links", async ({ page }) => {
   await expect(page.locator('nav[aria-label="주요 메뉴"]')).toBeVisible();
 });
 
-test("admin session shows write link in header navigation", async ({ page }) => {
+test("admin session shows write link in header navigation", async ({
+  page,
+}) => {
   await authenticateAdminSession(page, { nextPath: "/" });
 
   const nav = page.locator('nav[aria-label="주요 메뉴"]');
@@ -21,4 +23,3 @@ test("admin session shows write link in header navigation", async ({ page }) => 
   await expect(writeLink).toBeVisible({ timeout: 10_000 });
   await expect(writeLink).toHaveAttribute("href", "/admin/write");
 });
-

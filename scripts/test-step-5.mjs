@@ -179,29 +179,25 @@ async function startServer(apiKey) {
   const port = await findAvailablePort(startPort);
   apiBase = `http://127.0.0.1:${port}`;
 
-  const child = spawn(
-    "node",
-    [NEXT_BIN, "dev", "--port", String(port)],
-    {
-      cwd: ROOT,
-      env: {
-        ...process.env,
-        BLOG_API_KEY: apiKey,
-        DATABASE_PATH: TEST_DB_PATH,
-        NEXT_PUBLIC_SITE_URL: apiBase,
-        RATE_LIMIT_MAX_REQUESTS:
-          process.env.STEP5_RATE_LIMIT_MAX_REQUESTS ??
-          process.env.RATE_LIMIT_MAX_REQUESTS ??
-          "100",
-        RATE_LIMIT_WINDOW_MS:
-          process.env.STEP5_RATE_LIMIT_WINDOW_MS ??
-          process.env.RATE_LIMIT_WINDOW_MS ??
-          "1000",
-        NEXT_TELEMETRY_DISABLED: "1",
-      },
-      stdio: ["ignore", "pipe", "pipe"],
+  const child = spawn("node", [NEXT_BIN, "dev", "--port", String(port)], {
+    cwd: ROOT,
+    env: {
+      ...process.env,
+      BLOG_API_KEY: apiKey,
+      DATABASE_PATH: TEST_DB_PATH,
+      NEXT_PUBLIC_SITE_URL: apiBase,
+      RATE_LIMIT_MAX_REQUESTS:
+        process.env.STEP5_RATE_LIMIT_MAX_REQUESTS ??
+        process.env.RATE_LIMIT_MAX_REQUESTS ??
+        "100",
+      RATE_LIMIT_WINDOW_MS:
+        process.env.STEP5_RATE_LIMIT_WINDOW_MS ??
+        process.env.RATE_LIMIT_WINDOW_MS ??
+        "1000",
+      NEXT_TELEMETRY_DISABLED: "1",
     },
-  );
+    stdio: ["ignore", "pipe", "pipe"],
+  });
 
   child.stdout.on("data", (chunk) => process.stdout.write(chunk.toString()));
   child.stderr.on("data", (chunk) => process.stderr.write(chunk.toString()));

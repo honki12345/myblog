@@ -86,7 +86,10 @@ async function assertNoSeriousA11yViolations(page: Page, message: string) {
 }
 
 for (const route of routes) {
-  test(`visual snapshot: ${route.name}`, async ({ page, request }, testInfo) => {
+  test(`visual snapshot: ${route.name}`, async ({
+    page,
+    request,
+  }, testInfo) => {
     const seeded = await seedVisualPosts(request);
     const routePath = route.getPath(seeded);
 

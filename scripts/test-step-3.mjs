@@ -194,23 +194,19 @@ async function waitForServer(url, retries = 60, delayMs = 500) {
 async function startServer(apiKey, options = {}) {
   const { inboxToken, env = {} } = options;
   const output = { stdout: "", stderr: "" };
-  const child = spawn(
-    "node",
-    [NEXT_BIN, "dev", "--port", String(PORT)],
-    {
-      cwd: ROOT,
-      env: {
-        ...process.env,
-        BLOG_API_KEY: apiKey,
-        INBOX_TOKEN: inboxToken ?? process.env.INBOX_TOKEN ?? "",
-        DATABASE_PATH: TEST_DB_PATH,
-        NEXT_TELEMETRY_DISABLED: "1",
-        ...env,
-      },
-      detached: true,
-      stdio: ["ignore", "pipe", "pipe"],
+  const child = spawn("node", [NEXT_BIN, "dev", "--port", String(PORT)], {
+    cwd: ROOT,
+    env: {
+      ...process.env,
+      BLOG_API_KEY: apiKey,
+      INBOX_TOKEN: inboxToken ?? process.env.INBOX_TOKEN ?? "",
+      DATABASE_PATH: TEST_DB_PATH,
+      NEXT_TELEMETRY_DISABLED: "1",
+      ...env,
     },
-  );
+    detached: true,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
 
   child.__output = output;
   child.stdout.on("data", (chunk) => {

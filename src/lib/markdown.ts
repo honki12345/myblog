@@ -179,7 +179,9 @@ const rehypeMermaidPlaceholder: Plugin<[], Root> = () => {
   return (tree) => {
     let mermaidBlockCount = 0;
 
-    const hasChildren = (value: unknown): value is { children: RootContent[] } =>
+    const hasChildren = (
+      value: unknown,
+    ): value is { children: RootContent[] } =>
       typeof value === "object" &&
       value !== null &&
       "children" in value &&

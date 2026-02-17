@@ -251,9 +251,7 @@ export async function assertNoHorizontalPageScroll(
   });
 
   const offenderHint =
-    offenders.length > 0
-      ? ` offenders=${JSON.stringify(offenders)}`
-      : "";
+    offenders.length > 0 ? ` offenders=${JSON.stringify(offenders)}` : "";
 
   expect(
     Math.ceil(documentElement.scrollWidth),

@@ -37,7 +37,10 @@ export default function RootLayout({
         <div className="flex min-h-screen flex-col">
           <header className="border-b border-slate-200 bg-white/90 backdrop-blur">
             <div className="mx-auto flex w-full max-w-5xl flex-col items-start gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
-              <Link href="/" className="min-w-0 text-lg font-semibold tracking-tight">
+              <Link
+                href="/"
+                className="min-w-0 text-lg font-semibold tracking-tight"
+              >
                 honki12345 블로그
               </Link>
               <nav

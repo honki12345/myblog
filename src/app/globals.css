@@ -116,7 +116,7 @@ body {
   }
 
   .markdown-content pre:focus-visible {
-    @apply outline-none ring-2 ring-slate-400 ring-offset-2 ring-offset-white;
+    @apply ring-2 ring-slate-400 ring-offset-2 ring-offset-white outline-none;
   }
 
   .markdown-content code {
@@ -140,7 +140,7 @@ body {
   }
 
   .markdown-content table:focus-visible {
-    @apply outline-none ring-2 ring-slate-400 ring-offset-2 ring-offset-white;
+    @apply ring-2 ring-slate-400 ring-offset-2 ring-offset-white outline-none;
   }
 
   .markdown-content th,

@@ -1,6 +1,10 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
-import { authenticateAdminSession, runCleanupScript } from "./helpers";
+import {
+  authenticateAdminSession,
+  runCleanupScript,
+  waitForDocumentTitle,
+} from "./helpers";
 
 function getVisualDiffThreshold(projectName: string): number {
   // CI runner의 폰트 메트릭 차이로 모바일/태블릿 스냅샷에
@@ -41,6 +45,8 @@ test("logged out pages hide admin write entry links", async ({
     maxDiffPixelRatio,
   });
 
+  await waitForDocumentTitle(page);
+
   const accessibility = await new AxeBuilder({ page })
     .include('nav[aria-label="주요 메뉴"]')
     .analyze();
@@ -70,6 +76,8 @@ test("admin session shows write link in header navigation", async ({
     fullPage: false,
     maxDiffPixelRatio,
   });
+
+  await waitForDocumentTitle(page);
 
   const accessibility = await new AxeBuilder({ page })
     .include('nav[aria-label="주요 메뉴"]')

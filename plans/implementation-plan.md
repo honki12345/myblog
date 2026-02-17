@@ -618,6 +618,13 @@ public/               ← 정적 파일
 > 배포 환경(Oracle VM, Oracle Linux/Ubuntu)의 OS/아키텍처가 동일해야 한다.
 > 둘 다 x86_64 Linux이면 문제없음.
 
+### Playwright a11y(axe) 안정화
+
+Playwright에서 `AxeBuilder().analyze()` 실행 시, Next.js 라우팅/메타데이터 적용 과정에서
+`document.title`이 잠깐 비어 `document-title` 규칙이 간헐적으로 실패할 수 있다.
+
+- axe 실행 전 `await expect.poll(async () => (await page.title()).trim()).toBeTruthy();` 로 title이 안정화됐는지 확인한 뒤 분석한다.
+
 ---
 
 ## 부록: 테스트 데이터 정리 스크립트

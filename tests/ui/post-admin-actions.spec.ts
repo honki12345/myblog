@@ -5,6 +5,7 @@ import {
   insertPostDirect,
   resolveApiKey,
   runCleanupScript,
+  waitForDocumentTitle,
   type SeededPost,
 } from "./helpers";
 
@@ -106,6 +107,8 @@ test("admin can see edit/delete actions on public detail and delete post", async
     new RegExp(`/admin/write\\?id=${created.id}$`),
   );
   await expect(page.getByRole("button", { name: "삭제" })).toBeVisible();
+
+  await waitForDocumentTitle(page);
 
   const axeResults = await new AxeBuilder({ page }).analyze();
   const blockingViolations = axeResults.violations.filter((violation) => {

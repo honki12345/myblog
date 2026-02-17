@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
-import { seedVisualPosts } from "./helpers";
+import { seedVisualPosts, waitForDocumentTitle } from "./helpers";
 
 test("critical pages have no serious axe violations", async ({
   page,
@@ -18,6 +18,7 @@ test("critical pages have no serious axe violations", async ({
 
   for (const target of targets) {
     await page.goto(target, { waitUntil: "networkidle" });
+    await waitForDocumentTitle(page);
 
     const results = await new AxeBuilder({ page }).analyze();
     const blockingViolations = results.violations.filter((violation) => {

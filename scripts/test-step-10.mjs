@@ -109,14 +109,7 @@ async function startServer(logs) {
 
   const child = spawn(
     "node",
-    [
-      NEXT_BIN,
-      "dev",
-      "--hostname",
-      DEV_SERVER_HOST,
-      "--port",
-      String(port),
-    ],
+    [NEXT_BIN, "dev", "--hostname", DEV_SERVER_HOST, "--port", String(port)],
     {
       cwd: ROOT,
       env: {

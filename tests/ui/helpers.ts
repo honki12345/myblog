@@ -235,11 +235,7 @@ export async function assertNoHorizontalPageScroll(
         };
       })
       .filter((item) => {
-        return (
-          item.rightOverflow > 1 &&
-          item.width > 0 &&
-          item.height > 0
-        );
+        return item.rightOverflow > 1 && item.width > 0 && item.height > 0;
       })
       .sort((a, b) => b.rightOverflow - a.rightOverflow)
       .slice(0, 5);

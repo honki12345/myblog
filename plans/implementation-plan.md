@@ -503,11 +503,17 @@ npm run test:step1
 
 ---
 
-### Step 11~15: 사용자 편의 기능
+### Step 11: 커서 기반 페이지네이션 전환
+
+> 상세 구현 계획은 `plans/step11-plan.md`를 참고.
+> 분리일: 2026-02-17
+
+---
+
+### Step 12~15: 사용자 편의 기능
 
 #### 구현 항목
 
-- **Step 11. 커서 기반 페이지네이션** — 오프셋 기반에서 커서 기반으로 전환
 - **Step 12. 반응형 디자인 개선** — 모바일 최적화
 - **Step 13. RSS/Atom 피드** — 카테고리별, 태그별 동적 피드 생성
 - **Step 14. Step 10~13 통합 검증** — 기능 assertion + 스크린샷 회귀 + 접근성 검사
@@ -552,7 +558,7 @@ npm run test:step1
 ### 남은 Step (실행 순서)
 
 1. [ ] **Step 10**: 전문 검색 UI (FTS5, SearchBar 컴포넌트) (`plans/step10-plan.md`)
-2. [ ] **Step 11**: 커서 기반 페이지네이션
+2. [ ] **Step 11**: 커서 기반 페이지네이션 (`plans/step11-plan.md`)
 3. [ ] **Step 12**: 반응형 디자인 개선
 4. [ ] **Step 13**: RSS/Atom 피드
 5. [ ] **Step 14**: Step 10~13 통합 검증 (기능 assertion + `toHaveScreenshot` + a11y)

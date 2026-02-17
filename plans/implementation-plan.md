@@ -496,35 +496,28 @@ npm run test:step1
 
 > Phase 2 Step 9 완료 상태를 기준으로 진행.
 
-### Step 10~15: 사용자 편의 기능
+### Step 10: 전문 검색 UI (FTS5)
+
+> 상세 구현 계획은 `plans/step10-plan.md`를 참고.
+> 분리일: 2026-02-17
+
+---
+
+### Step 11: 커서 기반 페이지네이션 전환
+
+> 상세 구현 계획은 `plans/step11-plan.md`를 참고.
+> 분리일: 2026-02-17
+
+---
+
+### Step 12~15: 사용자 편의 기능
 
 #### 구현 항목
 
-- **Step 10. 전문 검색 UI (FTS5)** — `/posts?q=검색어` 파라미터, SearchBar 컴포넌트 추가
-- **Step 11. 커서 기반 페이지네이션** — 오프셋 기반에서 커서 기반으로 전환
-- **Step 12. 반응형 디자인 개선** — 상세 구현 계획: `plans/step12-plan.md` (분리일: 2026-02-17)
+- **Step 12. 반응형 디자인 개선** — 모바일 최적화 (상세 구현 계획: `plans/step12-plan.md`, 분리일: 2026-02-17)
 - **Step 13. RSS/Atom 피드** — 카테고리별, 태그별 동적 피드 생성
 - **Step 14. Step 10~13 통합 검증** — 기능 assertion + 스크린샷 회귀 + 접근성 검사
 - **Step 15. Step 10 종료 회귀** — `npm run test:all`
-
-#### 예정 테스트
-
-1. **검색 기능 테스트 (FTS5)**
-   ```bash
-   curl -s -X POST http://localhost:3000/api/posts \
-     -H "Content-Type: application/json" \
-     -H "Authorization: Bearer $API_KEY" \
-     -d '{"title":"Kubernetes 클러스터 관리","content":"kubectl 명령어로 파드를 관리하는 방법","status":"published"}'
-
-   curl -s "http://localhost:3000/posts?q=Kubernetes" | grep -c "Kubernetes"
-   ```
-   - 기대 결과: grep 결과 `1` 이상
-
-2. **검색 — 결과 없음**
-   ```bash
-   curl -s "http://localhost:3000/posts?q=존재하지않는검색어12345" | grep -i "결과"
-   ```
-   - 기대 결과: "검색 결과가 없습니다" 등 빈 상태 메시지
 
 ---
 
@@ -564,8 +557,8 @@ npm run test:step1
 
 ### 남은 Step (실행 순서)
 
-1. [ ] **Step 10**: 전문 검색 UI (FTS5, SearchBar 컴포넌트)
-2. [ ] **Step 11**: 커서 기반 페이지네이션
+1. [ ] **Step 10**: 전문 검색 UI (FTS5, SearchBar 컴포넌트) (`plans/step10-plan.md`)
+2. [ ] **Step 11**: 커서 기반 페이지네이션 (`plans/step11-plan.md`)
 3. [ ] **Step 12**: 반응형 디자인 개선 (`plans/step12-plan.md`)
 4. [ ] **Step 13**: RSS/Atom 피드
 5. [ ] **Step 14**: Step 10~13 통합 검증 (기능 assertion + `toHaveScreenshot` + a11y)
@@ -624,6 +617,13 @@ public/               ← 정적 파일
 > **주의**: better-sqlite3는 네이티브 바인딩이므로 빌드 환경(GitHub Actions, ubuntu)과
 > 배포 환경(Oracle VM, Oracle Linux/Ubuntu)의 OS/아키텍처가 동일해야 한다.
 > 둘 다 x86_64 Linux이면 문제없음.
+
+### Playwright a11y(axe) 안정화
+
+Playwright에서 `AxeBuilder().analyze()` 실행 시, Next.js 라우팅/메타데이터 적용 과정에서
+`document.title`이 잠깐 비어 `document-title` 규칙이 간헐적으로 실패할 수 있다.
+
+- axe 실행 전 `await expect.poll(async () => (await page.title()).trim()).toBeTruthy();` 로 title이 안정화됐는지 확인한 뒤 분석한다.
 
 ---
 

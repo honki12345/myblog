@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
+import { waitForDocumentTitle } from "./helpers";
 
 const DISABLE_ANIMATION_STYLE = `
   *,
@@ -23,6 +24,8 @@ function getRedirectDiffThreshold(projectName: string): number {
 }
 
 async function assertNoSeriousA11yViolations(page: Page, message: string) {
+  await waitForDocumentTitle(page);
+
   const results = await new AxeBuilder({ page }).analyze();
   const blockingViolations = results.violations.filter((violation) => {
     return violation.impact === "critical" || violation.impact === "serious";

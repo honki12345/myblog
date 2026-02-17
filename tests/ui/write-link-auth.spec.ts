@@ -4,6 +4,7 @@ import {
   assertNoHorizontalPageScroll,
   authenticateAdminSession,
   runCleanupScript,
+  waitForDocumentTitle,
 } from "./helpers";
 
 function getVisualDiffThreshold(projectName: string): number {
@@ -49,6 +50,8 @@ test("logged out pages hide admin write entry links", async ({
     maxDiffPixelRatio,
   });
 
+  await waitForDocumentTitle(page);
+
   const accessibility = await new AxeBuilder({ page })
     .include('nav[aria-label="주요 메뉴"]')
     .analyze();
@@ -82,6 +85,8 @@ test("admin session shows write link in header navigation", async ({
     fullPage: false,
     maxDiffPixelRatio,
   });
+
+  await waitForDocumentTitle(page);
 
   const accessibility = await new AxeBuilder({ page })
     .include('nav[aria-label="주요 메뉴"]')

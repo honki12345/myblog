@@ -4,6 +4,7 @@ import {
   assertNoHorizontalPageScroll,
   authenticateAdminSession,
   seedVisualPosts,
+  waitForDocumentTitle,
 } from "./helpers";
 
 const THUMBNAIL_SEED_TITLE = "PW-SEED-홈 화면 글";
@@ -77,6 +78,8 @@ function getPostCardByTitle(page: Page, title: string) {
 }
 
 async function assertNoSeriousA11yViolations(page: Page, message: string) {
+  await waitForDocumentTitle(page);
+
   const results = await new AxeBuilder({ page }).analyze();
   const blockingViolations = results.violations.filter((violation) => {
     return violation.impact === "critical" || violation.impact === "serious";
@@ -114,6 +117,18 @@ for (const route of routes) {
       await expect(
         cardWithThumbnail.locator("[data-post-thumbnail]"),
       ).toBeVisible();
+      await expect(
+        cardWithThumbnail.getByRole("link", {
+          name: `${THUMBNAIL_SEED_TITLE} 썸네일`,
+        }),
+      ).toHaveCount(0);
+      await expect(
+        cardWithThumbnail
+          .locator(
+            'a, button, input, textarea, select, summary, [tabindex]:not([tabindex="-1"])',
+          )
+          .first(),
+      ).toHaveAccessibleName(THUMBNAIL_SEED_TITLE);
 
       const cardWithoutThumbnail = getPostCardByTitle(
         page,
@@ -123,6 +138,13 @@ for (const route of routes) {
       await expect(
         cardWithoutThumbnail.locator("[data-post-thumbnail]"),
       ).toHaveCount(0);
+      await expect(
+        cardWithoutThumbnail
+          .locator(
+            'a, button, input, textarea, select, summary, [tabindex]:not([tabindex="-1"])',
+          )
+          .first(),
+      ).toHaveAccessibleName(NO_THUMBNAIL_SEED_TITLE);
 
       const cardWithFallback = getPostCardByTitle(
         page,
@@ -132,6 +154,18 @@ for (const route of routes) {
       await expect(
         cardWithFallback.locator("[data-post-thumbnail]"),
       ).toBeVisible();
+      await expect(
+        cardWithFallback.getByRole("link", {
+          name: `${FALLBACK_THUMBNAIL_SEED_TITLE} 썸네일`,
+        }),
+      ).toHaveCount(0);
+      await expect(
+        cardWithFallback
+          .locator(
+            'a, button, input, textarea, select, summary, [tabindex]:not([tabindex="-1"])',
+          )
+          .first(),
+      ).toHaveAccessibleName(FALLBACK_THUMBNAIL_SEED_TITLE);
 
       // Wait until all thumbnails on the page settle (loaded or fallback),
       // so screenshots don't capture hydration timing issues.

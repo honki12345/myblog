@@ -4,6 +4,7 @@ import {
   assertNoHorizontalPageScroll,
   authenticateAdminSession,
   runCleanupScript,
+  waitForDocumentTitle,
 } from "./helpers";
 
 const DISABLE_ANIMATION_STYLE = `
@@ -30,6 +31,8 @@ function getWorkspaceDiffThreshold(projectName: string): number {
 async function assertNoSeriousA11yViolations(
   targetPage: import("@playwright/test").Page,
 ) {
+  await waitForDocumentTitle(targetPage);
+
   const results = await new AxeBuilder({ page: targetPage }).analyze();
   const blocking = results.violations.filter((violation) => {
     return violation.impact === "critical" || violation.impact === "serious";

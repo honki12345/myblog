@@ -41,11 +41,7 @@ function errorResponse(
 function validateApiKey(request: Request): NextResponse | null {
   const token = getBearerToken(request);
   if (!verifyApiKey(token)) {
-    return errorResponse(
-      401,
-      "UNAUTHORIZED",
-      "Invalid or missing API key.",
-    );
+    return errorResponse(401, "UNAUTHORIZED", "Invalid or missing API key.");
   }
 
   return null;

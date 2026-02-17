@@ -50,11 +50,7 @@ function parseRequestJson(request: Request) {
 function validateApiKey(request: Request): NextResponse | null {
   const token = getBearerToken(request);
   if (!verifyApiKey(token)) {
-    return errorResponse(
-      401,
-      "UNAUTHORIZED",
-      "Invalid or missing API key.",
-    );
+    return errorResponse(401, "UNAUTHORIZED", "Invalid or missing API key.");
   }
 
   return null;
@@ -198,11 +194,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const token = getBearerToken(request);
   if (!verifyApiKey(token)) {
-    return errorResponse(
-      401,
-      "UNAUTHORIZED",
-      "Invalid or missing API key.",
-    );
+    return errorResponse(401, "UNAUTHORIZED", "Invalid or missing API key.");
   }
 
   const clientIp = getClientIp(request);

@@ -395,7 +395,7 @@ npm run test:step1
      1) 브라우저에서 `http://localhost:3000` 접속
      2) DevTools 열기 후 Device Toolbar 활성화 (`Ctrl+Shift+M` 또는 `Cmd+Shift+M`)
      3) 뷰포트 순서대로 전환: `360x800` → `768x1024` → `1440x900`
-     4) 각 뷰포트에서 경로 점검: `/`, `/posts`, `/write`, `/tags/sample`
+     4) 각 뷰포트에서 경로 점검: `/`, `/posts`, `/write`, `/tags`, `/tags/sample`
    - 체크리스트:
      - 가로 스크롤이 생기지 않는다.
      - 본문/카드/폼이 화면 밖으로 잘리지 않는다.

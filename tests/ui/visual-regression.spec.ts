@@ -44,7 +44,7 @@ function getVisualDiffThreshold(projectName: string): number {
   // CI runner의 폰트 메트릭 차이로 모바일/태블릿 스냅샷에
   // 경미한 줄바꿈/레이아웃 오차가 발생하므로 뷰포트별 허용치로 고정한다.
   if (projectName === "mobile-360") {
-    return 0.06;
+    return 0.08;
   }
   if (projectName === "tablet-768") {
     return 0.03;

@@ -1,6 +1,8 @@
 import { defineConfig } from "@playwright/test";
 
 const PLAYWRIGHT_DB_PATH = `${process.cwd()}/data/playwright-ui.db`;
+const PLAYWRIGHT_PORT = 3400;
+const PLAYWRIGHT_BASE_URL = `http://127.0.0.1:${PLAYWRIGHT_PORT}`;
 const PLAYWRIGHT_WEB_SERVER_COMMAND = `set -eu;
 set -a;
 [ -z "\${BLOG_API_KEY:-}" ] && [ -f ./.env.local ] && . ./.env.local;
@@ -16,7 +18,7 @@ ADMIN_LOGIN_RATE_LIMIT_MAX=\${ADMIN_LOGIN_RATE_LIMIT_MAX:-200}
 ADMIN_LOGIN_RATE_LIMIT_WINDOW_MS=\${ADMIN_LOGIN_RATE_LIMIT_WINDOW_MS:-60000}
 ADMIN_VERIFY_RATE_LIMIT_MAX=\${ADMIN_VERIFY_RATE_LIMIT_MAX:-200}
 ADMIN_VERIFY_RATE_LIMIT_WINDOW_MS=\${ADMIN_VERIFY_RATE_LIMIT_WINDOW_MS:-60000}
-DATABASE_PATH=${PLAYWRIGHT_DB_PATH} NEXT_PUBLIC_SITE_URL=http://127.0.0.1:3000 \\
+DATABASE_PATH=${PLAYWRIGHT_DB_PATH} NEXT_PUBLIC_SITE_URL=${PLAYWRIGHT_BASE_URL} \\
 ADMIN_USERNAME="$ADMIN_USERNAME" \\
 ADMIN_PASSWORD_HASH="$ADMIN_PASSWORD_HASH" \\
 ADMIN_SESSION_SECRET="$ADMIN_SESSION_SECRET" \\
@@ -48,7 +50,7 @@ if [ -d public ]; then
   rm -rf "$STANDALONE_DIR/public";
   cp -R public "$STANDALONE_DIR/public";
 fi;
-DATABASE_PATH=${PLAYWRIGHT_DB_PATH} NEXT_PUBLIC_SITE_URL=http://127.0.0.1:3000 PORT=3000 \\
+DATABASE_PATH=${PLAYWRIGHT_DB_PATH} NEXT_PUBLIC_SITE_URL=${PLAYWRIGHT_BASE_URL} PORT=${PLAYWRIGHT_PORT} \\
 ADMIN_USERNAME="$ADMIN_USERNAME" \\
 ADMIN_PASSWORD_HASH="$ADMIN_PASSWORD_HASH" \\
 ADMIN_SESSION_SECRET="$ADMIN_SESSION_SECRET" \\
@@ -79,7 +81,7 @@ export default defineConfig({
     ? [["list"], ["html", { open: "never" }]]
     : [["list"]],
   use: {
-    baseURL: "http://127.0.0.1:3000",
+    baseURL: PLAYWRIGHT_BASE_URL,
     colorScheme: "light",
     locale: "ko-KR",
     timezoneId: "Asia/Seoul",
@@ -89,7 +91,7 @@ export default defineConfig({
   },
   webServer: {
     command: PLAYWRIGHT_WEB_SERVER_COMMAND,
-    url: "http://127.0.0.1:3000",
+    url: `${PLAYWRIGHT_BASE_URL}/api/health`,
     timeout: 180_000,
     reuseExistingServer: false,
   },

@@ -66,3 +66,8 @@
 - [x] Playwright(API): 로그인 상태에서 CSRF 헤더 없이 `DELETE /api/admin/posts/<id>` 호출 시 `403 CSRF_FAILED`
 - [x] Playwright UI 기준: `toHaveScreenshot` + 뷰포트 `360/768/1440` 포함(필요 시 `@axe-core/playwright` 접근성 검사 병행)
 - [x] 최종: `npm run test:all` 통과 (`BLOG_API_KEY=your-api-key-here npm run test:all`)
+
+## PR 리뷰 반영 내역 (2026-02-17)
+- 코멘트: `coderabbitai[bot]` PR_REVIEW `3811777818` - 관리자 액션 UI에 접근성 검사(`@axe-core/playwright`) 추가 제안
+  - 변경: `tests/ui/post-admin-actions.spec.ts`에 admin 상세 페이지 `critical/serious` axe 위반 검사 추가
+  - 검증: `BLOG_API_KEY=change-this-local-api-key npm run test:ui -- tests/ui/post-admin-actions.spec.ts`, GitHub Actions `verify/ui-visual` 성공

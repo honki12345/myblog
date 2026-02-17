@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 type ThumbnailState = "loading" | "loaded" | "fallback";
 
@@ -32,6 +32,27 @@ export default function PostCardThumbnail({
       ? "loaded"
       : "loading";
   const renderedSrc = isFallback ? PLACEHOLDER_SRC : normalizedSrc;
+  const imgRef = useCallback(
+    (node: HTMLImageElement | null) => {
+      if (!node) {
+        return;
+      }
+
+      // If the image loaded (or errored) before hydration, onLoad/onError won't fire.
+      // `complete + naturalWidth` lets us derive a settled state without a useEffect.
+      if (renderedSrc === PLACEHOLDER_SRC || !node.complete) {
+        return;
+      }
+
+      if (node.naturalWidth > 0) {
+        setLoadedSrc((prev) => (prev === normalizedSrc ? prev : normalizedSrc));
+        return;
+      }
+
+      setErrorSrc((prev) => (prev === normalizedSrc ? prev : normalizedSrc));
+    },
+    [normalizedSrc, renderedSrc],
+  );
 
   return (
     <div
@@ -42,6 +63,7 @@ export default function PostCardThumbnail({
       {/* `next/image` requires configuring allowed remote hosts, but thumbnails may be arbitrary HTTPS URLs. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
+        ref={imgRef}
         src={renderedSrc}
         alt={alt}
         loading="lazy"

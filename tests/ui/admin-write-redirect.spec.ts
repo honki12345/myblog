@@ -19,4 +19,3 @@ test("write?id compatibility route preserves query on redirect", async ({
     page.getByRole("heading", { name: "관리자 로그인" }),
   ).toBeVisible();
 });
-

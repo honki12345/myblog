@@ -7,6 +7,18 @@ import {
   type SeededPost,
 } from "./helpers";
 
+function getAdminActionsDiffThreshold(projectName: string): number {
+  // CI 러너 폰트 메트릭 차이로 줄바꿈/안티앨리어싱 오차가 발생할 수 있어
+  // 뷰포트별 허용치를 둔다.
+  if (projectName === "mobile-360") {
+    return 0.03;
+  }
+  if (projectName === "tablet-768") {
+    return 0.04;
+  }
+  return 0.03;
+}
+
 const DISABLE_ANIMATION_STYLE = `
   *,
   *::before,
@@ -70,7 +82,7 @@ test("public post detail hides admin edit/delete actions", async ({
 test("admin can see edit/delete actions on public detail and delete post", async ({
   page,
   request,
-}) => {
+}, testInfo) => {
   const seed: SeededPost = {
     title: "PW-SEED-ADMIN-ACTIONS",
     content: "## 관리자 액션 테스트\n\n삭제 동작 확인",
@@ -95,6 +107,9 @@ test("admin can see edit/delete actions on public detail and delete post", async
   await expect(page.getByRole("button", { name: "삭제" })).toBeVisible();
   await expect(page.locator("main")).toHaveScreenshot(
     "post-detail-admin-actions.png",
+    {
+      maxDiffPixelRatio: getAdminActionsDiffThreshold(testInfo.project.name),
+    },
   );
 
   page.once("dialog", (dialog) => dialog.accept());

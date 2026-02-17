@@ -1,14 +1,18 @@
 import PostCard from "@/components/PostCard";
+import SearchBar from "@/components/SearchBar";
 import { getAdminSessionFromServerCookies } from "@/lib/admin-auth";
 import { getDb } from "@/lib/db";
 import { extractThumbnailUrlFromMarkdownCached } from "@/lib/post-thumbnail";
 
 type PostStatus = "draft" | "published";
 
+const MAX_SEARCH_QUERY_LENGTH = 100;
+
 type PageProps = {
   searchParams: Promise<{
     page?: string;
     per_page?: string;
+    q?: string;
   }>;
 };
 
@@ -61,11 +65,47 @@ function parsePositiveInteger(
   return parsed;
 }
 
-function buildPageHref(page: number, perPage: number): string {
+function normalizeSearchQuery(value: string | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const normalized = value.trim();
+  if (normalized.length === 0) {
+    return null;
+  }
+
+  return normalized.length > MAX_SEARCH_QUERY_LENGTH
+    ? normalized.slice(0, MAX_SEARCH_QUERY_LENGTH)
+    : normalized;
+}
+
+function isFtsQuerySyntaxError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const message = error.message.toLowerCase();
+  if (message.includes("fts5:")) {
+    return true;
+  }
+
+  // Fallback heuristics: we only want to suppress user-facing MATCH parsing errors.
+  return (
+    message.includes("unterminated") ||
+    message.includes("malformed match") ||
+    (message.includes("match") && message.includes("syntax"))
+  );
+}
+
+function buildPageHref(page: number, perPage: number, q: string | null): string {
   const search = new URLSearchParams();
   search.set("page", String(page));
   if (perPage !== 10) {
     search.set("per_page", String(perPage));
+  }
+  if (q) {
+    search.set("q", q);
   }
   return `/posts?${search.toString()}`;
 }
@@ -85,12 +125,27 @@ function buildStatusFilter(
   };
 }
 
-function loadTotalPosts(statuses: readonly PostStatus[]): number {
+function loadTotalPosts(statuses: readonly PostStatus[], q: string | null): number {
   const db = getDb();
-  const statusFilter = buildStatusFilter(statuses);
-  const row = db
-    .prepare(`SELECT COUNT(*) AS count FROM posts WHERE ${statusFilter.clause}`)
-    .get(...statusFilter.params) as { count: number } | undefined;
+  const statusFilter = buildStatusFilter(statuses, "p");
+
+  const row = q
+    ? (db
+        .prepare(
+          `
+          SELECT COUNT(*) AS count
+          FROM posts p
+          JOIN posts_fts ON posts_fts.rowid = p.id
+          WHERE ${statusFilter.clause}
+            AND posts_fts MATCH ?
+          `,
+        )
+        .get(...statusFilter.params, q) as { count: number } | undefined)
+    : (db
+        .prepare(
+          `SELECT COUNT(*) AS count FROM posts p WHERE ${statusFilter.clause}`,
+        )
+        .get(...statusFilter.params) as { count: number } | undefined);
   return row?.count ?? 0;
 }
 
@@ -98,32 +153,60 @@ function loadPosts(
   statuses: readonly PostStatus[],
   page: number,
   perPage: number,
+  q: string | null,
 ) {
   const db = getDb();
   const statusFilter = buildStatusFilter(statuses, "p");
   const offset = (page - 1) * perPage;
-  const rows = db
-    .prepare(
-      `
-      SELECT
-        p.id,
-        p.slug,
-        p.title,
-        p.content,
-        p.status,
-        p.published_at,
-        p.updated_at,
-        COALESCE(GROUP_CONCAT(t.name, char(31)), '') AS tags_csv
-      FROM posts p
-      LEFT JOIN post_tags pt ON pt.post_id = p.id
-      LEFT JOIN tags t ON t.id = pt.tag_id
-      WHERE ${statusFilter.clause}
-      GROUP BY p.id
-      ORDER BY datetime(COALESCE(p.published_at, p.created_at)) DESC, p.id DESC
-      LIMIT ? OFFSET ?
-      `,
-    )
-    .all(...statusFilter.params, perPage, offset) as PostListRow[];
+  const rows = q
+    ? (db
+        .prepare(
+          `
+          SELECT
+            p.id,
+            p.slug,
+            p.title,
+            p.content,
+            p.status,
+            p.published_at,
+            p.updated_at,
+            COALESCE(GROUP_CONCAT(t.name, char(31)), '') AS tags_csv
+          FROM posts p
+          JOIN posts_fts ON posts_fts.rowid = p.id
+          LEFT JOIN post_tags pt ON pt.post_id = p.id
+          LEFT JOIN tags t ON t.id = pt.tag_id
+          WHERE ${statusFilter.clause}
+            AND posts_fts MATCH ?
+          GROUP BY p.id
+          ORDER BY COALESCE(p.published_at, p.created_at) DESC,
+                   p.id DESC
+          LIMIT ? OFFSET ?
+          `,
+        )
+        .all(...statusFilter.params, q, perPage, offset) as PostListRow[])
+    : (db
+        .prepare(
+          `
+          SELECT
+            p.id,
+            p.slug,
+            p.title,
+            p.content,
+            p.status,
+            p.published_at,
+            p.updated_at,
+            COALESCE(GROUP_CONCAT(t.name, char(31)), '') AS tags_csv
+          FROM posts p
+          LEFT JOIN post_tags pt ON pt.post_id = p.id
+          LEFT JOIN tags t ON t.id = pt.tag_id
+          WHERE ${statusFilter.clause}
+          GROUP BY p.id
+          ORDER BY COALESCE(p.published_at, p.created_at) DESC,
+                   p.id DESC
+          LIMIT ? OFFSET ?
+          `,
+        )
+        .all(...statusFilter.params, perPage, offset) as PostListRow[]);
 
   return rows.map((row) => ({
     thumbnailUrl: extractThumbnailUrlFromMarkdownCached(
@@ -149,12 +232,42 @@ export default async function PostsPage({ searchParams }: PageProps) {
   const statuses: readonly PostStatus[] = session
     ? ["draft", "published"]
     : ["published"];
+  const q = normalizeSearchQuery(params.q);
   const requestedPage = parsePositiveInteger(params.page, 1);
   const perPage = Math.min(50, parsePositiveInteger(params.per_page, 10));
-  const totalCount = loadTotalPosts(statuses);
+  let totalCount = 0;
+  let searchErrorMessage: string | null = null;
+
+  try {
+    totalCount = loadTotalPosts(statuses, q);
+  } catch (error) {
+    if (q && isFtsQuerySyntaxError(error)) {
+      searchErrorMessage = "검색어가 올바르지 않습니다.";
+      totalCount = 0;
+    } else {
+      throw error;
+    }
+  }
+
   const totalPages = Math.max(1, Math.ceil(totalCount / perPage));
   const page = Math.min(requestedPage, totalPages);
-  const posts = loadPosts(statuses, page, perPage);
+  let posts = [] as ReturnType<typeof loadPosts>;
+
+  if (searchErrorMessage) {
+    posts = [];
+  } else {
+    try {
+      posts = loadPosts(statuses, page, perPage, q);
+    } catch (error) {
+      if (q && isFtsQuerySyntaxError(error)) {
+        searchErrorMessage = "검색어가 올바르지 않습니다.";
+        posts = [];
+        totalCount = 0;
+      } else {
+        throw error;
+      }
+    }
+  }
 
   const startIndex = totalCount === 0 ? 0 : (page - 1) * perPage + 1;
   const endIndex = Math.min(page * perPage, totalCount);
@@ -170,17 +283,30 @@ export default async function PostsPage({ searchParams }: PageProps) {
         <p className="text-sm text-slate-600">
           {totalCount > 0
             ? `${startIndex}-${endIndex} / 총 ${totalCount}개의 글`
-            : "공개된 글이 없습니다."}
+            : searchErrorMessage
+              ? searchErrorMessage
+              : q
+                ? "검색 결과가 없습니다."
+                : "공개된 글이 없습니다."}
         </p>
+        <SearchBar query={q} />
       </header>
 
       {posts.length === 0 ? (
         <section className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
           <h2 className="text-lg font-semibold text-slate-800">
-            아직 글이 없습니다
+            {q
+              ? searchErrorMessage
+                ? "검색어가 올바르지 않습니다"
+                : "검색 결과가 없습니다"
+              : "아직 글이 없습니다"}
           </h2>
           <p className="mt-2 text-sm text-slate-600">
-            공개 상태로 저장된 글이 생기면 목록에 표시됩니다.
+            {q
+              ? searchErrorMessage
+                ? "따옴표 등 특수 문자가 포함되어 있지 않은지 확인해 주세요."
+                : "다른 키워드로 다시 검색해 보세요."
+              : "공개 상태로 저장된 글이 생기면 목록에 표시됩니다."}
           </p>
         </section>
       ) : (
@@ -197,7 +323,7 @@ export default async function PostsPage({ searchParams }: PageProps) {
           aria-label="페이지네이션"
         >
           <a
-            href={buildPageHref(Math.max(1, page - 1), perPage)}
+            href={buildPageHref(Math.max(1, page - 1), perPage, q)}
             aria-disabled={page <= 1}
             className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 aria-disabled:pointer-events-none aria-disabled:opacity-40"
           >
@@ -206,7 +332,7 @@ export default async function PostsPage({ searchParams }: PageProps) {
           {pageNumbers.map((value) => (
             <a
               key={value}
-              href={buildPageHref(value, perPage)}
+              href={buildPageHref(value, perPage, q)}
               aria-current={value === page ? "page" : undefined}
               className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 aria-[current=page]:border-slate-900 aria-[current=page]:bg-slate-900 aria-[current=page]:text-white"
             >
@@ -214,7 +340,7 @@ export default async function PostsPage({ searchParams }: PageProps) {
             </a>
           ))}
           <a
-            href={buildPageHref(Math.min(totalPages, page + 1), perPage)}
+            href={buildPageHref(Math.min(totalPages, page + 1), perPage, q)}
             aria-disabled={page >= totalPages}
             className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 aria-disabled:pointer-events-none aria-disabled:opacity-40"
           >

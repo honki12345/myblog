@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import net from "node:net";
 import process from "node:process";
 
 const ROOT = process.cwd();
@@ -20,19 +21,86 @@ function isTruthyEnv(value) {
   return value !== "0";
 }
 
-function resolvePortBase() {
-  const defaultBase = process.env.CI ? 3000 : 3400;
-  const raw = process.env.PLAYWRIGHT_PORT_BASE?.trim();
-  if (!raw) {
-    return defaultBase;
+function parsePositiveIntegerEnv(envValue, fallback, { minimum = 1 } = {}) {
+  if (!envValue) {
+    return fallback;
   }
 
-  const parsed = Number.parseInt(raw, 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return defaultBase;
+  const parsed = Number.parseInt(envValue, 10);
+  if (!Number.isFinite(parsed) || parsed < minimum) {
+    return fallback;
   }
 
   return parsed;
+}
+
+function canBindPort(port) {
+  return new Promise((resolve) => {
+    const server = net.createServer();
+    server.unref();
+
+    server.once("error", () => resolve(false));
+    server.listen({ port, host: "127.0.0.1", exclusive: true }, () => {
+      server.close(() => resolve(true));
+    });
+  });
+}
+
+async function findAvailablePort(startPort, maxAttempts = 50) {
+  for (let port = startPort; port < startPort + maxAttempts; port += 1) {
+    if (await canBindPort(port)) {
+      return port;
+    }
+  }
+
+  throw new Error(`unable to find available port from ${startPort}`);
+}
+
+async function waitForPortToBeFree(port, retries = 25, delayMs = 200) {
+  for (let attempt = 0; attempt < retries; attempt += 1) {
+    if (await canBindPort(port)) {
+      return;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
+
+  throw new Error(`Timed out waiting for port ${port} to be released`);
+}
+
+function resolvePortBase() {
+  const defaultBase = process.env.CI ? 3000 : 3400;
+  return parsePositiveIntegerEnv(
+    process.env.PLAYWRIGHT_PORT_BASE?.trim(),
+    defaultBase,
+  );
+}
+
+async function resolvePlaywrightPort(portBase) {
+  const explicitPort = parsePositiveIntegerEnv(
+    process.env.PLAYWRIGHT_PORT?.trim(),
+    null,
+  );
+  if (explicitPort !== null) {
+    if (!(await canBindPort(explicitPort))) {
+      throw new Error(`PLAYWRIGHT_PORT=${explicitPort} is already in use`);
+    }
+
+    return explicitPort;
+  }
+
+  // In CI, keep the default port stable so it stays consistent with the build artifact.
+  if (process.env.CI && !process.env.PLAYWRIGHT_PORT_BASE) {
+    if (!(await canBindPort(portBase))) {
+      throw new Error(
+        `CI expects port ${portBase} to be free. Set PLAYWRIGHT_PORT_BASE to override or stop the process using the port.`,
+      );
+    }
+
+    return portBase;
+  }
+
+  return findAvailablePort(portBase);
 }
 
 function hasProjectArg(args) {
@@ -74,17 +142,22 @@ function runPlaywright(args, envOverrides = {}) {
 async function main() {
   const args = process.argv.slice(2);
   const portBase = resolvePortBase();
+  const port = await resolvePlaywrightPort(portBase);
   const skipBuild = isTruthyEnv(process.env.PLAYWRIGHT_SKIP_BUILD);
 
   if (hasProjectArg(args)) {
-    await runPlaywright(args, { PLAYWRIGHT_PORT: String(portBase) });
+    await runPlaywright(args, { PLAYWRIGHT_PORT: String(port) });
     return;
   }
 
   for (let index = 0; index < PROJECTS.length; index += 1) {
     const project = PROJECTS[index];
+    if (index > 0) {
+      await waitForPortToBeFree(port);
+    }
+
     const envOverrides = {
-      PLAYWRIGHT_PORT: String(portBase + index),
+      PLAYWRIGHT_PORT: String(port),
     };
 
     // When running all viewports locally, build once and reuse the outputs.

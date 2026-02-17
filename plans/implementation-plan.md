@@ -502,7 +502,7 @@ npm run test:step1
 
 - **Step 10. 전문 검색 UI (FTS5)** — `/posts?q=검색어` 파라미터, SearchBar 컴포넌트 추가
 - **Step 11. 커서 기반 페이지네이션** — 오프셋 기반에서 커서 기반으로 전환
-- **Step 12. 반응형 디자인 개선** — 모바일 최적화
+- **Step 12. 반응형 디자인 개선** — 상세 구현 계획: `plans/step12-plan.md` (분리일: 2026-02-17)
 - **Step 13. RSS/Atom 피드** — 카테고리별, 태그별 동적 피드 생성
 - **Step 14. Step 10~13 통합 검증** — 기능 assertion + 스크린샷 회귀 + 접근성 검사
 - **Step 15. Step 10 종료 회귀** — `npm run test:all`
@@ -566,7 +566,7 @@ npm run test:step1
 
 1. [ ] **Step 10**: 전문 검색 UI (FTS5, SearchBar 컴포넌트)
 2. [ ] **Step 11**: 커서 기반 페이지네이션
-3. [ ] **Step 12**: 반응형 디자인 개선
+3. [ ] **Step 12**: 반응형 디자인 개선 (`plans/step12-plan.md`)
 4. [ ] **Step 13**: RSS/Atom 피드
 5. [ ] **Step 14**: Step 10~13 통합 검증 (기능 assertion + `toHaveScreenshot` + a11y)
 6. [ ] **Step 15**: Step 10 종료 회귀 (`npm run test:all`)

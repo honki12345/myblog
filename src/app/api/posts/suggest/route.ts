@@ -177,4 +177,3 @@ export async function GET(request: Request) {
     return errorResponse(500, "INTERNAL_ERROR", "Failed to suggest posts.");
   }
 }
-

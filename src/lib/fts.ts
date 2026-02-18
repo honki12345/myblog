@@ -14,4 +14,3 @@ export function isFtsQuerySyntaxError(error: unknown): boolean {
     (message.includes("match") && message.includes("syntax"))
   );
 }
-

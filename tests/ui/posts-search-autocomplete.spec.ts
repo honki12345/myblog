@@ -92,7 +92,9 @@ test("public: typeahead shows suggestions and click navigates to post detail", a
 
   await suggestion.click();
   await expect(page).toHaveURL(new RegExp(`/posts/${created.slug}$`));
-  await expect(page.getByRole("heading", { name: published.title })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: published.title }),
+  ).toBeVisible();
 });
 
 test("public: last token prefix matches partial input and FTS syntax-like input stays silent", async ({
@@ -192,7 +194,9 @@ test("public: keyboard controls (down/enter/esc) work and blur closes dropdown",
 
   await combobox.press("ArrowDown");
   await combobox.press("Enter");
-  await expect(page.getByRole("heading", { name: expectedTitle })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: expectedTitle }),
+  ).toBeVisible();
 
   await page.goto("/posts", { waitUntil: "networkidle" });
   await combobox.click();
@@ -258,7 +262,9 @@ test("admin: draft+published are suggested and draft selection goes to editor", 
   await expect(draftLink).toBeVisible();
 
   await draftLink.click();
-  await expect(page).toHaveURL(new RegExp(`/admin/write\\?id=${draftPost.id}$`));
+  await expect(page).toHaveURL(
+    new RegExp(`/admin/write\\?id=${draftPost.id}$`),
+  );
   await expect(
     page.getByRole("heading", { name: `글 수정 #${draftPost.id}` }),
   ).toBeVisible();
@@ -269,7 +275,10 @@ test("admin: draft+published are suggested and draft selection goes to editor", 
 test.describe("JS OFF", () => {
   test.use({ javaScriptEnabled: false });
 
-  test("GET submit search still works without JS", async ({ page, request }) => {
+  test("GET submit search still works without JS", async ({
+    page,
+    request,
+  }) => {
     const keyword = "nojsneedle";
     const published = {
       title: "PW-SUGGEST-NOJS-PUBLISHED",
@@ -287,7 +296,9 @@ test.describe("JS OFF", () => {
     await page.keyboard.press("Enter");
 
     await expect(page).toHaveURL(new RegExp(`\\bq=${keyword}\\b`));
-    await expect(page.getByRole("link", { name: published.title })).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: published.title }),
+    ).toBeVisible();
   });
 });
 
@@ -334,7 +345,10 @@ test("a11y+snapshot: posts suggest dropdown open state", async ({
   const blockingViolations = results.violations.filter((violation) => {
     return violation.impact === "critical" || violation.impact === "serious";
   });
-  expect(blockingViolations, "/posts suggest open has serious/critical a11y violations").toEqual([]);
+  expect(
+    blockingViolations,
+    "/posts suggest open has serious/critical a11y violations",
+  ).toEqual([]);
 
   const maxDiffPixelRatio = getVisualDiffThreshold(testInfo.project.name);
   await expect(page).toHaveScreenshot("posts-suggest-open.png", {

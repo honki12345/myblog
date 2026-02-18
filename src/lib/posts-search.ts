@@ -2,4 +2,3 @@ export const MAX_SEARCH_QUERY_LENGTH = 100;
 
 export const POSTS_SUGGEST_LIMIT = 8;
 export const POSTS_SUGGEST_MIN_QUERY_LENGTH = 2;
-

@@ -1,13 +1,14 @@
 import PostCard from "@/components/PostCard";
 import { getAdminSessionFromServerCookies } from "@/lib/admin-auth";
+import PostsSearchTypeahead from "@/components/PostsSearchTypeahead";
+import { isFtsQuerySyntaxError } from "@/lib/fts";
 import {
   listPostsWithTotalCount,
   type PostListItem,
   type PostStatus,
   type PostTypeFilter,
 } from "@/lib/post-list";
-
-const MAX_SEARCH_QUERY_LENGTH = 100;
+import { MAX_SEARCH_QUERY_LENGTH } from "@/lib/posts-search";
 
 type PageProps = {
   searchParams: Promise<{
@@ -76,23 +77,6 @@ function normalizeOptionalDecodedString(
   } catch {
     return normalized;
   }
-}
-
-function isFtsQuerySyntaxError(error: unknown): boolean {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  const message = error.message.toLowerCase();
-  if (message.includes("fts5:")) {
-    return true;
-  }
-
-  return (
-    message.includes("unterminated") ||
-    message.includes("malformed match") ||
-    (message.includes("match") && message.includes("syntax"))
-  );
 }
 
 function buildPageHref(options: {
@@ -309,15 +293,16 @@ export default async function PostsPage({ searchParams }: PageProps) {
             <input type="hidden" name="per_page" value={String(perPage)} />
           ) : null}
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className="grid gap-1 text-sm font-medium text-slate-700">
-              <span>검색</span>
-              <input
+            <div className="grid gap-1 text-sm font-medium text-slate-700">
+              <label htmlFor="posts-search-input">검색</label>
+              <PostsSearchTypeahead
+                inputId="posts-search-input"
                 name="q"
                 defaultValue={q ?? ""}
                 placeholder="제목/본문 검색"
                 className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-900 focus:outline-none"
               />
-            </label>
+            </div>
             <label className="grid gap-1 text-sm font-medium text-slate-700">
               <span>태그</span>
               <input

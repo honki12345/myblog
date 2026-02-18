@@ -12,6 +12,7 @@ test("critical pages have no serious axe violations", async ({
     "/posts",
     `/posts/${seeded.detailSlug}`,
     "/tags",
+    "/tags?q=sa",
     "/tags/sample",
     "/admin/login",
   ];

@@ -46,6 +46,11 @@ export function buildStatusFilter(
   };
 }
 
+function escapeLikePattern(pattern: string): string {
+  // Escape LIKE wildcard characters so user input behaves predictably.
+  return pattern.replace(/[%_\\]/g, "\\$&");
+}
+
 function parseTagsCsv(tagsCsv: string): string[] {
   return tagsCsv.length > 0
     ? tagsCsv.split("\u001f").filter((tag) => tag.length > 0)
@@ -236,9 +241,20 @@ export function listPostsWithTotalCount(options: {
 
 export function listTagCounts(
   statuses: readonly PostStatus[],
+  query?: string | null,
 ): Array<{ name: string; count: number }> {
   const db = getDb();
   const statusFilter = buildStatusFilter(statuses, "p");
+  const normalizedQuery = typeof query === "string" ? query.trim() : "";
+  const whereClauses = [statusFilter.clause];
+  const params: unknown[] = [...statusFilter.params];
+
+  if (normalizedQuery.length > 0) {
+    const escapedQuery = escapeLikePattern(normalizedQuery);
+    whereClauses.push("t.name LIKE ? ESCAPE '\\'");
+    params.push(`%${escapedQuery}%`);
+  }
+
   const rows = db
     .prepare(
       `
@@ -248,12 +264,12 @@ export function listTagCounts(
       FROM tags t
       INNER JOIN post_tags pt ON pt.tag_id = t.id
       INNER JOIN posts p ON p.id = pt.post_id
-      WHERE ${statusFilter.clause}
+      WHERE ${whereClauses.join(" AND ")}
       GROUP BY t.id
       ORDER BY count DESC, name ASC
       `,
     )
-    .all(...statusFilter.params) as TagCountItem[];
+    .all(...params) as TagCountItem[];
 
   return rows.map((row) => ({ name: row.name, count: row.count }));
 }

@@ -98,8 +98,10 @@ test("admin workspace visual + functional + accessibility smoke", async ({
   await page.getByLabel("제목").fill("UI-ADMIN-TODO");
   await page.getByRole("button", { name: "TODO 추가" }).click();
   await expect(page.getByText("UI-ADMIN-TODO")).toBeVisible();
-  await page.getByRole("button", { name: "다음 상태" }).first().click();
-  await page.getByRole("button", { name: "다음 상태" }).first().click();
+  const nextStatusButton = page.getByRole("button", { name: "다음 상태" }).first();
+  await nextStatusButton.click();
+  await expect(page.getByText("status: doing", { exact: false })).toBeVisible();
+  await nextStatusButton.click();
   await expect(page.getByText("status: done", { exact: false })).toBeVisible();
   await assertNoHorizontalPageScroll(
     page,

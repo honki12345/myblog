@@ -288,6 +288,7 @@ export default function PostsSearchTypeahead({
           <li
             role="option"
             aria-disabled="true"
+            aria-selected={false}
             className="px-3 py-2 text-sm text-slate-600"
           >
             검색 중...
@@ -298,6 +299,7 @@ export default function PostsSearchTypeahead({
           <li
             role="option"
             aria-disabled="true"
+            aria-selected={false}
             className="px-3 py-2 text-sm text-rose-700"
           >
             {error}

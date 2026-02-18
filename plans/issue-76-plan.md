@@ -139,3 +139,14 @@
 - [ ] `utm_*`, `fbclid`, `gclid`, `msclkid`는 canonical 저장 시 제거되어 멱등성에 반영된다.
 - [ ] 기존 `source="x"`는 동일하게 동작한다.
 - [ ] `docs/codebase.md`에 정책/환경변수 및 사용법이 반영된다.
+
+## PR 리뷰 반영 내역 (2026-02-18)
+
+- CodeRabbit: DNS rebinding(TOCTOU) SSRF 우회 가능성 지적
+  - 반영: redirect hop fetch 시 `undici.Agent(connect.lookup)`를 사용해 lookup 결과 IP로 연결을 pin 하도록 변경
+  - 변경: `src/lib/inbox-url.ts`
+  - 테스트: `npm run test:step3`
+- CodeRabbit: redirect 이후 최종 canonical URL이 2048 제한을 우회할 수 있음 지적
+  - 반영: 최종 `canonicalUrl` 길이 재검증(>2048 차단) + 유닛 테스트 추가
+  - 변경: `src/lib/inbox-url.ts`, `scripts/test-step-3.mjs`
+  - 테스트: `npm run test:step3`

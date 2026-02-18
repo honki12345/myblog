@@ -1,5 +1,6 @@
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
+import { Agent } from "undici";
 
 export type FetchLike = (
   input: RequestInfo | URL,
@@ -30,6 +31,8 @@ function isRedirectStatus(status: number): boolean {
 function normalizeHost(hostname: string): string {
   return hostname.trim().toLowerCase();
 }
+
+type RequestInitInternal = RequestInit & { dispatcher?: unknown };
 
 function assertSafeUrl(url: URL, context: string): void {
   if (url.protocol !== "https:") {
@@ -62,7 +65,7 @@ function extractStatusId(url: URL): string | null {
 async function fetchWithTimeout(
   fetchFn: FetchLike,
   input: string,
-  init: RequestInit,
+  init: RequestInitInternal,
   timeoutMs: number,
 ): Promise<Response> {
   const controller = new AbortController();
@@ -73,7 +76,7 @@ async function fetchWithTimeout(
       ...init,
       redirect: "manual",
       signal: controller.signal,
-    });
+    } as RequestInit);
   } finally {
     clearTimeout(timeout);
   }
@@ -83,11 +86,12 @@ async function fetchRedirectResponse(
   fetchFn: FetchLike,
   url: URL,
   timeoutMs: number,
+  init: RequestInitInternal = {},
 ): Promise<Response> {
   const head = await fetchWithTimeout(
     fetchFn,
     url.toString(),
-    { method: "HEAD" },
+    { ...init, method: "HEAD" },
     timeoutMs,
   );
 
@@ -98,7 +102,7 @@ async function fetchRedirectResponse(
   return fetchWithTimeout(
     fetchFn,
     url.toString(),
-    { method: "GET" },
+    { ...init, method: "GET" },
     timeoutMs,
   );
 }
@@ -537,7 +541,7 @@ async function assertSafeDocHostname(
   hostname: string,
   context: string,
   resolveHostname: ResolveHostnameLike,
-): Promise<void> {
+): Promise<string[]> {
   const normalized = normalizeHost(hostname).replace(/\.$/, "");
 
   if (normalized === "localhost" || normalized.endsWith(".localhost")) {
@@ -562,13 +566,15 @@ async function assertSafeDocHostname(
   if (resolved.some((ip) => isBlockedResolvedIp(ip))) {
     throw new Error(`${context}: resolved hostname is not allowed`);
   }
+
+  return resolved;
 }
 
 async function assertSafeDocUrl(
   url: URL,
   context: string,
   resolveHostname: ResolveHostnameLike,
-): Promise<void> {
+): Promise<string[]> {
   if (url.protocol !== "https:") {
     throw new Error(`${context}: only https URLs are allowed`);
   }
@@ -581,7 +587,67 @@ async function assertSafeDocUrl(
     throw new Error(`${context}: URL must not include a non-default port`);
   }
 
-  await assertSafeDocHostname(url.hostname, context, resolveHostname);
+  return await assertSafeDocHostname(url.hostname, context, resolveHostname);
+}
+
+type PinnedAddress = {
+  address: string;
+  family: 4 | 6;
+};
+
+function pickPinnedAddress(
+  addresses: string[],
+  family: number | null | undefined,
+): PinnedAddress {
+  const ipv4 = addresses.filter((address) => isIP(address) === 4);
+  const ipv6 = addresses.filter((address) => isIP(address) === 6);
+
+  if (family === 4 && ipv4.length > 0) {
+    return { address: ipv4[0]!, family: 4 };
+  }
+
+  if (family === 6 && ipv6.length > 0) {
+    return { address: ipv6[0]!, family: 6 };
+  }
+
+  if (ipv4.length > 0) {
+    return { address: ipv4[0]!, family: 4 };
+  }
+
+  if (ipv6.length > 0) {
+    return { address: ipv6[0]!, family: 6 };
+  }
+
+  throw new Error("failed to pick a resolved IP address");
+}
+
+function createPinnedDispatcher(hostname: string, addresses: string[]): Agent {
+  const expectedHostname = normalizeHost(hostname).replace(/\.$/, "");
+
+  return new Agent({
+    connect: {
+      lookup: (lookupHostname, options, callback) => {
+        const normalizedLookup = normalizeHost(lookupHostname).replace(
+          /\.$/,
+          "",
+        );
+        if (normalizedLookup !== expectedHostname) {
+          callback(new Error("unexpected lookup hostname"));
+          return;
+        }
+
+        const family =
+          typeof options === "number"
+            ? options
+            : typeof options === "object" && options
+              ? (options.family as number | undefined)
+              : undefined;
+
+        const pinned = pickPinnedAddress(addresses, family);
+        callback(null, pinned.address, pinned.family);
+      },
+    },
+  });
 }
 
 async function resolveDocRedirects(
@@ -604,30 +670,44 @@ async function resolveDocRedirects(
     }
     visited.add(key);
 
-    await assertSafeDocUrl(current, "redirect hop", options.resolveHostname);
-
-    const response = await fetchRedirectResponse(
-      options.fetch,
+    const hopAddresses = await assertSafeDocUrl(
       current,
-      options.timeoutMs,
+      "redirect hop",
+      options.resolveHostname,
     );
+    const dispatcher = createPinnedDispatcher(current.hostname, hopAddresses);
 
-    if (!isRedirectStatus(response.status)) {
-      return current;
+    let response: Response | null = null;
+    try {
+      response = await fetchRedirectResponse(
+        options.fetch,
+        current,
+        options.timeoutMs,
+        { dispatcher },
+      );
+
+      if (!isRedirectStatus(response.status)) {
+        return current;
+      }
+
+      if (redirectCount === options.maxRedirects) {
+        throw new Error("too many redirects");
+      }
+
+      const location = response.headers.get("location");
+      if (!location) {
+        throw new Error("redirect missing location header");
+      }
+
+      const next = new URL(location, current);
+      await assertSafeDocUrl(next, "redirect target", options.resolveHostname);
+      current = next;
+    } finally {
+      response?.body?.cancel();
+      await dispatcher.close();
     }
 
-    if (redirectCount === options.maxRedirects) {
-      throw new Error("too many redirects");
-    }
-
-    const location = response.headers.get("location");
-    if (!location) {
-      throw new Error("redirect missing location header");
-    }
-
-    const next = new URL(location, current);
-    await assertSafeDocUrl(next, "redirect target", options.resolveHostname);
-    current = next;
+    continue;
   }
 
   return current;

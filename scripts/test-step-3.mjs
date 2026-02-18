@@ -506,6 +506,22 @@ async function runInboxUrlUnitTests() {
     "doc URL should follow redirects and canonicalize query/hash",
   );
 
+  let lastFetchInit;
+  const pinnedFetch = async (_input, init) => {
+    lastFetchInit = init;
+    return new Response(null, { status: 200 });
+  };
+  await normalizeDocUrl("https://example.com/pin-check", {
+    fetch: pinnedFetch,
+    resolveHostname: stubResolveHostname,
+  });
+  assert(
+    lastFetchInit &&
+      typeof lastFetchInit === "object" &&
+      "dispatcher" in lastFetchInit,
+    "doc URL fetch should include dispatcher to prevent DNS rebinding",
+  );
+
   const blockedResolver = async (hostname) => {
     switch (hostname) {
       case "blocked-loopback.example":

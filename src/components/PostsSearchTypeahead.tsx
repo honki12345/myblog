@@ -57,6 +57,7 @@ export default function PostsSearchTypeahead({
   const optionIdPrefix = `posts-suggest-option-${reactId}`;
 
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const requestIdRef = useRef(0);
 
   const [value, setValue] = useState(defaultValue);
   const [items, setItems] = useState<SuggestItem[]>([]);
@@ -108,6 +109,7 @@ export default function PostsSearchTypeahead({
 
     let cancelled = false;
     const controller = new AbortController();
+    const requestId = ++requestIdRef.current;
 
     setItems([]);
     setActiveIndex(-1);
@@ -116,7 +118,7 @@ export default function PostsSearchTypeahead({
     setIsOpen(false);
 
     const timeout = window.setTimeout(async () => {
-      if (cancelled) {
+      if (cancelled || requestId !== requestIdRef.current) {
         return;
       }
 
@@ -131,6 +133,10 @@ export default function PostsSearchTypeahead({
           },
         );
 
+        if (cancelled || requestId !== requestIdRef.current) {
+          return;
+        }
+
         if (!response.ok) {
           setItems([]);
           setActiveIndex(-1);
@@ -140,6 +146,10 @@ export default function PostsSearchTypeahead({
         }
 
         const payload = (await response.json()) as SuggestResponse;
+        if (cancelled || requestId !== requestIdRef.current) {
+          return;
+        }
+
         const nextItems = Array.isArray(payload.items) ? payload.items : [];
         setItems(nextItems);
         setActiveIndex(-1);
@@ -160,7 +170,9 @@ export default function PostsSearchTypeahead({
         setError("추천을 불러오지 못했습니다");
         setIsOpen(true);
       } finally {
-        setIsLoading(false);
+        if (!cancelled && requestId === requestIdRef.current) {
+          setIsLoading(false);
+        }
       }
     }, DEBOUNCE_MS);
 

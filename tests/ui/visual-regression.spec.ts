@@ -255,8 +255,18 @@ for (const route of routes) {
     }
 
     if (route.name === "tags") {
-      await expect(page.getByRole("heading", { name: "태그" })).toBeVisible();
-      await expect(page.getByRole("link", { name: /#sample/ })).toBeVisible();
+      await expect(
+        page.getByRole("heading", { name: "태그", exact: true }),
+      ).toBeVisible();
+      await expect(page.getByLabel("태그 검색")).toBeVisible();
+      await expect(page.locator("[data-tags-top]")).toBeVisible();
+      await expect(
+        page
+          .locator("[data-tags-top]")
+          .getByRole("link", { name: /#sample/ }),
+      ).toBeVisible();
+      await expect(page.locator("[data-tags-drawer] summary")).toBeVisible();
+      await expect(page.locator("[data-tags-drawer-preview]")).toBeVisible();
     }
 
     await assertNoHorizontalPageScroll(

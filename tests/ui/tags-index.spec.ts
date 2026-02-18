@@ -19,17 +19,66 @@ test.describe("tags index", () => {
       .click();
 
     await expect(page).toHaveURL(/\/tags$/);
-    await expect(page.getByRole("heading", { name: "태그" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "태그", exact: true }),
+    ).toBeVisible();
   });
 
-  test("clicking a tag routes to /tags/[tag]", async ({ page }) => {
+  test("clicking a top tag routes to /tags/[tag]", async ({ page }) => {
     await page.goto("/tags", { waitUntil: "networkidle" });
-    await page.getByRole("link", { name: /#sample/ }).click();
+    await page.locator("[data-tags-top]").getByRole("link", { name: /#sample/ }).click();
 
     await expect(page).toHaveURL(/\/tags\/sample$/);
     await expect(
       page.getByRole("heading", { name: "태그: sample" }),
     ).toBeVisible();
+  });
+
+  test("drawer shows preview chips by default and expands to full list", async ({
+    page,
+    request,
+  }) => {
+    for (let index = 1; index <= 12; index += 1) {
+      await insertPostDirect(request, {
+        title: `PW-SEED-태그 미리보기 확장 ${index}`,
+        content: `extra tag ${index}`,
+        tags: [`extra-${index}`],
+        status: "published",
+        sourceUrl: `https://playwright.seed/extra-tag-${index}`,
+      });
+    }
+
+    await page.goto("/tags", { waitUntil: "networkidle" });
+
+    const drawer = page.locator("[data-tags-drawer]");
+    const preview = page.locator("[data-tags-drawer-preview]");
+    const grid = page.locator("[data-tags-drawer-grid]");
+
+    await expect(preview).toBeVisible();
+    await expect(grid).not.toBeVisible();
+    await expect(preview.locator("a")).toHaveCount(10);
+    await expect(preview).toContainText("+6개");
+
+    await drawer.locator("summary").click();
+    await expect(grid).toBeVisible();
+    await expect(grid.locator("a")).toHaveCount(16);
+  });
+
+  test("search filters tags, opens the drawer, and hides top tags", async ({
+    page,
+  }) => {
+    await page.goto("/tags", { waitUntil: "networkidle" });
+    await page.getByLabel("태그 검색").fill("sa");
+    await page.getByRole("button", { name: "검색" }).click();
+    await page.waitForLoadState("networkidle");
+
+    await expect(page).toHaveURL(/\/tags\?q=sa$/);
+    await expect(page.locator("[data-tags-top]")).toHaveCount(0);
+
+    const grid = page.locator("[data-tags-drawer-grid]");
+    await expect(grid).toBeVisible();
+    await expect(grid.getByRole("link", { name: /#sample/ })).toBeVisible();
+    await expect(grid.getByRole("link")).toHaveCount(1);
   });
 
   test("only published posts are counted (draft-only tags are hidden)", async ({
@@ -45,10 +94,11 @@ test.describe("tags index", () => {
     });
 
     await page.goto("/tags", { waitUntil: "networkidle" });
-    await expect(page.getByRole("link", { name: /#draft-only/ })).toHaveCount(
-      0,
-    );
-    await expect(page.getByRole("link", { name: /#sample/ })).toContainText(
+    await page.locator("[data-tags-drawer] summary").click();
+
+    const grid = page.locator("[data-tags-drawer-grid]");
+    await expect(grid.getByRole("link", { name: /#draft-only/ })).toHaveCount(0);
+    await expect(grid.getByRole("link", { name: /#sample/ })).toContainText(
       "3개",
     );
   });
@@ -65,9 +115,14 @@ test.describe("tags index", () => {
     await authenticateAdminSession(page, { nextPath: "/tags" });
     await page.waitForLoadState("networkidle");
 
-    await expect(page.getByRole("heading", { name: "태그" })).toBeVisible();
-    await expect(page.getByRole("link", { name: /#draft-only/ })).toBeVisible();
-    await expect(page.getByRole("link", { name: /#draft-only/ })).toContainText(
+    await expect(
+      page.getByRole("heading", { name: "태그", exact: true }),
+    ).toBeVisible();
+    await page.locator("[data-tags-drawer] summary").click();
+
+    const grid = page.locator("[data-tags-drawer-grid]");
+    await expect(grid.getByRole("link", { name: /#draft-only/ })).toBeVisible();
+    await expect(grid.getByRole("link", { name: /#draft-only/ })).toContainText(
       "1개",
     );
   });

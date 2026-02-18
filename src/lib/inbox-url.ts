@@ -22,14 +22,20 @@ export type NormalizeDocUrlOptions = {
   resolveHostname?: ResolveHostnameLike;
 };
 
-const ALLOWED_HOSTS = new Set(["x.com", "twitter.com", "t.co"]);
-
 function isRedirectStatus(status: number): boolean {
   return status >= 300 && status < 400;
 }
 
 function normalizeHost(hostname: string): string {
   return hostname.trim().toLowerCase();
+}
+
+const X_SOURCE_HOSTS = new Set(["x.com", "twitter.com", "t.co"]);
+const ALLOWED_HOSTS = X_SOURCE_HOSTS;
+
+export function isXSourceHost(hostname: string): boolean {
+  const normalizedHost = normalizeHost(hostname).replace(/\.$/, "");
+  return X_SOURCE_HOSTS.has(normalizedHost);
 }
 
 type RequestInitInternal = RequestInit & { dispatcher?: unknown };

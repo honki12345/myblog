@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getBearerToken, verifyApiKey } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import {
+  isXSourceHost,
   normalizeDocUrl,
   normalizeXStatusUrl,
   type FetchLike,
@@ -80,21 +81,19 @@ function optionalTrimmedString(maxLength: number, fieldName: string) {
   );
 }
 
-const createInboxItemSchema = z
-  .object({
-    url: z.preprocess(
-      (value) => (typeof value === "string" ? value.trim() : value),
-      z
-        .string()
-        .max(2048, "url must be 2048 characters or fewer")
-        .refine((value) => value.trim().length > 0, {
-          message: "url is required",
-        }),
-    ),
-    client: z.literal("ios_shortcuts"),
-    note: optionalTrimmedString(1000, "note"),
-  })
-  .strict();
+const createInboxItemSchema = z.object({
+  url: z.preprocess(
+    (value) => (typeof value === "string" ? value.trim() : value),
+    z
+      .string()
+      .max(2048, "url must be 2048 characters or fewer")
+      .refine((value) => value.trim().length > 0, {
+        message: "url is required",
+      }),
+  ),
+  client: z.literal("ios_shortcuts"),
+  note: optionalTrimmedString(1000, "note"),
+});
 
 function parsePositiveIntegerEnv(
   envValue: string | undefined,
@@ -127,7 +126,6 @@ const DOC_URL_TEST_STUB_FETCH: FetchLike = async () =>
 const DOC_URL_TEST_STUB_RESOLVE_HOSTNAME: ResolveHostnameLike = async () => [
   "93.184.216.34",
 ];
-const X_SOURCE_HOSTS = new Set(["x.com", "twitter.com", "t.co"]);
 
 function inferInboxSource(rawUrl: string): {
   source: InboxSource;
@@ -139,7 +137,7 @@ function inferInboxSource(rawUrl: string): {
       .trim()
       .toLowerCase()
       .replace(/\.$/, "");
-    if (X_SOURCE_HOSTS.has(normalizedHost)) {
+    if (isXSourceHost(normalizedHost)) {
       return {
         source: "x",
         host: normalizedHost || null,
@@ -338,16 +336,14 @@ export async function POST(request: Request) {
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(
-      "[api/inbox] URL normalization failed",
-      JSON.stringify({
-        requestId,
-        deployRevision: getDeployRevision(),
-        source: inferredSource,
-        host: inferredSourceInfo.host,
-        reason: message,
-      }),
-    );
+    console.error("[api/inbox] URL normalization failed", {
+      error,
+      requestId,
+      deployRevision: getDeployRevision(),
+      source: inferredSource,
+      host: inferredSourceInfo.host,
+      reason: message,
+    });
 
     return errorResponse(
       400,
@@ -409,16 +405,14 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(
-      "[api/inbox] failed to enqueue normalized URL",
-      JSON.stringify({
-        requestId,
-        deployRevision: getDeployRevision(),
-        source: inferredSource,
-        host: inferredSourceInfo.host,
-        reason: message,
-      }),
-    );
+    console.error("[api/inbox] failed to enqueue normalized URL", {
+      error,
+      requestId,
+      deployRevision: getDeployRevision(),
+      source: inferredSource,
+      host: inferredSourceInfo.host,
+      reason: message,
+    });
 
     return errorResponse(
       500,

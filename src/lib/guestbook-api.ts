@@ -54,4 +54,3 @@ export function getRateLimitIdentifier(request: NextRequest): string {
   }
   return request.headers.get("x-real-ip")?.trim() ?? "unknown";
 }
-

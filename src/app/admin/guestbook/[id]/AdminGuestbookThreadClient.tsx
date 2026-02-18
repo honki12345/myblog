@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { adminFetch } from "@/lib/admin-client";
@@ -33,7 +39,8 @@ export default function AdminGuestbookThreadClient({
   const [replyDraft, setReplyDraft] = useState("");
 
   const nextLoginPath = useMemo(
-    () => `/admin/login?next=${encodeURIComponent(`/admin/guestbook/${threadId}`)}`,
+    () =>
+      `/admin/login?next=${encodeURIComponent(`/admin/guestbook/${threadId}`)}`,
     [threadId],
   );
 
@@ -42,10 +49,13 @@ export default function AdminGuestbookThreadClient({
     setErrorMessage("");
 
     try {
-      const response = await adminFetch(`/api/admin/guestbook/threads/${threadId}`, {
-        method: "GET",
-        cache: "no-store",
-      });
+      const response = await adminFetch(
+        `/api/admin/guestbook/threads/${threadId}`,
+        {
+          method: "GET",
+          cache: "no-store",
+        },
+      );
 
       if (response.status === 401) {
         router.replace(nextLoginPath);
@@ -134,7 +144,8 @@ export default function AdminGuestbookThreadClient({
           <h1 className="text-2xl font-semibold tracking-tight">스레드 상세</h1>
           {detail ? (
             <p className="text-sm text-slate-600">
-              아이디: <span className="font-mono">{detail.thread.guestUsername}</span>
+              아이디:{" "}
+              <span className="font-mono">{detail.thread.guestUsername}</span>
             </p>
           ) : null}
         </div>
@@ -179,7 +190,9 @@ export default function AdminGuestbookThreadClient({
                 return (
                   <li
                     key={message.id}
-                    className={isAdmin ? "flex justify-end" : "flex justify-start"}
+                    className={
+                      isAdmin ? "flex justify-end" : "flex justify-start"
+                    }
                   >
                     <div
                       className={
@@ -191,7 +204,7 @@ export default function AdminGuestbookThreadClient({
                       <div className="mb-1 text-xs font-semibold opacity-80">
                         {isAdmin ? "관리자" : "게스트"}
                       </div>
-                      <p className="whitespace-pre-wrap break-words">
+                      <p className="break-words whitespace-pre-wrap">
                         {message.content}
                       </p>
                     </div>
@@ -229,4 +242,3 @@ export default function AdminGuestbookThreadClient({
     </main>
   );
 }
-

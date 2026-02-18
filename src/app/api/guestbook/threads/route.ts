@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { hash as hashArgon2 } from "@node-rs/argon2";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { guestbookErrorResponse, getRateLimitIdentifier } from "@/lib/guestbook-api";
+import {
+  guestbookErrorResponse,
+  getRateLimitIdentifier,
+} from "@/lib/guestbook-api";
 import {
   createGuestbookSession,
   setGuestbookSessionCookie,
@@ -32,10 +35,10 @@ const createThreadSchema = z.object({
 function isSqliteConstraintError(error: unknown): boolean {
   return Boolean(
     error &&
-      typeof error === "object" &&
-      "code" in error &&
-      typeof (error as { code?: unknown }).code === "string" &&
-      (error as { code: string }).code.startsWith("SQLITE_CONSTRAINT"),
+    typeof error === "object" &&
+    "code" in error &&
+    typeof (error as { code?: unknown }).code === "string" &&
+    (error as { code: string }).code.startsWith("SQLITE_CONSTRAINT"),
   );
 }
 
@@ -153,7 +156,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { sessionId, maxAgeSeconds } = createGuestbookSession(request, threadId);
+  const { sessionId, maxAgeSeconds } = createGuestbookSession(
+    request,
+    threadId,
+  );
 
   const thread = db
     .prepare(

@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { guestbookErrorResponse, requireGuestbookSession } from "@/lib/guestbook-api";
+import {
+  guestbookErrorResponse,
+  requireGuestbookSession,
+} from "@/lib/guestbook-api";
 import {
   clearGuestbookSessionCookie,
   deleteGuestbookSessionById,
@@ -75,4 +78,3 @@ export async function GET(request: NextRequest) {
     })),
   });
 }
-

@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { verify as verifyArgon2 } from "@node-rs/argon2";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { guestbookErrorResponse, getRateLimitIdentifier } from "@/lib/guestbook-api";
+import {
+  guestbookErrorResponse,
+  getRateLimitIdentifier,
+} from "@/lib/guestbook-api";
 import {
   createGuestbookSession,
   setGuestbookSessionCookie,
@@ -99,7 +102,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { sessionId, maxAgeSeconds } = createGuestbookSession(request, thread.id);
+  const { sessionId, maxAgeSeconds } = createGuestbookSession(
+    request,
+    thread.id,
+  );
   const response = NextResponse.json(
     { ok: true, threadId: thread.id, username: thread.guest_username },
     { status: 200 },
@@ -107,4 +113,3 @@ export async function POST(request: NextRequest) {
   setGuestbookSessionCookie(response, sessionId, maxAgeSeconds);
   return response;
 }
-

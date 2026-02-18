@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+} from "react";
 
 type GuestbookMessage = {
   id: number;
@@ -44,7 +50,9 @@ export default function GuestbookClient() {
   const [createForm, setCreateForm] = useState<CreateThreadForm>(
     createInitialCreateForm(),
   );
-  const [loginForm, setLoginForm] = useState<LoginForm>(createInitialLoginForm());
+  const [loginForm, setLoginForm] = useState<LoginForm>(
+    createInitialLoginForm(),
+  );
   const [messageDraft, setMessageDraft] = useState("");
 
   const [isSubmittingCreate, setIsSubmittingCreate] = useState(false);
@@ -199,7 +207,9 @@ export default function GuestbookClient() {
       await loadThread();
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "로그인 중 오류가 발생했습니다.",
+        error instanceof Error
+          ? error.message
+          : "로그인 중 오류가 발생했습니다.",
       );
     } finally {
       setIsSubmittingLogin(false);
@@ -267,7 +277,9 @@ export default function GuestbookClient() {
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 sm:px-6 lg:px-8">
       <header className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight">프라이빗 방명록</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          프라이빗 방명록
+        </h1>
         <p className="text-sm text-slate-600">
           게스트와 관리자만 볼 수 있는 1:1 대화 스레드입니다. 검색/크롤링 노출을
           최소화하지만, 절대적인 보안 채널은 아니므로 민감한 정보는 남기지
@@ -322,7 +334,8 @@ export default function GuestbookClient() {
                 />
                 {normalizedUsernameHint ? (
                   <span className="text-xs font-normal text-slate-500">
-                    저장 시: <span className="font-mono">{normalizedUsernameHint}</span>
+                    저장 시:{" "}
+                    <span className="font-mono">{normalizedUsernameHint}</span>
                   </span>
                 ) : null}
               </label>
@@ -468,7 +481,9 @@ export default function GuestbookClient() {
                 return (
                   <li
                     key={message.id}
-                    className={isGuest ? "flex justify-end" : "flex justify-start"}
+                    className={
+                      isGuest ? "flex justify-end" : "flex justify-start"
+                    }
                   >
                     <div
                       className={
@@ -480,7 +495,7 @@ export default function GuestbookClient() {
                       <div className="mb-1 text-xs font-semibold opacity-80">
                         {isGuest ? "나" : "관리자"}
                       </div>
-                      <p className="whitespace-pre-wrap break-words">
+                      <p className="break-words whitespace-pre-wrap">
                         {message.content}
                       </p>
                     </div>
@@ -518,4 +533,3 @@ export default function GuestbookClient() {
     </main>
   );
 }
-

@@ -110,7 +110,10 @@ export function clearGuestbookSessionCookie(response: NextResponse): void {
   });
 }
 
-export function createGuestbookSession(request: Request, threadId: number): {
+export function createGuestbookSession(
+  request: Request,
+  threadId: number,
+): {
   sessionId: string;
   maxAgeSeconds: number;
 } {
@@ -188,4 +191,3 @@ export function getGuestbookSessionIdFromRequest(
 ): string | null {
   return readRequestCookie(request, GUESTBOOK_SESSION_COOKIE_NAME);
 }
-

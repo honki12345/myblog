@@ -5,14 +5,14 @@
   "engines": {
     "node": ">=20.9.0"
   },
-    "scripts": {
-      "dev": "next dev",
+  "scripts": {
+    "dev": "next dev",
     "build": "next build --webpack",
-      "start": "next start",
-      "db:migrate": "npx tsx scripts/migrate.ts",
-      "test:step1": "node scripts/test-step-1.mjs",
-      "test:step2": "node scripts/test-step-2.mjs",
-      "test:step3": "node --import tsx scripts/test-step-3.mjs",
+    "start": "next start",
+    "db:migrate": "npx tsx scripts/migrate.ts",
+    "test:step1": "node scripts/test-step-1.mjs",
+    "test:step2": "node scripts/test-step-2.mjs",
+    "test:step3": "node --import tsx scripts/test-step-3.mjs",
     "test:step4": "node --import tsx scripts/test-step-4.mjs",
     "test:step5": "node scripts/test-step-5.mjs",
     "test:step6": "node scripts/test-step-6.mjs",

@@ -27,4 +27,3 @@ export default async function AdminGuestbookThreadPage({
 
   return <AdminGuestbookThreadClient threadId={id} />;
 }
-

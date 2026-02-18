@@ -25,14 +25,16 @@ function buildTestIp(seed: string): string {
 test.beforeEach(async ({ page }, testInfo) => {
   runCleanupScript();
   await page.context().setExtraHTTPHeaders({
-    "x-forwarded-for": buildTestIp(`${testInfo.project.name}:${testInfo.title}`),
+    "x-forwarded-for": buildTestIp(
+      `${testInfo.project.name}:${testInfo.title}`,
+    ),
   });
 });
 
-test("guest thread stays private and admin can reply", async (
-  { page, browser },
-  testInfo,
-) => {
+test("guest thread stays private and admin can reply", async ({
+  page,
+  browser,
+}, testInfo) => {
   const baseURL = testInfo.project.use.baseURL as string;
 
   await page.goto("/guestbook", { waitUntil: "networkidle" });
@@ -41,7 +43,9 @@ test("guest thread stays private and admin can reply", async (
   await createForm.getByLabel("아이디").fill("playwright_guest");
   await createForm.getByLabel("비밀번호").fill("guest-password-1234");
   await createForm.getByLabel("메시지").fill("안녕하세요. 첫 메시지입니다.");
-  await createForm.getByRole("button", { name: "스레드 만들고 보내기" }).click();
+  await createForm
+    .getByRole("button", { name: "스레드 만들고 보내기" })
+    .click();
 
   const messageList = page.getByTestId("guestbook-message-list");
   await expect(messageList).toContainText("안녕하세요. 첫 메시지입니다.");
@@ -52,7 +56,9 @@ test("guest thread stays private and admin can reply", async (
   await expect(messageList).toContainText("추가 메시지입니다.");
 
   const cookies = await page.context().cookies();
-  const sessionCookie = cookies.find((cookie) => cookie.name === "guestbook_session");
+  const sessionCookie = cookies.find(
+    (cookie) => cookie.name === "guestbook_session",
+  );
   expect(sessionCookie, "guestbook_session cookie should exist").toBeTruthy();
   expect(sessionCookie?.httpOnly).toBe(true);
   expect(sessionCookie?.sameSite).toBe("Lax");
@@ -75,13 +81,17 @@ test("guest thread stays private and admin can reply", async (
       ),
     },
   });
-  const otherThreadResponse = await otherContext.request.get("/api/guestbook/thread");
+  const otherThreadResponse = await otherContext.request.get(
+    "/api/guestbook/thread",
+  );
   expect(otherThreadResponse.status()).toBe(401);
 
   const otherPage = await otherContext.newPage();
   await otherPage.goto("/guestbook", { waitUntil: "networkidle" });
   await expect(otherPage.getByTestId("guestbook-create-form")).toBeVisible();
-  await expect(otherPage.getByText("안녕하세요. 첫 메시지입니다.")).toHaveCount(0);
+  await expect(otherPage.getByText("안녕하세요. 첫 메시지입니다.")).toHaveCount(
+    0,
+  );
 
   await otherPage.goto("/admin/guestbook", { waitUntil: "networkidle" });
   const redirected = new URL(otherPage.url());
@@ -109,7 +119,9 @@ test("guest thread stays private and admin can reply", async (
   expect(threadId).toBeTruthy();
 
   const adminCookies = await adminContext.cookies();
-  const adminSessionCookie = adminCookies.find((cookie) => cookie.name === "admin_session");
+  const adminSessionCookie = adminCookies.find(
+    (cookie) => cookie.name === "admin_session",
+  );
   expect(adminSessionCookie, "admin_session cookie should exist").toBeTruthy();
 
   const csrfMissing = await adminContext.request.post(

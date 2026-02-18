@@ -225,6 +225,7 @@ export default function AdminGuestbookThreadClient({
                 value={replyDraft}
                 onChange={(event) => setReplyDraft(event.target.value)}
                 className="min-h-20 resize-y rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                maxLength={5000}
                 disabled={isSubmitting}
               />
             </label>

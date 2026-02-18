@@ -5,7 +5,7 @@
 - Issue 번호: 77
 - 기준 브랜치: main
 - 작업 브랜치: feat/issue-77-home-link-dedup-scroll-top
-- Worktree 경로: /home/fpg123/Workspace/honki12345/.worktrees/feat-issue-77-home-link-dedup-scroll-top
+- Worktree 경로: .../.worktrees/feat-issue-77-home-link-dedup-scroll-top
 - 작성일: 2026-02-18
 
 ## 배경/문제

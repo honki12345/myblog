@@ -236,9 +236,19 @@ export function listPostsWithTotalCount(options: {
 
 export function listTagCounts(
   statuses: readonly PostStatus[],
+  query?: string | null,
 ): Array<{ name: string; count: number }> {
   const db = getDb();
   const statusFilter = buildStatusFilter(statuses, "p");
+  const normalizedQuery = typeof query === "string" ? query.trim() : "";
+  const whereClauses = [statusFilter.clause];
+  const params: unknown[] = [...statusFilter.params];
+
+  if (normalizedQuery.length > 0) {
+    whereClauses.push("t.name LIKE ?");
+    params.push(`%${normalizedQuery}%`);
+  }
+
   const rows = db
     .prepare(
       `
@@ -248,12 +258,12 @@ export function listTagCounts(
       FROM tags t
       INNER JOIN post_tags pt ON pt.tag_id = t.id
       INNER JOIN posts p ON p.id = pt.post_id
-      WHERE ${statusFilter.clause}
+      WHERE ${whereClauses.join(" AND ")}
       GROUP BY t.id
       ORDER BY count DESC, name ASC
       `,
     )
-    .all(...statusFilter.params) as TagCountItem[];
+    .all(...params) as TagCountItem[];
 
   return rows.map((row) => ({ name: row.name, count: row.count }));
 }

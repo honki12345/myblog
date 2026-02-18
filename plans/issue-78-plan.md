@@ -145,3 +145,11 @@
   - [ ] JS OFF: `/posts` GET submit 동작 유지(최소 1 케이스)
 - [ ] axe: `/posts`에서 combobox/listbox 접근성 검사 통과(추천 dropdown 열린 상태 포함)
 - [ ] 스냅샷: `/posts` 추천 dropdown 열린 상태 스냅샷(최소 뷰포트 `360/768/1440`)
+
+## PR 리뷰 반영 내역 (2026-02-18)
+- 코멘트: 2820898578 (PostsSearchTypeahead: stale async 응답이 최신 state를 덮어쓸 수 있음)
+- 변경:
+  - `src/components/PostsSearchTypeahead.tsx`
+  - `requestIdRef`(monotonic) 추가
+  - debounce+fetch effect의 setState를 requestId/current guard로 보호하고, stale 요청의 `finally`에서 로딩 state를 끄지 않도록 처리
+- 검증: `npm run test:all` (PASS)

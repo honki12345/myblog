@@ -632,7 +632,7 @@ function createPinnedDispatcher(hostname: string, addresses: string[]): Agent {
           "",
         );
         if (normalizedLookup !== expectedHostname) {
-          callback(new Error("unexpected lookup hostname"));
+          callback(new Error("unexpected lookup hostname"), "0.0.0.0", 4);
           return;
         }
 

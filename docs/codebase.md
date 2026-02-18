@@ -89,6 +89,7 @@ Sources: `src/lib/db.ts`, `src/app/api/posts/route.ts`, `src/app/api/posts/bulk/
 | `POST`  | `/api/posts`               | 필수                                     | 단건 글 생성, slug 자동 생성, 태그/출처(ai metadata 포함) 저장, 구조화 로그 출력, 경로 revalidate | `UNAUTHORIZED`, `INVALID_INPUT`, `DUPLICATE_SOURCE`, `RATE_LIMITED`, `INTERNAL_ERROR`   |
 | `POST`  | `/api/posts/bulk`          | 필수                                     | 벌크 글 생성(최대 10건), 단일 트랜잭션(all-or-nothing), 구조화 로그 출력, 경로 revalidate         | `UNAUTHORIZED`, `INVALID_INPUT`, `DUPLICATE_SOURCE`, `RATE_LIMITED`, `INTERNAL_ERROR`   |
 | `GET`   | `/api/posts/check?url=...` | 필수                                     | `source_url` 중복 여부 확인                                                                       | `UNAUTHORIZED`, `INVALID_INPUT`, `INTERNAL_ERROR`                                       |
+| `GET`   | `/api/posts/suggest?q=...` | 없음                                     | `/posts` 검색 자동완성(typeahead) 추천 목록. `admin_session` 유효 시 `draft+published`, 아니면 `published`만 반환(최대 8개). FTS 문법 오류 입력은 200 빈 목록으로 폴백 | `INTERNAL_ERROR`                                                                        |
 | `GET`   | `/api/posts/:id`           | 필수                                     | 글 단건 + 태그 배열 반환                                                                          | `UNAUTHORIZED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`                          |
 | `PATCH` | `/api/posts/:id`           | 필수                                     | 제목/본문/상태/태그 부분 수정, `published_at` 전이 처리, 경로 revalidate                          | `UNAUTHORIZED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`                          |
 | `POST`  | `/api/uploads`             | 필수                                     | 이미지 업로드(최대 5MB, png/jpeg/webp/gif) 후 URL 반환                                            | `UNAUTHORIZED`, `INVALID_INPUT`, `FILE_TOO_LARGE`, `UNSUPPORTED_TYPE`, `INTERNAL_ERROR` |
@@ -149,6 +150,10 @@ curl -i -sS -X POST "https://<host>/api/inbox" \
   - `q`가 있을 때: 관련도 우선(`bm25(posts_fts) ASC`) + 최신순 tie-break.
   - `q`가 없을 때: 최신순.
   - `type`은 `posts.origin(original|ai)` 기준이며, 생성 시 결정되고 변경되지 않는다.
+  - 검색 입력은 progressive enhancement로 동작한다.
+    - JS ON: 자동완성 dropdown(combobox/listbox)으로 `GET /api/posts/suggest?q=...`를 호출해 추천을 표시한다(2글자 이상, debounce=200ms, 키보드 Up/Down/Enter/Esc 지원).
+    - 추천 선택 시: `published` → `/posts/[slug]`, `draft`(admin) → `/admin/write?id=...`.
+    - JS OFF: 기존 `GET` form submit 기반 검색이 그대로 동작한다.
 - 상세 페이지(`/posts/[slug]`)는 `published`만 노출한다.
 - `/write` 페이지는 클라이언트에서 `/api/health`를 호출해 API Key를 검증한다.
 - 생성/수정 API는 `revalidatePath`로 홈/목록/상세/태그 캐시 갱신을 트리거한다.

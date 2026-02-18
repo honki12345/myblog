@@ -276,7 +276,7 @@ async function testDevServer() {
   const port = await findAvailablePort(portBase);
   const dev = spawn(
     process.execPath,
-    [NEXT_BIN, "dev", "--port", String(port)],
+    [NEXT_BIN, "dev", "--webpack", "--port", String(port)],
     {
       env: { ...process.env },
       detached: true,

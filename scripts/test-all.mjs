@@ -191,7 +191,6 @@ async function main() {
   await runSingle("test:ui", {
     env: {
       PLAYWRIGHT_PORT: String(playwrightPort),
-      PLAYWRIGHT_SKIP_BUILD: "1",
     },
   });
 

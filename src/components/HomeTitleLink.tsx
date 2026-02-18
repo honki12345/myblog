@@ -26,12 +26,25 @@ function scrollToTop(): void {
   });
 }
 
+function buildHomeAriaLabel(children: React.ReactNode): string {
+  if (typeof children === "string") {
+    const trimmed = children.trim();
+    if (trimmed.length > 0) {
+      return `홈 (${trimmed})`;
+    }
+  }
+
+  return "홈";
+}
+
 type HomeTitleLinkProps = {
+  ariaLabel?: string;
   className?: string;
   children: React.ReactNode;
 };
 
 export default function HomeTitleLink({
+  ariaLabel,
   className,
   children,
 }: HomeTitleLinkProps) {
@@ -64,7 +77,7 @@ export default function HomeTitleLink({
     <Link
       href="/"
       className={mergedClassName}
-      aria-label="홈 (honki12345 블로그)"
+      aria-label={ariaLabel ?? buildHomeAriaLabel(children)}
       aria-current={isHome ? "page" : undefined}
       onClick={handleClick}
     >

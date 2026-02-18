@@ -502,7 +502,7 @@ function testOriginMigrationBackfill() {
       .prepare("SELECT MAX(version) AS version FROM schema_versions")
       .get();
     assert(
-      schemaVersionRow?.version === 5,
+      schemaVersionRow?.version === 6,
       `unexpected schema version: ${schemaVersionRow?.version}`,
     );
   } finally {

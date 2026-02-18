@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "db:migrate": "npx tsx scripts/migrate.ts",
     "test:step1": "node scripts/test-step-1.mjs",

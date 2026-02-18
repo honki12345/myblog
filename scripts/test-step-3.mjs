@@ -522,6 +522,36 @@ async function runInboxUrlUnitTests() {
     "doc URL fetch should include dispatcher to prevent DNS rebinding",
   );
 
+  const oversizeLocation = `https://example.com/` + "a".repeat(2100);
+  const oversizeRedirectMap = new Map([
+    [
+      "https://short.example/oversize",
+      new Response(null, {
+        status: 302,
+        headers: {
+          location: oversizeLocation,
+        },
+      }),
+    ],
+    [oversizeLocation, new Response(null, { status: 200 })],
+  ]);
+  const oversizeRedirectFetch = async (input) => {
+    const url = typeof input === "string" ? input : input.toString();
+    const response = oversizeRedirectMap.get(url);
+    if (!response) {
+      throw new Error(`unexpected fetch: ${url}`);
+    }
+    return response;
+  };
+  await assertRejects(
+    () =>
+      normalizeDocUrl("https://short.example/oversize", {
+        fetch: oversizeRedirectFetch,
+        resolveHostname: stubResolveHostname,
+      }),
+    "doc URL should reject canonical URL longer than 2048 after redirects",
+  );
+
   const blockedResolver = async (hostname) => {
     switch (hostname) {
       case "blocked-loopback.example":

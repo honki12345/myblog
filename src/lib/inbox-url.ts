@@ -763,5 +763,10 @@ export async function normalizeDocUrl(
 
   await assertSafeDocUrl(url, "resolved url", resolveHostname);
 
-  return { canonicalUrl: url.toString() };
+  const canonicalUrl = url.toString();
+  if (canonicalUrl.length > 2048) {
+    throw new Error("url must be 2048 characters or fewer");
+  }
+
+  return { canonicalUrl };
 }

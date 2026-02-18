@@ -30,7 +30,10 @@ async function clickAtCenter(page: Page, locator: Locator): Promise<void> {
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
 }
 
-async function clickWhitespaceAboveTags(page: Page, card: Locator): Promise<void> {
+async function clickWhitespaceAboveTags(
+  page: Page,
+  card: Locator,
+): Promise<void> {
   await expect(card).toBeVisible();
   await card.scrollIntoViewIfNeeded();
   const cardBox = await card.boundingBox();
@@ -95,7 +98,10 @@ test("public: post cards are clickable across thumbnail/summary/whitespace", asy
   ).toBeVisible();
 
   await gotoArchive(page);
-  const cardWithoutThumbnail = getPostCardByTitle(page, NO_THUMBNAIL_SEED_TITLE);
+  const cardWithoutThumbnail = getPostCardByTitle(
+    page,
+    NO_THUMBNAIL_SEED_TITLE,
+  );
   const expectedNoThumbnailHref =
     (await cardWithoutThumbnail
       .getByRole("link", { name: NO_THUMBNAIL_SEED_TITLE })
@@ -136,7 +142,9 @@ test("public: tag chips take precedence over card navigation", async ({
 
   await tagLink.click();
   await expect(page).toHaveURL(/\/tags\/sample$/);
-  await expect(page.getByRole("heading", { name: "태그: sample" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "태그: sample" }),
+  ).toBeVisible();
 });
 
 test("public: post cards expose focus-visible feedback on keyboard navigation", async ({

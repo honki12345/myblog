@@ -34,10 +34,7 @@ export default function PostCard({ post }: PostCardProps) {
 
   if (!hasThumbnail) {
     return (
-      <article
-        className={containerClassName}
-        data-post-card
-      >
+      <article className={containerClassName} data-post-card>
         <h2 className="text-lg font-semibold tracking-tight break-words">
           <Link href={href} className={titleLinkClassName}>
             {post.title}

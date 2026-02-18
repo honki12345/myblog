@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getBearerToken, verifyApiKey } from "@/lib/auth";
 import { getDb } from "@/lib/db";
-import { normalizeXStatusUrl } from "@/lib/inbox-url";
+import {
+  normalizeDocUrl,
+  normalizeXStatusUrl,
+  type FetchLike,
+  type ResolveHostnameLike,
+} from "@/lib/inbox-url";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 type ApiErrorCode =
@@ -83,7 +88,7 @@ const createInboxItemSchema = z.object({
         message: "url is required",
       }),
   ),
-  source: z.literal("x"),
+  source: z.enum(["x", "doc"]),
   client: z.literal("ios_shortcuts"),
   note: optionalTrimmedString(1000, "note"),
 });
@@ -113,6 +118,12 @@ const INBOX_RATE_LIMIT_WINDOW_MS = parsePositiveIntegerEnv(
   60_000,
 );
 const RATE_LIMIT_KEY_PREFIX = "inbox:post:";
+
+const DOC_URL_TEST_STUB_FETCH: FetchLike = async () =>
+  new Response(null, { status: 200 });
+const DOC_URL_TEST_STUB_RESOLVE_HOSTNAME: ResolveHostnameLike = async () => [
+  "93.184.216.34",
+];
 
 function getClientIp(request: Request): string {
   const forwardedFor = request.headers.get("x-forwarded-for");
@@ -249,14 +260,28 @@ export async function POST(request: Request) {
 
   let canonicalUrl: string;
   try {
-    const normalized = await normalizeXStatusUrl(parsed.data.url);
-    canonicalUrl = normalized.canonicalUrl;
+    if (parsed.data.source === "x") {
+      const normalized = await normalizeXStatusUrl(parsed.data.url);
+      canonicalUrl = normalized.canonicalUrl;
+    } else {
+      const useTestStubNetwork =
+        process.env.INBOX_DOC_TEST_STUB_NETWORK === "1";
+      const normalized = useTestStubNetwork
+        ? await normalizeDocUrl(parsed.data.url, {
+            fetch: DOC_URL_TEST_STUB_FETCH,
+            resolveHostname: DOC_URL_TEST_STUB_RESOLVE_HOSTNAME,
+          })
+        : await normalizeDocUrl(parsed.data.url);
+      canonicalUrl = normalized.canonicalUrl;
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return errorResponse(
       400,
       "INVALID_INPUT",
-      "url must be a valid X status URL.",
+      parsed.data.source === "x"
+        ? "url must be a valid X status URL."
+        : "url must be a valid document URL.",
       { reason: message },
     );
   }

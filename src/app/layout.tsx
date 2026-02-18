@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import "katex/dist/katex.min.css";
 import "./globals.css";
 import AdminAuthNavButton from "@/components/AdminAuthNavButton";
+import HomeTitleLink from "@/components/HomeTitleLink";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -37,19 +38,13 @@ export default function RootLayout({
         <div className="flex min-h-screen flex-col">
           <header className="border-b border-slate-200 bg-white/90 backdrop-blur">
             <div className="mx-auto flex w-full max-w-5xl flex-col items-start gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
-              <Link
-                href="/"
-                className="min-w-0 text-lg font-semibold tracking-tight"
-              >
+              <HomeTitleLink className="min-w-0 text-lg font-semibold tracking-tight">
                 honki12345 블로그
-              </Link>
+              </HomeTitleLink>
               <nav
                 aria-label="주요 메뉴"
                 className="flex w-full min-w-0 flex-wrap items-center gap-1 text-sm font-medium sm:w-auto sm:justify-end sm:gap-2"
               >
-                <Link href="/" className="header-nav-item">
-                  홈
-                </Link>
                 <Link href="/posts" className="header-nav-item">
                   글 목록
                 </Link>

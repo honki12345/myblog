@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getBearerToken, verifyApiKey } from "@/lib/auth";
@@ -17,6 +18,7 @@ type ApiErrorCode =
   | "INTERNAL_ERROR";
 
 type InboxStatus = "queued" | "processed" | "failed";
+type InboxSource = "x" | "doc";
 
 type InboxItemRow = {
   id: number;
@@ -78,20 +80,21 @@ function optionalTrimmedString(maxLength: number, fieldName: string) {
   );
 }
 
-const createInboxItemSchema = z.object({
-  url: z.preprocess(
-    (value) => (typeof value === "string" ? value.trim() : value),
-    z
-      .string()
-      .max(2048, "url must be 2048 characters or fewer")
-      .refine((value) => value.trim().length > 0, {
-        message: "url is required",
-      }),
-  ),
-  source: z.enum(["x", "doc"]),
-  client: z.literal("ios_shortcuts"),
-  note: optionalTrimmedString(1000, "note"),
-});
+const createInboxItemSchema = z
+  .object({
+    url: z.preprocess(
+      (value) => (typeof value === "string" ? value.trim() : value),
+      z
+        .string()
+        .max(2048, "url must be 2048 characters or fewer")
+        .refine((value) => value.trim().length > 0, {
+          message: "url is required",
+        }),
+    ),
+    client: z.literal("ios_shortcuts"),
+    note: optionalTrimmedString(1000, "note"),
+  })
+  .strict();
 
 function parsePositiveIntegerEnv(
   envValue: string | undefined,
@@ -124,6 +127,45 @@ const DOC_URL_TEST_STUB_FETCH: FetchLike = async () =>
 const DOC_URL_TEST_STUB_RESOLVE_HOSTNAME: ResolveHostnameLike = async () => [
   "93.184.216.34",
 ];
+const X_SOURCE_HOSTS = new Set(["x.com", "twitter.com", "t.co"]);
+
+function inferInboxSource(rawUrl: string): {
+  source: InboxSource;
+  host: string | null;
+} {
+  try {
+    const parsed = new URL(rawUrl);
+    const normalizedHost = parsed.hostname
+      .trim()
+      .toLowerCase()
+      .replace(/\.$/, "");
+    if (X_SOURCE_HOSTS.has(normalizedHost)) {
+      return {
+        source: "x",
+        host: normalizedHost || null,
+      };
+    }
+
+    return {
+      source: "doc",
+      host: normalizedHost || null,
+    };
+  } catch {
+    return {
+      source: "doc",
+      host: null,
+    };
+  }
+}
+
+function getDeployRevision(): string {
+  return (
+    process.env.BLOG_RELEASE_SHA ??
+    process.env.GIT_COMMIT_SHA ??
+    process.env.VERCEL_GIT_COMMIT_SHA ??
+    "unknown"
+  );
+}
 
 function getClientIp(request: Request): string {
   const forwardedFor = request.headers.get("x-forwarded-for");
@@ -243,6 +285,23 @@ export async function POST(request: Request) {
     );
   }
 
+  const requestId = randomUUID();
+  if (
+    typeof payload === "object" &&
+    payload !== null &&
+    Object.hasOwn(payload, "source")
+  ) {
+    return errorResponse(
+      400,
+      "INVALID_INPUT",
+      "source field is no longer accepted; server infers source from url.",
+      {
+        requestId,
+        reason: "legacy source field is not supported",
+      },
+    );
+  }
+
   const parsed = createInboxItemSchema.safeParse(payload);
   if (!parsed.success) {
     return errorResponse(
@@ -258,9 +317,12 @@ export async function POST(request: Request) {
     );
   }
 
+  const inferredSourceInfo = inferInboxSource(parsed.data.url);
+  const inferredSource = inferredSourceInfo.source;
+
   let canonicalUrl: string;
   try {
-    if (parsed.data.source === "x") {
+    if (inferredSource === "x") {
       const normalized = await normalizeXStatusUrl(parsed.data.url);
       canonicalUrl = normalized.canonicalUrl;
     } else {
@@ -276,13 +338,28 @@ export async function POST(request: Request) {
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    console.error(
+      "[api/inbox] URL normalization failed",
+      JSON.stringify({
+        requestId,
+        deployRevision: getDeployRevision(),
+        source: inferredSource,
+        host: inferredSourceInfo.host,
+        reason: message,
+      }),
+    );
+
     return errorResponse(
       400,
       "INVALID_INPUT",
-      parsed.data.source === "x"
+      inferredSource === "x"
         ? "url must be a valid X status URL."
         : "url must be a valid document URL.",
-      { reason: message },
+      {
+        requestId,
+        source: inferredSource,
+        reason: message,
+      },
     );
   }
 
@@ -296,7 +373,7 @@ export async function POST(request: Request) {
     );
     const result = insert.run(
       canonicalUrl,
-      parsed.data.source,
+      inferredSource,
       parsed.data.client,
       parsed.data.note ?? null,
     );
@@ -307,6 +384,7 @@ export async function POST(request: Request) {
           ok: true,
           id: Number(result.lastInsertRowid),
           status: "queued",
+          source: inferredSource,
         },
         { status: 201 },
       );
@@ -320,6 +398,7 @@ export async function POST(request: Request) {
         ok: true,
         id: existing.id,
         status: "duplicate",
+        source: inferredSource,
       });
     }
 
@@ -328,7 +407,19 @@ export async function POST(request: Request) {
       "INTERNAL_ERROR",
       "Failed to enqueue inbox item.",
     );
-  } catch {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(
+      "[api/inbox] failed to enqueue normalized URL",
+      JSON.stringify({
+        requestId,
+        deployRevision: getDeployRevision(),
+        source: inferredSource,
+        host: inferredSourceInfo.host,
+        reason: message,
+      }),
+    );
+
     return errorResponse(
       500,
       "INTERNAL_ERROR",

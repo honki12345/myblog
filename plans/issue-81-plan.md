@@ -100,3 +100,11 @@
   - [ ] 홈(`/`) 하단에 버튼 그룹이 더 이상 존재하지 않음
   - [ ] 각 섹션 제목 옆 링크(전체 태그 보기/전체 직접 작성 보기/전체 AI 수집 보기)가 기대 경로로 이동
   - [ ] 상단 메뉴 `글 목록`으로 전체 글 접근 가능
+
+## PR 리뷰 반영 내역 (2026-02-18)
+- 코멘트: empty state 테스트에 스크린샷 비교 + axe 접근성 검사 추가
+- 실제 변경:
+  - `tests/ui/home-empty-state.spec.ts`: `toHaveScreenshot()` + `@axe-core/playwright`(serious/critical 0) + 애니메이션 비활성화 스타일 적용
+  - `tests/ui/home-empty-state.spec.ts-snapshots/*`: 뷰포트별 스냅샷 추가(360/768/1440)
+- 검증:
+  - `PLAYWRIGHT_SKIP_BUILD=1 node scripts/test-ui.mjs tests/ui/home-empty-state.spec.ts` (mobile/tablet/desktop 모두 통과)

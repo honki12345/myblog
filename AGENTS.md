@@ -137,11 +137,38 @@ docs/architecture-update
 
 커밋 타입과 동일한 접두사를 사용합니다.
 
+### 이슈 라벨
+
+- 이슈 생성 시 최소 1개 라벨(타입 라벨)을 반드시 붙입니다.
+- 타입 라벨 매핑:
+  - `feat:` → `feat`
+  - `fix:` → `fix` (버그 성격이면 `bug`도 함께)
+  - `refactor:` → `refactor`
+  - `docs:` → `documentation`
+  - `test:` → `test` (없으면 생성)
+  - `setting:` → `setting` (없으면 생성)
+  - `style:` → `style` (없으면 생성)
+  - `chore:` → `chore`
+
+- 적절한 라벨이 없으면 먼저 생성해서 붙입니다. (`gh label` 서브커맨드가 없으므로 `gh api` 사용)
+
+```bash
+# 라벨 목록
+gh api repos/{owner}/{repo}/labels --paginate --jq '.[].name'
+
+# 라벨 생성 예시
+gh api repos/{owner}/{repo}/labels \
+  -f name='test' \
+  -f color='1D76DB' \
+  -f description='테스트/QA'
+```
+
 ### 이슈 생성 (CLI)
 
 ```bash
 gh issue create \
   --title "feat: 기능 제목" \
+  --label "feat" \
   --body "$(cat <<'EOF'
 ## 설명
 > 무엇을 구현/수정해야 하는지

@@ -28,6 +28,8 @@
 data/
 /uploads/
 artifacts/
+.tmp/
+.worktrees/
 
 # debug
 npm-debug.log*

@@ -98,9 +98,17 @@ test("admin workspace visual + functional + accessibility smoke", async ({
   await page.getByLabel("제목").fill("UI-ADMIN-TODO");
   await page.getByRole("button", { name: "TODO 추가" }).click();
   await expect(page.getByText("UI-ADMIN-TODO")).toBeVisible();
-  await page.getByRole("button", { name: "다음 상태" }).first().click();
-  await page.getByRole("button", { name: "다음 상태" }).first().click();
-  await expect(page.getByText("status: done", { exact: false })).toBeVisible();
+  const todoCard = page.locator("article").filter({ hasText: "UI-ADMIN-TODO" });
+  await expect(todoCard).toBeVisible();
+  const nextStatusButton = todoCard.getByRole("button", { name: "다음 상태" });
+
+  await nextStatusButton.click();
+  await expect(
+    todoCard.getByText("status: doing", { exact: false }),
+  ).toBeVisible();
+
+  await nextStatusButton.click();
+  await expect(todoCard.getByText("status: done", { exact: false })).toBeVisible();
   await assertNoHorizontalPageScroll(
     page,
     `[${testInfo.project.name}] /admin/todos has horizontal overflow`,

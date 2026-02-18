@@ -191,7 +191,7 @@ async function startServer(apiKey, logs) {
   apiBase = `http://${DEV_SERVER_HOST}:${port}`;
 
   const child = spawn(
-    "node",
+    process.execPath,
     [NEXT_BIN, "dev", "--hostname", DEV_SERVER_HOST, "--port", String(port)],
     {
       cwd: ROOT,

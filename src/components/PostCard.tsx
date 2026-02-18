@@ -30,7 +30,7 @@ export default function PostCard({ post }: PostCardProps) {
   if (!hasThumbnail) {
     return (
       <article
-        className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+        className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
         data-post-card
       >
         <h2 className="text-lg font-semibold tracking-tight break-words">
@@ -55,7 +55,7 @@ export default function PostCard({ post }: PostCardProps) {
 
   return (
     <article
-      className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+      className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
       data-post-card
       data-post-has-thumbnail
     >

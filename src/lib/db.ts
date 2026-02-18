@@ -168,10 +168,23 @@ CREATE INDEX IF NOT EXISTS idx_inbox_items_status_id
   ON inbox_items(status, id);
 `;
 
-const ISSUE59_SCHEMA_SQL = `
+function hasTableColumn(
+  database: Database.Database,
+  tableName: string,
+  columnName: string,
+): boolean {
+  const rows = database
+    .prepare(`PRAGMA table_info(${tableName})`)
+    .all() as Array<{ name?: unknown }>;
+  return rows.some((row) => row.name === columnName);
+}
+
+const ISSUE59_ADD_COLUMN_SQL = `
 ALTER TABLE admin_auth
   ADD COLUMN totp_enabled_at TEXT;
+`;
 
+const ISSUE59_BACKFILL_SQL = `
 -- Existing production DBs already have 2FA configured, so lock down TOTP setup
 -- immediately after deploying this migration.
 UPDATE admin_auth
@@ -245,14 +258,72 @@ export function runMigrations(database: Database.Database): void {
       currentVersion = 3;
     }
 
+    const hasTotpEnabledAtColumn = hasTableColumn(
+      database,
+      "admin_auth",
+      "totp_enabled_at",
+    );
+
     if (currentVersion < 4) {
-      database.exec(ISSUE59_SCHEMA_SQL);
+      if (!hasTotpEnabledAtColumn) {
+        database.exec(ISSUE59_ADD_COLUMN_SQL);
+      }
+      database.exec(ISSUE59_BACKFILL_SQL);
       database
         .prepare(
           "INSERT INTO schema_versions (version, description) VALUES (?, ?)",
         )
         .run(4, "Admin 2FA enabled state for Issue #59");
       currentVersion = 4;
+    } else if (!hasTotpEnabledAtColumn) {
+      // Legacy compatibility: some dev/test DBs may have used schema version 4 for
+      // Issue #54. If the column is missing, apply the migration without bumping
+      // schema_versions again (version 4 already exists).
+      database.exec(ISSUE59_ADD_COLUMN_SQL);
+      database.exec(ISSUE59_BACKFILL_SQL);
+    }
+
+    if (currentVersion < 5) {
+      if (!hasTableColumn(database, "posts", "origin")) {
+        database.exec(
+          "ALTER TABLE posts ADD COLUMN origin TEXT NOT NULL DEFAULT 'original' CHECK (origin IN ('original','ai'))",
+        );
+      }
+
+      // Allow re-running the backfill even if a legacy DB already has the
+      // immutability trigger installed (e.g. Issue #54 previously used v4).
+      database.exec("DROP TRIGGER IF EXISTS posts_origin_immutable");
+
+      database.exec(
+        `
+        UPDATE posts
+        SET origin = 'ai'
+        WHERE origin <> 'ai'
+          AND (
+            source_url IS NOT NULL
+            OR EXISTS (SELECT 1 FROM sources s WHERE s.post_id = posts.id)
+          )
+        `,
+      );
+
+      database.exec(
+        "CREATE INDEX IF NOT EXISTS idx_posts_origin ON posts(origin)",
+      );
+
+      database.exec(`
+        CREATE TRIGGER IF NOT EXISTS posts_origin_immutable
+        BEFORE UPDATE OF origin ON posts
+        BEGIN
+          SELECT RAISE(ABORT, 'origin is immutable');
+        END;
+      `);
+
+      database
+        .prepare(
+          "INSERT INTO schema_versions (version, description) VALUES (?, ?)",
+        )
+        .run(5, "posts.origin schema for Issue #54 (home/posts role split)");
+      currentVersion = 5;
     }
   });
 

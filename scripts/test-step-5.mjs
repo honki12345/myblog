@@ -179,25 +179,30 @@ async function startServer(apiKey) {
   const port = await findAvailablePort(startPort);
   apiBase = `http://127.0.0.1:${port}`;
 
-  const child = spawn("node", [NEXT_BIN, "dev", "--port", String(port)], {
-    cwd: ROOT,
-    env: {
-      ...process.env,
-      BLOG_API_KEY: apiKey,
-      DATABASE_PATH: TEST_DB_PATH,
-      NEXT_PUBLIC_SITE_URL: apiBase,
-      RATE_LIMIT_MAX_REQUESTS:
-        process.env.STEP5_RATE_LIMIT_MAX_REQUESTS ??
-        process.env.RATE_LIMIT_MAX_REQUESTS ??
-        "100",
-      RATE_LIMIT_WINDOW_MS:
-        process.env.STEP5_RATE_LIMIT_WINDOW_MS ??
-        process.env.RATE_LIMIT_WINDOW_MS ??
-        "1000",
-      NEXT_TELEMETRY_DISABLED: "1",
+  const child = spawn(
+    process.execPath,
+    [NEXT_BIN, "dev", "--port", String(port)],
+    {
+      cwd: ROOT,
+      env: {
+        ...process.env,
+        BLOG_API_KEY: apiKey,
+        DATABASE_PATH: TEST_DB_PATH,
+        NEXT_PUBLIC_SITE_URL: apiBase,
+        RATE_LIMIT_MAX_REQUESTS:
+          process.env.STEP5_RATE_LIMIT_MAX_REQUESTS ??
+          process.env.RATE_LIMIT_MAX_REQUESTS ??
+          "100",
+        RATE_LIMIT_WINDOW_MS:
+          process.env.STEP5_RATE_LIMIT_WINDOW_MS ??
+          process.env.RATE_LIMIT_WINDOW_MS ??
+          "1000",
+        NEXT_TELEMETRY_DISABLED: "1",
+      },
+      detached: true,
+      stdio: ["ignore", "pipe", "pipe"],
     },
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  );
 
   child.stdout.on("data", (chunk) => process.stdout.write(chunk.toString()));
   child.stderr.on("data", (chunk) => process.stderr.write(chunk.toString()));
@@ -216,12 +221,37 @@ async function stopServer(child) {
     return;
   }
 
-  child.kill("SIGTERM");
+  const processGroup = child.pid ? -child.pid : null;
+  try {
+    if (processGroup !== null) {
+      process.kill(processGroup, "SIGTERM");
+    } else {
+      child.kill("SIGTERM");
+    }
+  } catch {
+    try {
+      child.kill("SIGTERM");
+    } catch {
+      // ignore shutdown races
+    }
+  }
 
   await new Promise((resolve) => {
     const timeout = setTimeout(() => {
       if (child.exitCode === null && child.signalCode === null) {
-        child.kill("SIGKILL");
+        try {
+          if (processGroup !== null) {
+            process.kill(processGroup, "SIGKILL");
+          } else {
+            child.kill("SIGKILL");
+          }
+        } catch {
+          try {
+            child.kill("SIGKILL");
+          } catch {
+            // ignore shutdown races
+          }
+        }
       }
     }, 5000);
 

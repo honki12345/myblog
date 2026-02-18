@@ -1,39 +1,18 @@
 import Link from "next/link";
-import { getDb } from "@/lib/db";
+import { getAdminSessionFromServerCookies } from "@/lib/admin-auth";
+import { listTagCounts, type PostStatus } from "@/lib/post-list";
 
 export const dynamic = "force-dynamic";
 
-type TagCountRow = {
-  name: string;
-  count: number;
-};
-
-function loadPublishedTagCounts(): Array<{ name: string; count: number }> {
-  const db = getDb();
-  const rows = db
-    .prepare(
-      `
-      SELECT
-        t.name AS name,
-        COUNT(DISTINCT p.id) AS count
-      FROM tags t
-      INNER JOIN post_tags pt ON pt.tag_id = t.id
-      INNER JOIN posts p ON p.id = pt.post_id
-      WHERE p.status = 'published'
-      GROUP BY t.id
-      ORDER BY count DESC, name ASC
-      `,
-    )
-    .all() as TagCountRow[];
-
-  return rows.map((row) => ({
-    name: row.name,
-    count: row.count,
-  }));
-}
-
-export default function TagsIndexPage() {
-  const tags = loadPublishedTagCounts();
+export default async function TagsIndexPage() {
+  const session = await getAdminSessionFromServerCookies();
+  const isAdmin = Boolean(session);
+  const statuses: readonly PostStatus[] = session
+    ? ["draft", "published"]
+    : ["published"];
+  const tags = listTagCounts(statuses);
+  const label = isAdmin ? "글" : "공개 글";
+  const suffix = isAdmin ? " (초안 포함)" : "";
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 sm:px-6 lg:px-8">
@@ -41,8 +20,8 @@ export default function TagsIndexPage() {
         <h1 className="text-2xl font-semibold tracking-tight">태그</h1>
         <p className="text-sm text-slate-600">
           {tags.length > 0
-            ? `공개 글 기준 ${tags.length}개의 태그가 있습니다.`
-            : "공개 글에 연결된 태그가 없습니다."}
+            ? `${label} 기준 ${tags.length}개의 태그가 있습니다${suffix}.`
+            : `${label}에 연결된 태그가 없습니다.`}
         </p>
       </header>
 
@@ -50,7 +29,9 @@ export default function TagsIndexPage() {
         <section className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
           <h2 className="text-lg font-semibold text-slate-800">빈 목록</h2>
           <p className="mt-2 text-sm text-slate-600">
-            공개 글이 생기면 태그 목록에 표시됩니다.
+            {isAdmin
+              ? "글을 작성하고 태그를 추가하면 목록에 표시됩니다."
+              : "공개 글이 생기면 태그 목록에 표시됩니다."}
           </p>
         </section>
       ) : (

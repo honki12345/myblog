@@ -393,8 +393,8 @@ export async function POST(request: Request) {
       const created = db.transaction(() => {
         const insertPostStatement = db.prepare(
           `
-          INSERT INTO posts (title, slug, content, status, source_url, published_at)
-          VALUES (?, ?, ?, ?, ?, CASE WHEN ? = 'published' THEN datetime('now') ELSE NULL END)
+          INSERT INTO posts (title, slug, content, status, origin, source_url, published_at)
+          VALUES (?, ?, ?, ?, 'ai', ?, CASE WHEN ? = 'published' THEN datetime('now') ELSE NULL END)
           `,
         );
         const insertTagStatement = db.prepare(

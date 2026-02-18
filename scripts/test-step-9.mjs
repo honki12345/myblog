@@ -206,28 +206,33 @@ async function startServer(logs) {
   const port = await findAvailablePort(DEFAULT_PORT);
   apiBase = `http://127.0.0.1:${port}`;
 
-  const child = spawn("node", [NEXT_BIN, "dev", "--port", String(port)], {
-    cwd: ROOT,
-    env: {
-      ...process.env,
-      DATABASE_PATH: TEST_DB_PATH,
-      NEXT_PUBLIC_SITE_URL: apiBase,
-      BLOG_API_KEY: process.env.BLOG_API_KEY ?? "step9-ai-api-key",
-      ADMIN_USERNAME,
-      ADMIN_PASSWORD_HASH,
-      ADMIN_SESSION_SECRET:
-        process.env.ADMIN_SESSION_SECRET ?? "step9-session-secret-0123456789",
-      ADMIN_TOTP_SECRET_ENCRYPTION_KEY:
-        process.env.ADMIN_TOTP_SECRET_ENCRYPTION_KEY ??
-        "step9-totp-encryption-key-0123456789",
-      ADMIN_CSRF_SECRET:
-        process.env.ADMIN_CSRF_SECRET ?? "step9-csrf-secret-0123456789",
-      ADMIN_TOTP_SECRET,
-      ADMIN_RECOVERY_CODES,
-      NEXT_TELEMETRY_DISABLED: "1",
+  const child = spawn(
+    process.execPath,
+    [NEXT_BIN, "dev", "--port", String(port)],
+    {
+      cwd: ROOT,
+      env: {
+        ...process.env,
+        DATABASE_PATH: TEST_DB_PATH,
+        NEXT_PUBLIC_SITE_URL: apiBase,
+        BLOG_API_KEY: process.env.BLOG_API_KEY ?? "step9-ai-api-key",
+        ADMIN_USERNAME,
+        ADMIN_PASSWORD_HASH,
+        ADMIN_SESSION_SECRET:
+          process.env.ADMIN_SESSION_SECRET ?? "step9-session-secret-0123456789",
+        ADMIN_TOTP_SECRET_ENCRYPTION_KEY:
+          process.env.ADMIN_TOTP_SECRET_ENCRYPTION_KEY ??
+          "step9-totp-encryption-key-0123456789",
+        ADMIN_CSRF_SECRET:
+          process.env.ADMIN_CSRF_SECRET ?? "step9-csrf-secret-0123456789",
+        ADMIN_TOTP_SECRET,
+        ADMIN_RECOVERY_CODES,
+        NEXT_TELEMETRY_DISABLED: "1",
+      },
+      detached: true,
+      stdio: ["ignore", "pipe", "pipe"],
     },
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  );
 
   attachOutput(child.stdout, logs, process.stdout);
   attachOutput(child.stderr, logs, process.stderr);
@@ -246,11 +251,36 @@ async function stopServer(child) {
     return;
   }
 
-  child.kill("SIGTERM");
+  const processGroup = child.pid ? -child.pid : null;
+  try {
+    if (processGroup !== null) {
+      process.kill(processGroup, "SIGTERM");
+    } else {
+      child.kill("SIGTERM");
+    }
+  } catch {
+    try {
+      child.kill("SIGTERM");
+    } catch {
+      // ignore shutdown races
+    }
+  }
   await new Promise((resolve) => {
     const timeout = setTimeout(() => {
       if (child.exitCode === null && child.signalCode === null) {
-        child.kill("SIGKILL");
+        try {
+          if (processGroup !== null) {
+            process.kill(processGroup, "SIGKILL");
+          } else {
+            child.kill("SIGKILL");
+          }
+        } catch {
+          try {
+            child.kill("SIGKILL");
+          } catch {
+            // ignore shutdown races
+          }
+        }
       }
     }, 5000);
     child.once("close", () => {

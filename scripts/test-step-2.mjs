@@ -79,6 +79,7 @@ function testSchemaAndObjects(db) {
     "slug",
     "content",
     "status",
+    "origin",
     "source_url",
     "created_at",
     "updated_at",
@@ -93,7 +94,12 @@ function testSchemaAndObjects(db) {
     .prepare("SELECT name FROM sqlite_master WHERE type='trigger'")
     .all();
   const triggers = triggerRows.map((row) => row.name);
-  for (const trigger of ["posts_ai", "posts_ad", "posts_au"]) {
+  for (const trigger of [
+    "posts_ai",
+    "posts_ad",
+    "posts_au",
+    "posts_origin_immutable",
+  ]) {
     assert(triggers.includes(trigger), `Missing trigger: ${trigger}`);
   }
 
@@ -106,6 +112,7 @@ function testSchemaAndObjects(db) {
     "idx_posts_status",
     "idx_posts_created_at",
     "idx_posts_status_published_at",
+    "idx_posts_origin",
     "idx_sources_url",
   ]) {
     assert(indexes.includes(index), `Missing index: ${index}`);
@@ -276,6 +283,233 @@ function testStatusCheckConstraint(db) {
   assert(didThrow, "CHECK constraint did not throw");
 }
 
+function testOriginConstraints(db) {
+  const slug = `origin-${Date.now()}`;
+
+  const created = db
+    .prepare(
+      "INSERT INTO posts (title, slug, content, status) VALUES (?, ?, ?, ?)",
+    )
+    .run("Origin test", slug, "Origin content", "draft");
+  const postId = Number(created.lastInsertRowid);
+  assert(postId > 0, "Origin CREATE failed");
+
+  const row = db.prepare("SELECT origin FROM posts WHERE id = ?").get(postId);
+  assert(
+    row?.origin === "original",
+    `Unexpected default origin: ${row?.origin}`,
+  );
+
+  let invalidOriginThrow = false;
+  try {
+    db.prepare(
+      "INSERT INTO posts (title, slug, content, status, origin) VALUES (?, ?, ?, ?, ?)",
+    ).run("Invalid origin", `${slug}-invalid`, "content", "draft", "bad");
+  } catch {
+    invalidOriginThrow = true;
+  }
+  assert(invalidOriginThrow, "origin CHECK constraint did not throw");
+
+  let immutableThrow = false;
+  try {
+    db.prepare("UPDATE posts SET origin = 'ai' WHERE id = ?").run(postId);
+  } catch {
+    immutableThrow = true;
+  }
+  assert(immutableThrow, "origin immutability trigger did not throw");
+
+  db.prepare("DELETE FROM posts WHERE id = ?").run(postId);
+}
+
+function testOriginMigrationBackfill() {
+  cleanupTestDb();
+
+  const seedSlugA = `backfill-a-${Date.now()}`;
+  const seedSlugB = `backfill-b-${Date.now()}`;
+  const seedSlugC = `backfill-c-${Date.now()}`;
+
+  const db = new Database(TEST_DB_PATH);
+  try {
+    db.pragma("foreign_keys = ON");
+
+    // Simulate a version-3 database where posts.origin does not exist yet.
+    db.exec(`
+      CREATE TABLE posts (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        title        TEXT NOT NULL,
+        slug         TEXT NOT NULL UNIQUE,
+        content      TEXT NOT NULL,
+        status       TEXT NOT NULL DEFAULT 'draft'
+          CHECK(status IN ('draft', 'published')),
+        source_url   TEXT,
+        created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at   TEXT NOT NULL DEFAULT (datetime('now')),
+        published_at TEXT
+      );
+
+      CREATE TABLE sources (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        url         TEXT NOT NULL UNIQUE,
+        post_id     INTEGER REFERENCES posts(id),
+        scraped_at  TEXT NOT NULL DEFAULT (datetime('now')),
+        ai_model    TEXT,
+        prompt_hint TEXT
+      );
+
+      CREATE TABLE admin_auth (
+        id                    INTEGER PRIMARY KEY CHECK (id = 1),
+        username              TEXT NOT NULL UNIQUE,
+        password_hash         TEXT NOT NULL,
+        totp_secret_encrypted TEXT NOT NULL,
+        created_at            TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at            TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE schema_versions (
+        version     INTEGER PRIMARY KEY,
+        applied_at  TEXT NOT NULL DEFAULT (datetime('now')),
+        description TEXT
+      );
+
+      CREATE VIRTUAL TABLE IF NOT EXISTS posts_fts USING fts5(
+        title,
+        content,
+        content='posts',
+        content_rowid='id'
+      );
+
+      CREATE TRIGGER IF NOT EXISTS posts_ai AFTER INSERT ON posts BEGIN
+        INSERT INTO posts_fts(rowid, title, content)
+        VALUES (new.id, new.title, new.content);
+      END;
+
+      CREATE TRIGGER IF NOT EXISTS posts_ad AFTER DELETE ON posts BEGIN
+        INSERT INTO posts_fts(posts_fts, rowid, title, content)
+        VALUES ('delete', old.id, old.title, old.content);
+      END;
+
+      CREATE TRIGGER IF NOT EXISTS posts_au AFTER UPDATE ON posts BEGIN
+        INSERT INTO posts_fts(posts_fts, rowid, title, content)
+        VALUES ('delete', old.id, old.title, old.content);
+        INSERT INTO posts_fts(rowid, title, content)
+        VALUES (new.id, new.title, new.content);
+      END;
+    `);
+
+    db.prepare(
+      "INSERT INTO schema_versions (version, description) VALUES (?, ?)",
+    ).run(3, "Seeded schema version for backfill test");
+
+    const now = "2026-01-01 00:00:00";
+
+    const postAId = Number(
+      db
+        .prepare(
+          `
+          INSERT INTO posts (title, slug, content, status, source_url, created_at, updated_at, published_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          `,
+        )
+        .run(
+          "Backfill A",
+          seedSlugA,
+          "backfill content a",
+          "draft",
+          "https://example.test/a",
+          now,
+          now,
+          null,
+        ).lastInsertRowid,
+    );
+    assert(postAId > 0, "failed to seed backfill post A");
+
+    const postBId = Number(
+      db
+        .prepare(
+          `
+          INSERT INTO posts (title, slug, content, status, source_url, created_at, updated_at, published_at)
+          VALUES (?, ?, ?, ?, NULL, ?, ?, ?)
+          `,
+        )
+        .run(
+          "Backfill B",
+          seedSlugB,
+          "backfill content b",
+          "draft",
+          now,
+          now,
+          null,
+        ).lastInsertRowid,
+    );
+    assert(postBId > 0, "failed to seed backfill post B");
+
+    db.prepare("INSERT INTO sources (url, post_id) VALUES (?, ?)").run(
+      "https://example.test/b",
+      postBId,
+    );
+
+    const postCId = Number(
+      db
+        .prepare(
+          `
+          INSERT INTO posts (title, slug, content, status, source_url, created_at, updated_at, published_at)
+          VALUES (?, ?, ?, ?, NULL, ?, ?, ?)
+          `,
+        )
+        .run(
+          "Backfill C",
+          seedSlugC,
+          "backfill content c",
+          "draft",
+          now,
+          now,
+          null,
+        ).lastInsertRowid,
+    );
+    assert(postCId > 0, "failed to seed backfill post C");
+  } finally {
+    db.close();
+  }
+
+  runMigration();
+
+  const migrated = new Database(TEST_DB_PATH);
+  try {
+    const originColumnRows = migrated.prepare("PRAGMA table_info(posts)").all();
+    assert(
+      originColumnRows.some((row) => row.name === "origin"),
+      "origin column missing after migration",
+    );
+
+    const rowA = migrated
+      .prepare("SELECT origin FROM posts WHERE slug = ?")
+      .get(seedSlugA);
+    const rowB = migrated
+      .prepare("SELECT origin FROM posts WHERE slug = ?")
+      .get(seedSlugB);
+    const rowC = migrated
+      .prepare("SELECT origin FROM posts WHERE slug = ?")
+      .get(seedSlugC);
+
+    assert(rowA?.origin === "ai", `unexpected origin for A: ${rowA?.origin}`);
+    assert(rowB?.origin === "ai", `unexpected origin for B: ${rowB?.origin}`);
+    assert(
+      rowC?.origin === "original",
+      `unexpected origin for C: ${rowC?.origin}`,
+    );
+
+    const schemaVersionRow = migrated
+      .prepare("SELECT MAX(version) AS version FROM schema_versions")
+      .get();
+    assert(
+      schemaVersionRow?.version === 5,
+      `unexpected schema version: ${schemaVersionRow?.version}`,
+    );
+  } finally {
+    migrated.close();
+  }
+}
+
 function testIdempotency() {
   runMigration();
   runMigration();
@@ -296,6 +530,7 @@ function main() {
     testFts(db);
     testForeignKeyCascade(db);
     testStatusCheckConstraint(db);
+    testOriginConstraints(db);
 
     const walObserved = existsSync(TEST_DB_WAL_PATH);
     console.log(`[step2] wal_file_observed_during_session=${walObserved}`);
@@ -304,6 +539,7 @@ function main() {
   }
 
   testIdempotency();
+  testOriginMigrationBackfill();
   console.log("Step 2 checks passed.");
 }
 

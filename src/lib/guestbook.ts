@@ -73,6 +73,13 @@ function hashClientIp(ip: string): string {
   return createHash("sha256").update("guestbook:").update(ip).digest("hex");
 }
 
+function hashSessionId(sessionId: string): string {
+  return createHash("sha256")
+    .update("guestbook-session:")
+    .update(sessionId)
+    .digest("hex");
+}
+
 function removeExpiredGuestbookSessions(): void {
   const db = getDb();
   db.prepare(
@@ -119,6 +126,7 @@ export function createGuestbookSession(
 } {
   removeExpiredGuestbookSessions();
   const sessionId = randomBytes(32).toString("base64url");
+  const sessionHash = hashSessionId(sessionId);
   const ipHash = hashClientIp(extractClientIp(request));
   const userAgent = request.headers.get("user-agent");
   const maxAgeSeconds = DEFAULT_SESSION_MAX_AGE_SECONDS;
@@ -129,14 +137,15 @@ export function createGuestbookSession(
     INSERT INTO guestbook_sessions (id, thread_id, expires_at, ip_hash, user_agent)
     VALUES (?, ?, datetime('now', '+' || ? || ' seconds'), ?, ?)
     `,
-  ).run(sessionId, threadId, maxAgeSeconds, ipHash, userAgent);
+  ).run(sessionHash, threadId, maxAgeSeconds, ipHash, userAgent);
 
   return { sessionId, maxAgeSeconds };
 }
 
 export function deleteGuestbookSessionById(sessionId: string): void {
   const db = getDb();
-  db.prepare("DELETE FROM guestbook_sessions WHERE id = ?").run(sessionId);
+  const sessionHash = hashSessionId(sessionId);
+  db.prepare("DELETE FROM guestbook_sessions WHERE id = ?").run(sessionHash);
 }
 
 export function getGuestbookSessionById(
@@ -145,6 +154,7 @@ export function getGuestbookSessionById(
 ): GuestbookSessionRow | null {
   removeExpiredGuestbookSessions();
   const db = getDb();
+  const sessionHash = hashSessionId(sessionId);
   const session = db
     .prepare(
       `
@@ -154,7 +164,7 @@ export function getGuestbookSessionById(
       LIMIT 1
       `,
     )
-    .get(sessionId) as GuestbookSessionRow | undefined;
+    .get(sessionHash) as GuestbookSessionRow | undefined;
 
   if (!session) {
     return null;
@@ -162,14 +172,14 @@ export function getGuestbookSessionById(
 
   const expiresAt = parseSqliteDate(session.expires_at);
   if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
-    db.prepare("DELETE FROM guestbook_sessions WHERE id = ?").run(sessionId);
+    db.prepare("DELETE FROM guestbook_sessions WHERE id = ?").run(sessionHash);
     return null;
   }
 
   if (touch) {
     db.prepare(
       "UPDATE guestbook_sessions SET last_seen_at = datetime('now') WHERE id = ?",
-    ).run(sessionId);
+    ).run(sessionHash);
   }
 
   return session;

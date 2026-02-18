@@ -201,10 +201,45 @@ export default async function PostsPage({ searchParams }: PageProps) {
 
   const startIndex = totalCount === 0 ? 0 : (page - 1) * perPage + 1;
   const endIndex = Math.min(page * perPage, totalCount);
-  const pageNumbers = Array.from(
-    { length: totalPages },
-    (_, index) => index + 1,
-  );
+  const paginationItems = (() => {
+    const windowRadius = 2;
+    const pages = new Set<number>();
+    pages.add(1);
+    pages.add(totalPages);
+
+    for (
+      let candidate = page - windowRadius;
+      candidate <= page + windowRadius;
+      candidate += 1
+    ) {
+      if (candidate >= 1 && candidate <= totalPages) {
+        pages.add(candidate);
+      }
+    }
+
+    const sortedPages = Array.from(pages).sort((a, b) => a - b);
+    const items: Array<
+      | { kind: "page"; value: number }
+      | { kind: "ellipsis"; key: string }
+    > = [];
+
+    let previousPage: number | null = null;
+    for (const value of sortedPages) {
+      if (previousPage !== null) {
+        const gap = value - previousPage;
+        if (gap === 2) {
+          items.push({ kind: "page", value: previousPage + 1 });
+        } else if (gap > 2) {
+          items.push({ kind: "ellipsis", key: `ellipsis-${previousPage}-${value}` });
+        }
+      }
+
+      items.push({ kind: "page", value });
+      previousPage = value;
+    }
+
+    return items;
+  })();
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 sm:px-6 lg:px-8">
@@ -361,22 +396,36 @@ export default async function PostsPage({ searchParams }: PageProps) {
           >
             이전
           </a>
-          {pageNumbers.map((value) => (
-            <a
-              key={value}
-              href={buildPageHref({
-                page: value,
-                perPage,
-                type,
-                q,
-                tag,
-              })}
-              aria-current={value === page ? "page" : undefined}
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 aria-[current=page]:border-slate-900 aria-[current=page]:bg-slate-900 aria-[current=page]:text-white"
-            >
-              {value}
-            </a>
-          ))}
+          {paginationItems.map((item) => {
+            if (item.kind === "ellipsis") {
+              return (
+                <span
+                  key={item.key}
+                  aria-hidden="true"
+                  className="px-2 text-sm text-slate-500"
+                >
+                  ...
+                </span>
+              );
+            }
+
+            return (
+              <a
+                key={item.value}
+                href={buildPageHref({
+                  page: item.value,
+                  perPage,
+                  type,
+                  q,
+                  tag,
+                })}
+                aria-current={item.value === page ? "page" : undefined}
+                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 aria-[current=page]:border-slate-900 aria-[current=page]:bg-slate-900 aria-[current=page]:text-white"
+              >
+                {item.value}
+              </a>
+            );
+          })}
           <a
             href={buildPageHref({
               page: Math.min(totalPages, page + 1),

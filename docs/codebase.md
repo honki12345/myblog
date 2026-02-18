@@ -82,7 +82,7 @@ Sources: `src/lib/db.ts`, `src/app/api/posts/route.ts`, `src/app/api/posts/bulk/
 | Method  | Path                       | Auth                                     | Behavior                                                                                                                                                               | 주요 오류 코드                                                                          |
 | ------- | -------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
 | `GET`   | `/api/health`              | 선택적(Authorization 헤더가 있으면 검증) | DB 연결 확인. 인증 헤더 유효 시 `auth: "valid"` 포함                                                                                                                   | `UNAUTHORIZED`, `INTERNAL_ERROR`                                                        |
-| `POST`  | `/api/inbox`               | 필수                                     | iOS Shortcuts URL 인입. `source="x"`는 X status URL 정규화, `source="doc"`는 문서 URL 검증/정규화 후 `queued`로 적재(중복은 200 duplicate)                             | `UNAUTHORIZED`, `INVALID_INPUT`, `RATE_LIMITED`, `INTERNAL_ERROR`                       |
+| `POST`  | `/api/inbox`               | 필수                                     | iOS Shortcuts URL 인입. 서버가 URL 호스트를 보고 `x/doc`를 자동 판별한 뒤 정규화/검증 후 `queued`로 적재(중복은 200 duplicate)                                             | `UNAUTHORIZED`, `INVALID_INPUT`, `RATE_LIMITED`, `INTERNAL_ERROR`                       |
 | `GET`   | `/api/inbox`               | 필수                                     | 수집 큐 조회. 기본 `status=queued`, `limit=50`(max 100), 오래된 순(`id ASC`)                                                                                           | `UNAUTHORIZED`, `INVALID_INPUT`, `INTERNAL_ERROR`                                       |
 | `PATCH` | `/api/inbox/:id`           | 필수                                     | 수집 큐 상태 갱신. `queued`만 `processed`/`failed`로 전이 허용, `failed`에서 `error` 저장                                                                              | `UNAUTHORIZED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`                          |
 | `GET`   | `/api/posts`               | 없음                                     | 최신 100개 공개 글(`published`)만 반환                                                                                                                                 | -                                                                                       |
@@ -101,13 +101,13 @@ Sources: `src/lib/db.ts`, `src/app/api/posts/route.ts`, `src/app/api/posts/bulk/
 curl -sS -X POST "https://<host>/api/inbox" \
   -H "Authorization: Bearer $BLOG_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"url":"https://x.com/i/web/status/123","source":"x","client":"ios_shortcuts","note":"optional note"}'
+  -d '{"url":"https://x.com/i/web/status/123","client":"ios_shortcuts","note":"optional note"}'
 
 # enqueue doc url (201 queued, 200 duplicate)
 curl -sS -X POST "https://<host>/api/inbox" \
   -H "Authorization: Bearer $BLOG_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"url":"https://example.com/article?utm_source=x#section","source":"doc","client":"ios_shortcuts","note":"optional note"}'
+  -d '{"url":"https://example.com/article?utm_source=x#section","client":"ios_shortcuts","note":"optional note"}'
 
 # list queued
 curl -sS "https://<host>/api/inbox" \
@@ -123,10 +123,10 @@ curl -sS -X PATCH "https://<host>/api/inbox/1" \
 curl -i -sS -X POST "https://<host>/api/inbox" \
   -H "Authorization: Bearer $BLOG_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"url":"https://x.com/i/web/status/123","source":"x","client":"ios_shortcuts"}'
+  -d '{"url":"https://x.com/i/web/status/123","client":"ios_shortcuts"}'
 ```
 
-### Doc URL normalization (`source="doc"`)
+### Doc URL normalization (auto-detected `doc`)
 
 - `https` only
 - credentials (`username`/`password`) 금지
@@ -197,7 +197,7 @@ Sources: `src/app/api/health/route.ts`, `src/app/api/inbox/route.ts`, `src/app/a
 | `RATE_LIMIT_BULK_WINDOW_MS`     | No         | `POST /api/posts/bulk`              | 벌크 글 생성 레이트 리밋 윈도우 ms(기본 60000)                                                          |
 | `INBOX_RATE_LIMIT_MAX_REQUESTS` | No         | `POST /api/inbox`                   | 수집 큐 인입 레이트 리밋 최대 요청 수(기본 10)                                                          |
 | `INBOX_RATE_LIMIT_WINDOW_MS`    | No         | `POST /api/inbox`                   | 수집 큐 인입 레이트 리밋 윈도우 ms(기본 60000)                                                          |
-| `INBOX_DOC_TEST_STUB_NETWORK`   | No         | `POST /api/inbox` (`source="doc"`)  | 테스트 전용: doc URL 검증의 DNS/fetch를 stub으로 대체해 네트워크 비의존으로 만든다 (프로덕션 사용 금지) |
+| `INBOX_DOC_TEST_STUB_NETWORK`   | No         | `POST /api/inbox` (`doc` 경로)      | 테스트 전용: doc URL 검증의 DNS/fetch를 stub으로 대체해 네트워크 비의존으로 만든다 (프로덕션 사용 금지) |
 
 ### Build/deploy paths
 

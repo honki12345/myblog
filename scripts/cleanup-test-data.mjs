@@ -61,6 +61,24 @@ function cleanupAdminTables(db) {
   };
 }
 
+function cleanupGuestbookTables(db) {
+  const guestbookSessionsCount = assertTableExists(db, "guestbook_sessions")
+    ? db.prepare("DELETE FROM guestbook_sessions").run().changes
+    : 0;
+  const guestbookMessagesCount = assertTableExists(db, "guestbook_messages")
+    ? db.prepare("DELETE FROM guestbook_messages").run().changes
+    : 0;
+  const guestbookThreadsCount = assertTableExists(db, "guestbook_threads")
+    ? db.prepare("DELETE FROM guestbook_threads").run().changes
+    : 0;
+
+  return {
+    guestbookThreadsCount,
+    guestbookSessionsCount,
+    guestbookMessagesCount,
+  };
+}
+
 function cleanup() {
   if (!existsSync(DATABASE_PATH)) {
     console.log(`[cleanup] skip: db file not found (${DATABASE_PATH})`);
@@ -107,6 +125,7 @@ function cleanup() {
 
     if (postIds.length === 0) {
       const adminCounts = cleanupAdminTables(db);
+      const guestbookCounts = cleanupGuestbookTables(db);
 
       return {
         postCount: 0,
@@ -114,6 +133,7 @@ function cleanup() {
         tagLinkCount: 0,
         orphanTagCount: 0,
         ...adminCounts,
+        ...guestbookCounts,
       };
     }
 
@@ -157,6 +177,7 @@ function cleanup() {
         : 0;
 
     const adminCounts = cleanupAdminTables(db);
+    const guestbookCounts = cleanupGuestbookTables(db);
 
     return {
       postCount: postChanges,
@@ -164,13 +185,14 @@ function cleanup() {
       tagLinkCount: tagLinkChanges,
       orphanTagCount: orphanTagChanges,
       ...adminCounts,
+      ...guestbookCounts,
     };
   });
 
   try {
     const result = deleteInTransaction();
     console.log(
-      `[cleanup] posts=${result.postCount}, sources=${result.sourceCount}, post_tags=${result.tagLinkCount}, orphan_tags=${result.orphanTagCount}, admin_recovery_codes=${result.adminRecoveryCodesCount}, admin_sessions=${result.adminSessionsCount}, admin_notes=${result.adminNotesCount}, admin_todos=${result.adminTodosCount}, admin_schedules=${result.adminSchedulesCount}`,
+      `[cleanup] posts=${result.postCount}, sources=${result.sourceCount}, post_tags=${result.tagLinkCount}, orphan_tags=${result.orphanTagCount}, admin_recovery_codes=${result.adminRecoveryCodesCount}, admin_sessions=${result.adminSessionsCount}, admin_notes=${result.adminNotesCount}, admin_todos=${result.adminTodosCount}, admin_schedules=${result.adminSchedulesCount}, guestbook_threads=${result.guestbookThreadsCount}, guestbook_sessions=${result.guestbookSessionsCount}, guestbook_messages=${result.guestbookMessagesCount}`,
     );
   } finally {
     db.close();

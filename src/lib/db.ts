@@ -168,6 +168,53 @@ CREATE INDEX IF NOT EXISTS idx_inbox_items_status_id
   ON inbox_items(status, id);
 `;
 
+const ISSUE75_SCHEMA_SQL = `
+CREATE TABLE IF NOT EXISTS guestbook_threads (
+  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+  guest_username      TEXT NOT NULL UNIQUE,
+  guest_password_hash TEXT NOT NULL,
+  created_at          TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS guestbook_sessions (
+  id           TEXT PRIMARY KEY,
+  thread_id    INTEGER NOT NULL REFERENCES guestbook_threads(id) ON DELETE CASCADE,
+  created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+  expires_at   TEXT NOT NULL,
+  last_seen_at TEXT NOT NULL DEFAULT (datetime('now')),
+  ip_hash      TEXT,
+  user_agent   TEXT
+);
+
+CREATE TABLE IF NOT EXISTS guestbook_messages (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  thread_id  INTEGER NOT NULL REFERENCES guestbook_threads(id) ON DELETE CASCADE,
+  role       TEXT NOT NULL CHECK(role IN ('guest', 'admin')),
+  content    TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_guestbook_sessions_thread_id
+  ON guestbook_sessions(thread_id);
+CREATE INDEX IF NOT EXISTS idx_guestbook_sessions_expires_at
+  ON guestbook_sessions(expires_at);
+CREATE INDEX IF NOT EXISTS idx_guestbook_sessions_last_seen_at
+  ON guestbook_sessions(last_seen_at DESC);
+CREATE INDEX IF NOT EXISTS idx_guestbook_threads_updated_at
+  ON guestbook_threads(updated_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_guestbook_messages_thread_id_id
+  ON guestbook_messages(thread_id, id);
+
+CREATE TRIGGER IF NOT EXISTS guestbook_messages_ai
+AFTER INSERT ON guestbook_messages
+BEGIN
+  UPDATE guestbook_threads
+  SET updated_at = datetime('now')
+  WHERE id = new.thread_id;
+END;
+`;
+
 function hasTableColumn(
   database: Database.Database,
   tableName: string,
@@ -324,6 +371,16 @@ export function runMigrations(database: Database.Database): void {
         )
         .run(5, "posts.origin schema for Issue #54 (home/posts role split)");
       currentVersion = 5;
+    }
+
+    if (currentVersion < 6) {
+      database.exec(ISSUE75_SCHEMA_SQL);
+      database
+        .prepare(
+          "INSERT INTO schema_versions (version, description) VALUES (?, ?)",
+        )
+        .run(6, "Private guestbook thread schema for Issue #75");
+      currentVersion = 6;
     }
   });
 

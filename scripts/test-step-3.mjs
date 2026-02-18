@@ -320,7 +320,7 @@ async function runInboxUrlUnitTests() {
 
   const inboxUrlModule = await import("../src/lib/inbox-url.ts");
   const inboxUrlExports = inboxUrlModule.default ?? inboxUrlModule;
-  const { normalizeXStatusUrl } = inboxUrlExports;
+  const { normalizeDocUrl, normalizeXStatusUrl } = inboxUrlExports;
 
   const direct = await normalizeXStatusUrl("https://x.com/i/web/status/123");
   assert(
@@ -405,6 +405,192 @@ async function runInboxUrlUnitTests() {
     () => normalizeXStatusUrl("http://x.com/i/web/status/123"),
     "http scheme rejection",
   );
+
+  const stubResolveHostname = async () => ["93.184.216.34"];
+  const okFetch = async () => new Response(null, { status: 200 });
+
+  const docHash = await normalizeDocUrl("https://example.com/a#b", {
+    fetch: okFetch,
+    resolveHostname: stubResolveHostname,
+  });
+  assert(
+    docHash.canonicalUrl === "https://example.com/a",
+    "doc URL should strip fragment",
+  );
+
+  const docDefaultPort = await normalizeDocUrl("https://example.com:443/a#b", {
+    fetch: okFetch,
+    resolveHostname: stubResolveHostname,
+  });
+  assert(
+    docDefaultPort.canonicalUrl === "https://example.com/a",
+    "doc URL should strip default port and fragment",
+  );
+
+  const docTracking = await normalizeDocUrl(
+    "https://example.com/a?utm_source=x&x=1#b",
+    { fetch: okFetch, resolveHostname: stubResolveHostname },
+  );
+  assert(
+    docTracking.canonicalUrl === "https://example.com/a?x=1",
+    "doc URL should strip tracking params and fragment",
+  );
+
+  await assertRejects(
+    () =>
+      normalizeDocUrl("http://example.com/a", {
+        fetch: okFetch,
+        resolveHostname: stubResolveHostname,
+      }),
+    "doc http scheme rejection",
+  );
+
+  await assertRejects(
+    () =>
+      normalizeDocUrl("https://u:p@example.com/a", {
+        fetch: okFetch,
+        resolveHostname: stubResolveHostname,
+      }),
+    "doc credential rejection (username/password)",
+  );
+
+  await assertRejects(
+    () =>
+      normalizeDocUrl("https://u@example.com/a", {
+        fetch: okFetch,
+        resolveHostname: stubResolveHostname,
+      }),
+    "doc credential rejection (username only)",
+  );
+
+  await assertRejects(
+    () =>
+      normalizeDocUrl("https://example.com:8443/a", {
+        fetch: okFetch,
+        resolveHostname: stubResolveHostname,
+      }),
+    "doc non-default port rejection",
+  );
+
+  const docRedirectMap = new Map([
+    [
+      "https://short.example/abc",
+      new Response(null, {
+        status: 302,
+        headers: {
+          location: "https://example.com/final?utm_source=x&x=1#b",
+        },
+      }),
+    ],
+    [
+      "https://example.com/final?utm_source=x&x=1#b",
+      new Response(null, { status: 200 }),
+    ],
+  ]);
+
+  const redirectFetch = async (input) => {
+    const url = typeof input === "string" ? input : input.toString();
+    const response = docRedirectMap.get(url);
+    if (!response) {
+      return new Response(null, { status: 200 });
+    }
+    return response;
+  };
+
+  const redirected = await normalizeDocUrl("https://short.example/abc", {
+    fetch: redirectFetch,
+    resolveHostname: stubResolveHostname,
+  });
+  assert(
+    redirected.canonicalUrl === "https://example.com/final?x=1",
+    "doc URL should follow redirects and canonicalize query/hash",
+  );
+
+  let lastFetchInit;
+  const pinnedFetch = async (_input, init) => {
+    lastFetchInit = init;
+    return new Response(null, { status: 200 });
+  };
+  await normalizeDocUrl("https://example.com/pin-check", {
+    fetch: pinnedFetch,
+    resolveHostname: stubResolveHostname,
+  });
+  assert(
+    lastFetchInit &&
+      typeof lastFetchInit === "object" &&
+      "dispatcher" in lastFetchInit,
+    "doc URL fetch should include dispatcher to prevent DNS rebinding",
+  );
+
+  const oversizeLocation = `https://example.com/` + "a".repeat(2100);
+  const oversizeRedirectMap = new Map([
+    [
+      "https://short.example/oversize",
+      new Response(null, {
+        status: 302,
+        headers: {
+          location: oversizeLocation,
+        },
+      }),
+    ],
+    [oversizeLocation, new Response(null, { status: 200 })],
+  ]);
+  const oversizeRedirectFetch = async (input) => {
+    const url = typeof input === "string" ? input : input.toString();
+    const response = oversizeRedirectMap.get(url);
+    if (!response) {
+      throw new Error(`unexpected fetch: ${url}`);
+    }
+    return response;
+  };
+  await assertRejects(
+    () =>
+      normalizeDocUrl("https://short.example/oversize", {
+        fetch: oversizeRedirectFetch,
+        resolveHostname: stubResolveHostname,
+      }),
+    "doc URL should reject canonical URL longer than 2048 after redirects",
+  );
+
+  const blockedResolver = async (hostname) => {
+    switch (hostname) {
+      case "blocked-loopback.example":
+        return ["127.0.0.1"];
+      case "blocked-private.example":
+        return ["10.0.0.1"];
+      case "blocked-metadata.example":
+        return ["169.254.169.254"];
+      case "blocked-v6-loopback.example":
+        return ["::1"];
+      case "blocked-v6-linklocal.example":
+        return ["fe80::1"];
+      case "blocked-v6-ula.example":
+        return ["fc00::1"];
+      case "blocked-mixed.example":
+        return ["93.184.216.34", "10.0.0.1"];
+      default:
+        return ["93.184.216.34"];
+    }
+  };
+
+  for (const hostname of [
+    "blocked-loopback.example",
+    "blocked-private.example",
+    "blocked-metadata.example",
+    "blocked-v6-loopback.example",
+    "blocked-v6-linklocal.example",
+    "blocked-v6-ula.example",
+    "blocked-mixed.example",
+  ]) {
+    await assertRejects(
+      () =>
+        normalizeDocUrl(`https://${hostname}/a`, {
+          fetch: okFetch,
+          resolveHostname: blockedResolver,
+        }),
+      `doc SSRF blocking: ${hostname}`,
+    );
+  }
 
   console.log("[unit] inbox url normalization passed");
 }
@@ -977,6 +1163,39 @@ async function runInboxSession(apiKey, server) {
   });
   assertErrorResponse(invalidUrl, 400, "INVALID_INPUT");
 
+  const invalidDocScheme = await callJson("/api/inbox", {
+    method: "POST",
+    apiKey,
+    body: {
+      url: "http://example.com/a",
+      source: "doc",
+      client: "ios_shortcuts",
+    },
+  });
+  assertErrorResponse(invalidDocScheme, 400, "INVALID_INPUT");
+
+  const invalidDocPort = await callJson("/api/inbox", {
+    method: "POST",
+    apiKey,
+    body: {
+      url: "https://example.com:8443/a",
+      source: "doc",
+      client: "ios_shortcuts",
+    },
+  });
+  assertErrorResponse(invalidDocPort, 400, "INVALID_INPUT");
+
+  const invalidDocLocalhost = await callJson("/api/inbox", {
+    method: "POST",
+    apiKey,
+    body: {
+      url: "https://localhost/a",
+      source: "doc",
+      client: "ios_shortcuts",
+    },
+  });
+  assertErrorResponse(invalidDocLocalhost, 400, "INVALID_INPUT");
+
   const statusId1 = generateStatusId(seed, 1);
   const created = await callJson("/api/inbox", {
     method: "POST",
@@ -998,6 +1217,23 @@ async function runInboxSession(apiKey, server) {
     "inbox create response should be queued",
   );
   const inboxItemId1 = created.data.id;
+
+  const docSeed = `doc-${seed}`;
+  const docCreated = await callJson("/api/inbox", {
+    method: "POST",
+    apiKey,
+    body: {
+      url: `https://example.com/${docSeed}?utm_source=x&x=1#b`,
+      source: "doc",
+      client: "ios_shortcuts",
+    },
+  });
+  assert(docCreated.status === 201, "doc POST /api/inbox should return 201");
+  assert(
+    typeof docCreated.data?.id === "number",
+    "doc inbox create response should include numeric id",
+  );
+  const inboxDocId = docCreated.data.id;
 
   const duplicated = await callJson("/api/inbox", {
     method: "POST",
@@ -1021,6 +1257,28 @@ async function runInboxSession(apiKey, server) {
     "duplicate POST /api/inbox should return existing id",
   );
 
+  const docDuplicated = await callJson("/api/inbox", {
+    method: "POST",
+    apiKey,
+    body: {
+      url: `https://example.com/${docSeed}?utm_medium=y&x=1#c`,
+      source: "doc",
+      client: "ios_shortcuts",
+    },
+  });
+  assert(
+    docDuplicated.status === 200,
+    "duplicate doc POST /api/inbox should return 200",
+  );
+  assert(
+    docDuplicated.data?.status === "duplicate",
+    "duplicate doc POST /api/inbox should return duplicate status",
+  );
+  assert(
+    docDuplicated.data?.id === inboxDocId,
+    "duplicate doc POST /api/inbox should return existing id",
+  );
+
   const listQueued = await callJson("/api/inbox", {
     apiKey,
   });
@@ -1036,6 +1294,13 @@ async function runInboxSession(apiKey, server) {
   assert(
     queuedItem.url === `https://x.com/i/web/status/${statusId1}`,
     "stored URL must be canonicalized",
+  );
+  const docItem = listQueued.data.items.find((item) => item.id === inboxDocId);
+  assert(docItem, "doc item must be present in GET /api/inbox");
+  assert(docItem.source === "doc", "stored doc item source should be included");
+  assert(
+    docItem.url === `https://example.com/${docSeed}?x=1`,
+    "stored doc URL must be canonicalized",
   );
   assert(queuedItem.status === "queued", "stored status must be queued");
 
@@ -1231,7 +1496,11 @@ async function main() {
     await runRateLimitSession(apiKey);
 
     await stopServer(server);
-    server = await startServer(apiKey);
+    server = await startServer(apiKey, {
+      env: {
+        INBOX_DOC_TEST_STUB_NETWORK: "1",
+      },
+    });
     await runInboxSession(apiKey, server);
 
     await stopServer(server);

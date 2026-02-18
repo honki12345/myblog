@@ -11,6 +11,37 @@ import {
 
 export const dynamic = "force-dynamic";
 
+type HomeSectionCardProps = {
+  title: string;
+  href: string;
+  linkLabel: string;
+  bodyClassName?: string;
+  children: React.ReactNode;
+};
+
+function HomeSectionCard({
+  title,
+  href,
+  linkLabel,
+  bodyClassName,
+  children,
+}: HomeSectionCardProps) {
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 px-6 py-4">
+        <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
+        <Link
+          href={href}
+          className="text-sm font-medium text-slate-700 hover:underline"
+        >
+          {linkLabel}
+        </Link>
+      </div>
+      <div className={bodyClassName ?? "p-6"}>{children}</div>
+    </section>
+  );
+}
+
 function toPostCardData(item: PostListItem): PostCardData {
   return {
     id: item.id,
@@ -74,7 +105,7 @@ export default async function Home() {
       {!hasAnyPosts ? (
         <section className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-600">
           <p>
-            아직 글이 없습니다. 아래의 태그 허브나 아카이브 링크로 탐색을 시작해
+            아직 글이 없습니다. 상단 메뉴(글 목록/태그)에서 탐색을 시작해
             보세요.
           </p>
           {isAdmin ? (
@@ -88,30 +119,24 @@ export default async function Home() {
         </section>
       ) : null}
 
-      <section className="space-y-3">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <h2 className="text-xl font-semibold tracking-tight">태그 허브</h2>
-          <Link
-            href="/tags"
-            className="text-sm font-medium text-slate-700 hover:underline"
-          >
-            전체 태그 보기
-          </Link>
-        </div>
-
+      <HomeSectionCard
+        title="태그 허브"
+        href="/tags"
+        linkLabel="전체 태그 보기"
+      >
         {tags.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-600">
+          <p className="text-sm text-slate-600">
             아직 글에 연결된 태그가 없습니다.
-          </div>
+          </p>
         ) : (
           <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {tags.map((tag) => (
               <li key={tag.name}>
                 <Link
                   href={`/tags/${encodeURIComponent(tag.name)}`}
-                  className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm hover:border-slate-300"
+                  className="flex min-w-0 items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm hover:border-slate-300"
                 >
-                  <span className="text-sm font-semibold text-slate-900">
+                  <span className="min-w-0 truncate text-sm font-semibold text-slate-900">
                     #{tag.name}
                   </span>
                   <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
@@ -122,25 +147,17 @@ export default async function Home() {
             ))}
           </ul>
         )}
-      </section>
+      </HomeSectionCard>
 
-      <section className="space-y-3">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <h2 className="text-xl font-semibold tracking-tight">
-            최신 직접 작성
-          </h2>
-          <Link
-            href="/posts?type=original"
-            className="text-sm font-medium text-slate-700 hover:underline"
-          >
-            직접 작성 아카이브
-          </Link>
-        </div>
-
+      <HomeSectionCard
+        title="최신 직접 작성"
+        href="/posts?type=original"
+        linkLabel="전체 직접 작성 보기"
+      >
         {originalPosts.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-600">
+          <p className="text-sm text-slate-600">
             아직 직접 작성 글이 없습니다.
-          </div>
+          </p>
         ) : (
           <div className="grid gap-4">
             {originalPosts.map((post) => (
@@ -148,25 +165,20 @@ export default async function Home() {
             ))}
           </div>
         )}
-      </section>
+      </HomeSectionCard>
 
-      <section className="space-y-3">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <h2 className="text-xl font-semibold tracking-tight">최신 AI 수집</h2>
-          <Link
-            href="/posts?type=ai"
-            className="text-sm font-medium text-slate-700 hover:underline"
-          >
-            AI 수집 아카이브
-          </Link>
-        </div>
-
+      <HomeSectionCard
+        title="최신 AI 수집"
+        href="/posts?type=ai"
+        linkLabel="전체 AI 수집 보기"
+        bodyClassName="p-0"
+      >
         {aiPosts.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-600">
+          <p className="p-6 text-sm text-slate-600">
             아직 AI 수집 글이 없습니다.
-          </div>
+          </p>
         ) : (
-          <ul className="divide-y divide-slate-200 rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <ul className="divide-y divide-slate-200">
             {aiPosts.map((post) => {
               const publishedDate = formatDate(post.publishedAt);
               const label = post.sourceDomain ?? "unknown";
@@ -174,7 +186,7 @@ export default async function Home() {
               return (
                 <li
                   key={post.id}
-                  className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                  className="flex flex-col gap-1 px-6 py-3 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <Link
                     href={buildPostHref(post)}
@@ -198,28 +210,7 @@ export default async function Home() {
             })}
           </ul>
         )}
-      </section>
-
-      <section className="flex flex-wrap items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <Link
-          href="/posts"
-          className="inline-flex rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
-        >
-          전체 아카이브
-        </Link>
-        <Link
-          href="/posts?type=original"
-          className="inline-flex rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-        >
-          직접 작성만 보기
-        </Link>
-        <Link
-          href="/posts?type=ai"
-          className="inline-flex rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-        >
-          AI 수집만 보기
-        </Link>
-      </section>
+      </HomeSectionCard>
     </main>
   );
 }

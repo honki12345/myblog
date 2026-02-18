@@ -87,3 +87,8 @@
 - [x] 태그 칩 클릭 시 카드 이동이 일어나지 않고 태그 이동이 우선한다.
 - [x] 키보드 탭 이동 시 `focus-visible`/`focus-within` 피드백으로 클릭 가능 영역을 인지할 수 있다.
 - [x] `npm run test:all`이 통과한다.
+
+## PR 리뷰 반영 내역 (2026-02-18)
+- Copilot 인라인 코멘트(2820748537): `transition-colors` + `transition-shadow` 동시 사용 시 `transition-property` 덮어쓰기 가능성 → `transition`으로 통합
+  - 반영 커밋: `885d193`
+  - 검증: `npm run format:check`, `npm run test:ui:fast`

@@ -105,7 +105,8 @@ export default async function Home() {
       {!hasAnyPosts ? (
         <section className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-600">
           <p>
-            아직 글이 없습니다. 상단 메뉴(글 목록/태그)에서 탐색을 시작해 보세요.
+            아직 글이 없습니다. 상단 메뉴(글 목록/태그)에서 탐색을 시작해
+            보세요.
           </p>
           {isAdmin ? (
             <Link
@@ -118,7 +119,11 @@ export default async function Home() {
         </section>
       ) : null}
 
-      <HomeSectionCard title="태그 허브" href="/tags" linkLabel="전체 태그 보기">
+      <HomeSectionCard
+        title="태그 허브"
+        href="/tags"
+        linkLabel="전체 태그 보기"
+      >
         {tags.length === 0 ? (
           <p className="text-sm text-slate-600">
             아직 글에 연결된 태그가 없습니다.
@@ -150,7 +155,9 @@ export default async function Home() {
         linkLabel="전체 직접 작성 보기"
       >
         {originalPosts.length === 0 ? (
-          <p className="text-sm text-slate-600">아직 직접 작성 글이 없습니다.</p>
+          <p className="text-sm text-slate-600">
+            아직 직접 작성 글이 없습니다.
+          </p>
         ) : (
           <div className="grid gap-4">
             {originalPosts.map((post) => (
@@ -167,7 +174,9 @@ export default async function Home() {
         bodyClassName="p-0"
       >
         {aiPosts.length === 0 ? (
-          <p className="p-6 text-sm text-slate-600">아직 AI 수집 글이 없습니다.</p>
+          <p className="p-6 text-sm text-slate-600">
+            아직 AI 수집 글이 없습니다.
+          </p>
         ) : (
           <ul className="divide-y divide-slate-200">
             {aiPosts.map((post) => {

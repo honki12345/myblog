@@ -15,4 +15,3 @@ test("home: empty state 안내문에서 아카이브 링크 언급이 제거된�
   ).toBeVisible();
   await expect(page.getByText("아카이브 링크")).toHaveCount(0);
 });
-

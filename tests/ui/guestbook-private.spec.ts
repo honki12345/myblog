@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import { authenticateAdminSession, runCleanupScript } from "./helpers";
 
@@ -148,6 +149,15 @@ test("guest thread stays private and admin can reply", async ({
 
   await page.reload({ waitUntil: "networkidle" });
   await expect(messageList).toContainText("관리자 답장입니다.");
+
+  const a11yResults = await new AxeBuilder({ page }).analyze();
+  const blockingViolations = a11yResults.violations.filter((violation) => {
+    return violation.impact === "critical" || violation.impact === "serious";
+  });
+  expect(
+    blockingViolations,
+    "guestbook page has serious/critical accessibility violations",
+  ).toEqual([]);
 
   const maxDiffPixelRatio = getVisualDiffThreshold(testInfo.project.name);
   await expect(page).toHaveScreenshot("guestbook-thread.png", {

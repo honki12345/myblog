@@ -79,19 +79,19 @@ Sources: `src/lib/db.ts`, `src/app/api/posts/route.ts`, `src/app/api/posts/bulk/
 
 ### Endpoints
 
-| Method  | Path                       | Auth                                     | Behavior                                                                                          | 주요 오류 코드                                                                          |
-| ------- | -------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `GET`   | `/api/health`              | 선택적(Authorization 헤더가 있으면 검증) | DB 연결 확인. 인증 헤더 유효 시 `auth: "valid"` 포함                                              | `UNAUTHORIZED`, `INTERNAL_ERROR`                                                        |
+| Method  | Path                       | Auth                                     | Behavior                                                                                                                                   | 주요 오류 코드                                                                          |
+| ------- | -------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
+| `GET`   | `/api/health`              | 선택적(Authorization 헤더가 있으면 검증) | DB 연결 확인. 인증 헤더 유효 시 `auth: "valid"` 포함                                                                                       | `UNAUTHORIZED`, `INTERNAL_ERROR`                                                        |
 | `POST`  | `/api/inbox`               | 필수                                     | iOS Shortcuts URL 인입. `source="x"`는 X status URL 정규화, `source="doc"`는 문서 URL 검증/정규화 후 `queued`로 적재(중복은 200 duplicate) | `UNAUTHORIZED`, `INVALID_INPUT`, `RATE_LIMITED`, `INTERNAL_ERROR`                       |
-| `GET`   | `/api/inbox`               | 필수                                     | 수집 큐 조회. 기본 `status=queued`, `limit=50`(max 100), 오래된 순(`id ASC`)                      | `UNAUTHORIZED`, `INVALID_INPUT`, `INTERNAL_ERROR`                                       |
-| `PATCH` | `/api/inbox/:id`           | 필수                                     | 수집 큐 상태 갱신. `queued`만 `processed`/`failed`로 전이 허용, `failed`에서 `error` 저장         | `UNAUTHORIZED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`                          |
-| `GET`   | `/api/posts`               | 없음                                     | 최신 100개 공개 글(`published`)만 반환                                                            | -                                                                                       |
-| `POST`  | `/api/posts`               | 필수                                     | 단건 글 생성, slug 자동 생성, 태그/출처(ai metadata 포함) 저장, 구조화 로그 출력, 경로 revalidate | `UNAUTHORIZED`, `INVALID_INPUT`, `DUPLICATE_SOURCE`, `RATE_LIMITED`, `INTERNAL_ERROR`   |
-| `POST`  | `/api/posts/bulk`          | 필수                                     | 벌크 글 생성(최대 10건), 단일 트랜잭션(all-or-nothing), 구조화 로그 출력, 경로 revalidate         | `UNAUTHORIZED`, `INVALID_INPUT`, `DUPLICATE_SOURCE`, `RATE_LIMITED`, `INTERNAL_ERROR`   |
-| `GET`   | `/api/posts/check?url=...` | 필수                                     | `source_url` 중복 여부 확인                                                                       | `UNAUTHORIZED`, `INVALID_INPUT`, `INTERNAL_ERROR`                                       |
-| `GET`   | `/api/posts/:id`           | 필수                                     | 글 단건 + 태그 배열 반환                                                                          | `UNAUTHORIZED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`                          |
-| `PATCH` | `/api/posts/:id`           | 필수                                     | 제목/본문/상태/태그 부분 수정, `published_at` 전이 처리, 경로 revalidate                          | `UNAUTHORIZED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`                          |
-| `POST`  | `/api/uploads`             | 필수                                     | 이미지 업로드(최대 5MB, png/jpeg/webp/gif) 후 URL 반환                                            | `UNAUTHORIZED`, `INVALID_INPUT`, `FILE_TOO_LARGE`, `UNSUPPORTED_TYPE`, `INTERNAL_ERROR` |
+| `GET`   | `/api/inbox`               | 필수                                     | 수집 큐 조회. 기본 `status=queued`, `limit=50`(max 100), 오래된 순(`id ASC`)                                                               | `UNAUTHORIZED`, `INVALID_INPUT`, `INTERNAL_ERROR`                                       |
+| `PATCH` | `/api/inbox/:id`           | 필수                                     | 수집 큐 상태 갱신. `queued`만 `processed`/`failed`로 전이 허용, `failed`에서 `error` 저장                                                  | `UNAUTHORIZED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`                          |
+| `GET`   | `/api/posts`               | 없음                                     | 최신 100개 공개 글(`published`)만 반환                                                                                                     | -                                                                                       |
+| `POST`  | `/api/posts`               | 필수                                     | 단건 글 생성, slug 자동 생성, 태그/출처(ai metadata 포함) 저장, 구조화 로그 출력, 경로 revalidate                                          | `UNAUTHORIZED`, `INVALID_INPUT`, `DUPLICATE_SOURCE`, `RATE_LIMITED`, `INTERNAL_ERROR`   |
+| `POST`  | `/api/posts/bulk`          | 필수                                     | 벌크 글 생성(최대 10건), 단일 트랜잭션(all-or-nothing), 구조화 로그 출력, 경로 revalidate                                                  | `UNAUTHORIZED`, `INVALID_INPUT`, `DUPLICATE_SOURCE`, `RATE_LIMITED`, `INTERNAL_ERROR`   |
+| `GET`   | `/api/posts/check?url=...` | 필수                                     | `source_url` 중복 여부 확인                                                                                                                | `UNAUTHORIZED`, `INVALID_INPUT`, `INTERNAL_ERROR`                                       |
+| `GET`   | `/api/posts/:id`           | 필수                                     | 글 단건 + 태그 배열 반환                                                                                                                   | `UNAUTHORIZED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`                          |
+| `PATCH` | `/api/posts/:id`           | 필수                                     | 제목/본문/상태/태그 부분 수정, `published_at` 전이 처리, 경로 revalidate                                                                   | `UNAUTHORIZED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`                          |
+| `POST`  | `/api/uploads`             | 필수                                     | 이미지 업로드(최대 5MB, png/jpeg/webp/gif) 후 URL 반환                                                                                     | `UNAUTHORIZED`, `INVALID_INPUT`, `FILE_TOO_LARGE`, `UNSUPPORTED_TYPE`, `INTERNAL_ERROR` |
 
 ### Inbox curl quickstart
 
@@ -180,18 +180,18 @@ Sources: `src/app/api/health/route.ts`, `src/app/api/inbox/route.ts`, `src/app/a
 
 ### Environment variables
 
-| Name                            | Required   | Used by                             | Description                                                                                      |
-| ------------------------------- | ---------- | ----------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `BLOG_API_KEY`                  | Yes (운영) | API routes, write auth, tests       | 보호 API 인증 키                                                                                 |
-| `DATABASE_PATH`                 | No         | DB layer, tests                     | SQLite 파일 경로 오버라이드. 기본값은 `data/blog.db`, 운영 권장값은 `/var/lib/blog/data/blog.db` |
-| `NEXT_PUBLIC_SITE_URL`          | No         | post metadata, Playwright webServer | 상세 페이지 canonical URL 생성 기준                                                              |
-| `API_KEY`                       | No         | UI 테스트 헬퍼                      | 테스트 시 `BLOG_API_KEY` 대체 입력값                                                             |
-| `RATE_LIMIT_MAX_REQUESTS`       | No         | `POST /api/posts`                   | 단건 글 생성 레이트 리밋 최대 요청 수(기본 10)                                                   |
-| `RATE_LIMIT_WINDOW_MS`          | No         | `POST /api/posts`                   | 단건 글 생성 레이트 리밋 윈도우 ms(기본 60000)                                                   |
-| `RATE_LIMIT_BULK_MAX_REQUESTS`  | No         | `POST /api/posts/bulk`              | 벌크 글 생성 레이트 리밋 최대 요청 수(기본 3)                                                    |
-| `RATE_LIMIT_BULK_WINDOW_MS`     | No         | `POST /api/posts/bulk`              | 벌크 글 생성 레이트 리밋 윈도우 ms(기본 60000)                                                   |
-| `INBOX_RATE_LIMIT_MAX_REQUESTS` | No         | `POST /api/inbox`                   | 수집 큐 인입 레이트 리밋 최대 요청 수(기본 10)                                                   |
-| `INBOX_RATE_LIMIT_WINDOW_MS`    | No         | `POST /api/inbox`                   | 수집 큐 인입 레이트 리밋 윈도우 ms(기본 60000)                                                   |
+| Name                            | Required   | Used by                             | Description                                                                                             |
+| ------------------------------- | ---------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `BLOG_API_KEY`                  | Yes (운영) | API routes, write auth, tests       | 보호 API 인증 키                                                                                        |
+| `DATABASE_PATH`                 | No         | DB layer, tests                     | SQLite 파일 경로 오버라이드. 기본값은 `data/blog.db`, 운영 권장값은 `/var/lib/blog/data/blog.db`        |
+| `NEXT_PUBLIC_SITE_URL`          | No         | post metadata, Playwright webServer | 상세 페이지 canonical URL 생성 기준                                                                     |
+| `API_KEY`                       | No         | UI 테스트 헬퍼                      | 테스트 시 `BLOG_API_KEY` 대체 입력값                                                                    |
+| `RATE_LIMIT_MAX_REQUESTS`       | No         | `POST /api/posts`                   | 단건 글 생성 레이트 리밋 최대 요청 수(기본 10)                                                          |
+| `RATE_LIMIT_WINDOW_MS`          | No         | `POST /api/posts`                   | 단건 글 생성 레이트 리밋 윈도우 ms(기본 60000)                                                          |
+| `RATE_LIMIT_BULK_MAX_REQUESTS`  | No         | `POST /api/posts/bulk`              | 벌크 글 생성 레이트 리밋 최대 요청 수(기본 3)                                                           |
+| `RATE_LIMIT_BULK_WINDOW_MS`     | No         | `POST /api/posts/bulk`              | 벌크 글 생성 레이트 리밋 윈도우 ms(기본 60000)                                                          |
+| `INBOX_RATE_LIMIT_MAX_REQUESTS` | No         | `POST /api/inbox`                   | 수집 큐 인입 레이트 리밋 최대 요청 수(기본 10)                                                          |
+| `INBOX_RATE_LIMIT_WINDOW_MS`    | No         | `POST /api/inbox`                   | 수집 큐 인입 레이트 리밋 윈도우 ms(기본 60000)                                                          |
 | `INBOX_DOC_TEST_STUB_NETWORK`   | No         | `POST /api/inbox` (`source="doc"`)  | 테스트 전용: doc URL 검증의 DNS/fetch를 stub으로 대체해 네트워크 비의존으로 만든다 (프로덕션 사용 금지) |
 
 ### Build/deploy paths

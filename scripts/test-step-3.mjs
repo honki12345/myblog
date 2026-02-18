@@ -1251,10 +1251,7 @@ async function runInboxSession(apiKey, server) {
   );
   const docItem = listQueued.data.items.find((item) => item.id === inboxDocId);
   assert(docItem, "doc item must be present in GET /api/inbox");
-  assert(
-    docItem.source === "doc",
-    "stored doc item source should be included",
-  );
+  assert(docItem.source === "doc", "stored doc item source should be included");
   assert(
     docItem.url === `https://example.com/${docSeed}?x=1`,
     "stored doc URL must be canonicalized",

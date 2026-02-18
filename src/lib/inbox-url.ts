@@ -242,11 +242,12 @@ function parseIpv4ToBytes(input: string): Uint8Array | null {
 
 function ipv4BytesToUint32(bytes: Uint8Array, offset = 0): number {
   return (
-    ((bytes[offset] ?? 0) << 24) |
-    ((bytes[offset + 1] ?? 0) << 16) |
-    ((bytes[offset + 2] ?? 0) << 8) |
-    (bytes[offset + 3] ?? 0)
-  ) >>> 0;
+    (((bytes[offset] ?? 0) << 24) |
+      ((bytes[offset + 1] ?? 0) << 16) |
+      ((bytes[offset + 2] ?? 0) << 8) |
+      (bytes[offset + 3] ?? 0)) >>>
+    0
+  );
 }
 
 function parseIpv4ToUint32(input: string): number | null {
@@ -494,9 +495,7 @@ function isBlockedResolvedIp(input: string): boolean {
     if (isIpv6V4Mapped(ipv6Bytes)) {
       const ipv4Value = ipv4BytesToUint32(ipv6Bytes, 12);
       if (
-        BLOCKED_IPV4_CIDRS.some(
-          (rule) => (ipv4Value & rule.mask) === rule.base,
-        )
+        BLOCKED_IPV4_CIDRS.some((rule) => (ipv4Value & rule.mask) === rule.base)
       ) {
         return true;
       }

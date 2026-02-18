@@ -217,6 +217,26 @@ for (const route of routes) {
         page.getByRole("heading", { name: "최신 AI 수집" }),
       ).toBeVisible();
       await expect(page.getByRole("link", { name: "글 목록" })).toBeVisible();
+
+      await expect(
+        page.getByRole("link", { name: "전체 태그 보기" }),
+      ).toHaveAttribute("href", "/tags");
+      await expect(
+        page.getByRole("link", { name: "전체 직접 작성 보기" }),
+      ).toHaveAttribute("href", "/posts?type=original");
+      await expect(
+        page.getByRole("link", { name: "전체 AI 수집 보기" }),
+      ).toHaveAttribute("href", "/posts?type=ai");
+
+      await expect(
+        page.getByRole("link", { name: "전체 아카이브" }),
+      ).toHaveCount(0);
+      await expect(
+        page.getByRole("link", { name: "직접 작성만 보기" }),
+      ).toHaveCount(0);
+      await expect(
+        page.getByRole("link", { name: "AI 수집만 보기" }),
+      ).toHaveCount(0);
     }
 
     if (route.name === "posts") {

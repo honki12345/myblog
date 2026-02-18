@@ -219,8 +219,7 @@ export default async function PostsPage({ searchParams }: PageProps) {
 
     const sortedPages = Array.from(pages).sort((a, b) => a - b);
     const items: Array<
-      | { kind: "page"; value: number }
-      | { kind: "ellipsis"; key: string }
+      { kind: "page"; value: number } | { kind: "ellipsis"; key: string }
     > = [];
 
     let previousPage: number | null = null;
@@ -230,7 +229,10 @@ export default async function PostsPage({ searchParams }: PageProps) {
         if (gap === 2) {
           items.push({ kind: "page", value: previousPage + 1 });
         } else if (gap > 2) {
-          items.push({ kind: "ellipsis", key: `ellipsis-${previousPage}-${value}` });
+          items.push({
+            kind: "ellipsis",
+            key: `ellipsis-${previousPage}-${value}`,
+          });
         }
       }
 

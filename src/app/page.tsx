@@ -129,9 +129,9 @@ export default async function Home() {
               <li key={tag.name}>
                 <Link
                   href={`/tags/${encodeURIComponent(tag.name)}`}
-                  className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm hover:border-slate-300"
+                  className="flex min-w-0 items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm hover:border-slate-300"
                 >
-                  <span className="text-sm font-semibold text-slate-900">
+                  <span className="min-w-0 truncate text-sm font-semibold text-slate-900">
                     #{tag.name}
                   </span>
                   <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">

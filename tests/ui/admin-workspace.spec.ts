@@ -108,7 +108,9 @@ test("admin workspace visual + functional + accessibility smoke", async ({
   ).toBeVisible();
 
   await nextStatusButton.click();
-  await expect(todoCard.getByText("status: done", { exact: false })).toBeVisible();
+  await expect(
+    todoCard.getByText("status: done", { exact: false }),
+  ).toBeVisible();
   await assertNoHorizontalPageScroll(
     page,
     `[${testInfo.project.name}] /admin/todos has horizontal overflow`,

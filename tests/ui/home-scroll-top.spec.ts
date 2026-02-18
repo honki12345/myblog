@@ -17,7 +17,10 @@ test("home title link scrolls to top when already on /", async ({
   await expect(homeLinks).toHaveCount(1);
 
   const titleLink = homeLinks.first();
-  await expect(titleLink).toHaveAttribute("aria-label", "홈 (honki12345 블로그)");
+  await expect(titleLink).toHaveAttribute(
+    "aria-label",
+    "홈 (honki12345 블로그)",
+  );
   await expect(titleLink).toHaveAttribute("aria-current", "page");
   await expect(titleLink).toHaveClass(/focus-visible:ring-2/);
 

@@ -281,9 +281,7 @@ for (const route of routes) {
       await expect(page.getByLabel("태그 검색")).toBeVisible();
       await expect(page.locator("[data-tags-top]")).toBeVisible();
       await expect(
-        page
-          .locator("[data-tags-top]")
-          .getByRole("link", { name: /#sample/ }),
+        page.locator("[data-tags-top]").getByRole("link", { name: /#sample/ }),
       ).toBeVisible();
       await expect(page.locator("[data-tags-drawer] summary")).toBeVisible();
       await expect(page.locator("[data-tags-drawer-preview]")).toBeVisible();

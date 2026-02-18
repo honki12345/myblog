@@ -86,7 +86,7 @@ export default async function TagsIndexPage({ searchParams }: PageProps) {
               />
               <button
                 type="submit"
-                className="shrink-0 rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                className="shrink-0 rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none"
               >
                 검색
               </button>
@@ -94,7 +94,7 @@ export default async function TagsIndexPage({ searchParams }: PageProps) {
             {isSearching ? (
               <Link
                 href="/tags"
-                className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:border-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:border-slate-300 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none"
               >
                 초기화
               </Link>
@@ -116,7 +116,7 @@ export default async function TagsIndexPage({ searchParams }: PageProps) {
           {isSearching ? (
             <Link
               href="/tags"
-              className="mt-4 inline-flex rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+              className="mt-4 inline-flex rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none"
             >
               전체 태그 보기
             </Link>
@@ -146,12 +146,12 @@ export default async function TagsIndexPage({ searchParams }: PageProps) {
                   <li key={tag.name}>
                     <Link
                       href={buildTagHref(tag.name)}
-                      className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm hover:border-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                      className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm hover:border-slate-300 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none"
                     >
                       <span className="min-w-0 truncate text-base font-semibold text-slate-900">
                         #{tag.name}
                       </span>
-                      <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold tabular-nums text-slate-700">
+                      <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700 tabular-nums">
                         {tag.count}개
                       </span>
                     </Link>
@@ -174,9 +174,7 @@ export default async function TagsIndexPage({ searchParams }: PageProps) {
                 전체 태그
               </h2>
               {isSearching ? (
-                <p className="text-xs text-slate-600">
-                  검색 결과만 표시합니다
-                </p>
+                <p className="text-xs text-slate-600">검색 결과만 표시합니다</p>
               ) : (
                 <p className="text-xs text-slate-600">
                   접어두면 상위 {previewTags.length}개만 미리 보여요
@@ -186,7 +184,7 @@ export default async function TagsIndexPage({ searchParams }: PageProps) {
 
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <details data-tags-drawer open={isSearching}>
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl px-3 py-2 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white [&::-webkit-details-marker]:hidden">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl px-3 py-2 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none [&::-webkit-details-marker]:hidden">
                   <span className="text-sm font-semibold text-slate-900">
                     전체 태그{" "}
                     <span className="font-medium text-slate-500 tabular-nums">
@@ -204,12 +202,12 @@ export default async function TagsIndexPage({ searchParams }: PageProps) {
                       <li key={tag.name}>
                         <Link
                           href={buildTagHref(tag.name)}
-                          className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm hover:border-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                          className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm hover:border-slate-300 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none"
                         >
                           <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-900">
                             #{tag.name}
                           </span>
-                          <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium tabular-nums text-slate-700">
+                          <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 tabular-nums">
                             {tag.count}개
                           </span>
                         </Link>
@@ -228,14 +226,14 @@ export default async function TagsIndexPage({ searchParams }: PageProps) {
                     <Link
                       key={tag.name}
                       href={buildTagHref(tag.name)}
-                      className="inline-flex max-w-full items-center rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                      className="inline-flex max-w-full items-center rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-200 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none"
                       title={`#${tag.name} (${tag.count}개)`}
                     >
                       <span className="min-w-0 truncate">#{tag.name}</span>
                     </Link>
                   ))}
                   {tags.length > previewTags.length ? (
-                    <span className="inline-flex items-center rounded-full bg-white px-2 py-1 text-xs font-medium tabular-nums text-slate-500">
+                    <span className="inline-flex items-center rounded-full bg-white px-2 py-1 text-xs font-medium text-slate-500 tabular-nums">
                       +{tags.length - previewTags.length}개
                     </span>
                   ) : null}

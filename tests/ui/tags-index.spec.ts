@@ -26,7 +26,10 @@ test.describe("tags index", () => {
 
   test("clicking a top tag routes to /tags/[tag]", async ({ page }) => {
     await page.goto("/tags", { waitUntil: "networkidle" });
-    await page.locator("[data-tags-top]").getByRole("link", { name: /#sample/ }).click();
+    await page
+      .locator("[data-tags-top]")
+      .getByRole("link", { name: /#sample/ })
+      .click();
 
     await expect(page).toHaveURL(/\/tags\/sample$/);
     await expect(
@@ -97,7 +100,9 @@ test.describe("tags index", () => {
     await page.locator("[data-tags-drawer] summary").click();
 
     const grid = page.locator("[data-tags-drawer-grid]");
-    await expect(grid.getByRole("link", { name: /#draft-only/ })).toHaveCount(0);
+    await expect(grid.getByRole("link", { name: /#draft-only/ })).toHaveCount(
+      0,
+    );
     await expect(grid.getByRole("link", { name: /#sample/ })).toContainText(
       "3개",
     );

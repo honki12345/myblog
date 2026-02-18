@@ -6,6 +6,8 @@ import {
   type PostStatus,
 } from "@/lib/post-list";
 
+const TAG_PAGE_LIMIT = 5000;
+
 type PageProps = {
   params: Promise<{ tag: string }>;
 };
@@ -34,13 +36,14 @@ export default async function TagPage({ params }: PageProps) {
   const { items: posts, totalCount } = listPostsWithTotalCount({
     statuses,
     tag: decodedTag,
-    limit: 5000,
+    limit: TAG_PAGE_LIMIT,
     offset: 0,
   });
   const includesDraft =
     isAdmin && posts.some((post) => post.status === "draft");
   const label = isAdmin ? "글" : "공개 글";
   const draftSuffix = includesDraft ? " (초안 포함)" : "";
+  const isTruncated = totalCount > posts.length;
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 sm:px-6 lg:px-8">
@@ -50,7 +53,9 @@ export default async function TagPage({ params }: PageProps) {
         </h1>
         <p className="text-sm text-slate-600">
           {totalCount > 0
-            ? `${totalCount}개의 ${label}이 있습니다${draftSuffix}.`
+            ? isTruncated
+              ? `${totalCount}개의 ${label}이 있습니다${draftSuffix}. 상위 ${posts.length}개만 표시합니다.`
+              : `${totalCount}개의 ${label}이 있습니다${draftSuffix}.`
             : `해당 태그의 ${label}이 없습니다.`}
         </p>
       </header>

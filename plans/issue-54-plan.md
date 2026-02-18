@@ -154,3 +154,7 @@
 - [x] `npm run test:all`
 - [x] Playwright: public 시나리오(type/q/tag + 페이지네이션 보존), home 스냅샷, admin draft 노출(/tags 인덱스 포함) 회귀
 - [x] DB 마이그레이션 검증: `origin` 컬럼 존재 + backfill 결과 + `origin` 불변 트리거 동작을 자동화로 확인
+
+## PR 리뷰 반영 내역 (2026-02-18)
+- Copilot 코멘트(discussion_r2817133384): 태그 상세(`/tags/[tag]`)에서 `limit: 5000` 조회로 잘릴 수 있는데 헤더는 `totalCount`를 그대로 보여 혼란 가능. `totalCount > posts.length`면 "상위 N개만 표시" 안내 문구를 추가. (변경: `src/app/tags/[tag]/page.tsx`, 검증: `npm run test:all` PASS)
+- CodeRabbit nitpick(2026-02-17): `/posts` 페이지네이션이 `totalPages`만큼 링크를 전부 렌더링해 아카이브가 커지면 DOM/HTML 비용이 커질 수 있음. windowed pagination(+ ellipsis)로 렌더링을 상한 고정. (변경: `src/app/posts/page.tsx`, 검증: `npm run test:all` PASS)

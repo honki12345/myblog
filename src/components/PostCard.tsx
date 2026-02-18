@@ -26,15 +26,20 @@ export default function PostCard({ post }: PostCardProps) {
       : `/posts/${post.slug}`;
   const thumbnailUrl = post.thumbnailUrl;
   const hasThumbnail = Boolean(thumbnailUrl);
+  const containerClassName =
+    "group relative min-w-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-colors transition-shadow hover:border-slate-300 hover:shadow-md focus-within:border-slate-300 focus-within:shadow-md focus-within:ring-2 focus-within:ring-slate-300 focus-within:ring-offset-2 focus-within:ring-offset-white motion-reduce:transition-none";
+  const titleLinkClassName =
+    // Stretched-link: pseudo-element expands click target to the full card (no nested anchors).
+    "hover:underline focus-visible:underline focus-visible:outline-none before:absolute before:inset-0 before:z-10 before:content-['']";
 
   if (!hasThumbnail) {
     return (
       <article
-        className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+        className={containerClassName}
         data-post-card
       >
         <h2 className="text-lg font-semibold tracking-tight break-words">
-          <Link href={href} className="hover:underline">
+          <Link href={href} className={titleLinkClassName}>
             {post.title}
           </Link>
         </h2>
@@ -55,7 +60,7 @@ export default function PostCard({ post }: PostCardProps) {
 
   return (
     <article
-      className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+      className={containerClassName}
       data-post-card
       data-post-has-thumbnail
     >
@@ -68,7 +73,7 @@ export default function PostCard({ post }: PostCardProps) {
         </div>
         <div className="min-w-0 sm:flex-1">
           <h2 className="text-lg font-semibold tracking-tight break-words">
-            <Link href={href} className="hover:underline">
+            <Link href={href} className={titleLinkClassName}>
               {post.title}
             </Link>
           </h2>

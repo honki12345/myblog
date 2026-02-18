@@ -95,7 +95,12 @@ async function stopProcess(
 
 function startScript(scriptName, options = {}) {
   const label = options.label ?? scriptName;
-  const child = spawn(NPM_COMMAND, ["run", scriptName], {
+  const args = ["run", scriptName];
+  if (Array.isArray(options.args) && options.args.length > 0) {
+    args.push(...options.args);
+  }
+
+  const child = spawn(NPM_COMMAND, args, {
     cwd: ROOT,
     env: {
       ...process.env,
@@ -176,7 +181,9 @@ async function main() {
     { script: "test:step2", label: "step2" },
     { script: "test:step4", label: "step4" },
   ]);
-  await runSingle("test:step3");
+  await runSingle("test:step3", {
+    env: { STEP3_PORT_BASE: "3300" },
+  });
   await runSingle("test:step5", {
     env: { STEP5_PORT_BASE: "3100" },
   });
@@ -185,15 +192,25 @@ async function main() {
   });
   await runSingle("test:step9");
   await runSingle("test:step10");
-  const playwrightPort =
-    Number.parseInt(process.env.PLAYWRIGHT_PORT ?? "", 10) ||
+
+  // Run each viewport as a separate Playwright invocation so a single run
+  // doesn't outlive its webServer process or leave the port occupied.
+  const playwrightPortBase =
+    Number.parseInt(process.env.PLAYWRIGHT_PORT_BASE ?? "", 10) ||
     (await findAvailablePort(3400));
-  await runSingle("test:ui", {
-    env: {
-      PLAYWRIGHT_PORT: String(playwrightPort),
-      PLAYWRIGHT_SKIP_BUILD: "1",
-    },
-  });
+  const uiProjects = ["mobile-360", "tablet-768", "desktop-1440"];
+  for (let index = 0; index < uiProjects.length; index += 1) {
+    const project = uiProjects[index];
+    const port = await findAvailablePort(playwrightPortBase + index);
+    await runSingle("test:ui", {
+      label: `test:ui:${project}`,
+      env: {
+        PLAYWRIGHT_PORT: String(port),
+        PLAYWRIGHT_SKIP_BUILD: "1",
+      },
+      args: ["--", `--project=${project}`],
+    });
+  }
 
   const totalDurationMs = Date.now() - totalStartedAt;
   console.log(

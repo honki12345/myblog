@@ -46,6 +46,11 @@ export function buildStatusFilter(
   };
 }
 
+function escapeLikePattern(pattern: string): string {
+  // Escape LIKE wildcard characters so user input behaves predictably.
+  return pattern.replace(/[%_\\]/g, "\\$&");
+}
+
 function parseTagsCsv(tagsCsv: string): string[] {
   return tagsCsv.length > 0
     ? tagsCsv.split("\u001f").filter((tag) => tag.length > 0)
@@ -245,8 +250,9 @@ export function listTagCounts(
   const params: unknown[] = [...statusFilter.params];
 
   if (normalizedQuery.length > 0) {
-    whereClauses.push("t.name LIKE ?");
-    params.push(`%${normalizedQuery}%`);
+    const escapedQuery = escapeLikePattern(normalizedQuery);
+    whereClauses.push("t.name LIKE ? ESCAPE '\\'");
+    params.push(`%${escapedQuery}%`);
   }
 
   const rows = db

@@ -98,3 +98,13 @@
 - [ ] Playwright 기능: drawer 기본 접힘 상태에서 미리보기 칩 M개만 렌더링되고, summary 클릭 시 전체 태그가 노출되는지 확인
 - [ ] Playwright a11y: `/tags?q=sa`에서도 serious/critical 위반 0 유지(검색 UI 상태 차이)
 - [ ] (선택) Playwright(JS OFF): `javaScriptEnabled: false` 컨텍스트에서 `<details>/<summary>` 토글 및 태그 링크 내비게이션 동작 확인
+
+## PR 리뷰 반영 내역 (2026-02-18)
+- Copilot 리뷰(`discussion_r2820935864`): 태그 검색 `LIKE`에서 `%`, `_` 와일드카드가 의도치 않게 동작하는 문제 대응
+  - 변경: `src/lib/post-list.ts`의 `listTagCounts()`에서 검색어를 LIKE 패턴용으로 escape 처리하고, `LIKE ... ESCAPE '\\'`를 적용
+  - 테스트: `pnpm test:ui:fast` (pass)
+- Copilot 리뷰(`discussion_r2820935894`): 검색 input에 `maxLength`가 없어 서버 제한(100자)과 UX 불일치
+  - 변경: `src/app/tags/page.tsx` 검색 input에 `maxLength={MAX_SEARCH_QUERY_LENGTH}` 추가
+  - 테스트: `pnpm test:ui:fast` (pass)
+- 회귀 방지 테스트 추가
+  - 변경: `tests/ui/tags-index.spec.ts`에 underscore 검색어가 dash 태그를 잘못 매칭하지 않는 케이스 추가

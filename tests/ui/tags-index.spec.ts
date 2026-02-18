@@ -84,6 +84,36 @@ test.describe("tags index", () => {
     await expect(grid.getByRole("link")).toHaveCount(1);
   });
 
+  test("search escapes LIKE wildcard characters", async ({ page, request }) => {
+    await insertPostDirect(request, {
+      title: "PW-SEED-LIKE escape (underscore)",
+      content: "LIKE escape underscore",
+      tags: ["pw_like_escape_20260218_tag"],
+      status: "published",
+      sourceUrl: "https://playwright.seed/like-escape-underscore",
+    });
+    await insertPostDirect(request, {
+      title: "PW-SEED-LIKE escape (dash)",
+      content: "LIKE escape dash",
+      tags: ["pw-like-escape-20260218-tag"],
+      status: "published",
+      sourceUrl: "https://playwright.seed/like-escape-dash",
+    });
+
+    await page.goto("/tags?q=pw_like_escape_20260218_tag", {
+      waitUntil: "networkidle",
+    });
+
+    const grid = page.locator("[data-tags-drawer-grid]");
+    await expect(grid).toBeVisible();
+    await expect(
+      grid.getByRole("link", { name: /#pw_like_escape_20260218_tag/ }),
+    ).toBeVisible();
+    await expect(
+      grid.getByRole("link", { name: /#pw-like-escape-20260218-tag/ }),
+    ).toHaveCount(0);
+  });
+
   test("only published posts are counted (draft-only tags are hidden)", async ({
     page,
     request,

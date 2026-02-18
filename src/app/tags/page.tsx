@@ -82,6 +82,7 @@ export default async function TagsIndexPage({ searchParams }: PageProps) {
                 autoComplete="off"
                 defaultValue={q ?? ""}
                 placeholder="태그 검색… (예: sample)"
+                maxLength={MAX_SEARCH_QUERY_LENGTH}
                 className="min-w-0 flex-1 bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
               />
               <button

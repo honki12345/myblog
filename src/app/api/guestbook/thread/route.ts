@@ -6,6 +6,7 @@ import {
 import {
   clearGuestbookSessionCookie,
   deleteGuestbookSessionById,
+  getGuestbookSessionIdFromRequest,
 } from "@/lib/guestbook";
 import { getDb } from "@/lib/db";
 
@@ -44,7 +45,10 @@ export async function GET(request: NextRequest) {
     .get(auth.session.thread_id) as ThreadRow | undefined;
 
   if (!thread) {
-    deleteGuestbookSessionById(auth.session.id);
+    const sessionId = getGuestbookSessionIdFromRequest(request);
+    if (sessionId) {
+      deleteGuestbookSessionById(sessionId);
+    }
     const response = guestbookErrorResponse(
       404,
       "NOT_FOUND",

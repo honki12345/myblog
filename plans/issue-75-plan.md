@@ -4,7 +4,7 @@
 - Issue URL: https://github.com/honki12345/myblog/issues/75
 - Issue 번호: 75
 - 기준 브랜치: main
-- 작업 브랜치: issue-75-feat-프라이빗-방명록-게스트-관리자-1-1-대화
+- 작업 브랜치: issue-75-private-guestbook-guest-admin-chat
 - Worktree 경로: /home/fpg123/Workspace/honki12345/.worktrees/issue-75-feat-프라이빗-방명록-게스트-관리자-1-1-대화
 - 작성일: 2026-02-18
 
@@ -122,3 +122,21 @@
 - [ ] Playwright: 게스트 세션 쿠키가 HttpOnly/SameSite로 설정된다(개발환경에서는 secure=false 허용).
 - [ ] Playwright/API: 메시지 작성 엔드포인트 레이트리밋 동작(429 + Retry-After)을 확인한다.
 - [ ] 단위/통합 테스트: 비밀번호 해시/검증, 권한 체크, DB 제약
+
+## PR 리뷰 반영 내역 (2026-02-18)
+- 세션 토큰을 DB에 raw로 저장하지 않고 해시로 저장하도록 변경(세션 탈취 리스크 완화)
+  - 코멘트: discussion_r2820993936
+  - 변경: `src/lib/guestbook.ts`
+  - 커밋: `1d6c4a6`
+  - 검증: `npm run format:check`, `npm run lint`, `npm run test:ui -- --project=desktop-1440 tests/ui/guestbook-private.spec.ts`
+  - 메모: 배포 시 기존 세션(이미 발급된 쿠키)은 무효화될 수 있음
+- 관리자 답장 textarea에 `maxLength={5000}` 추가(API 입력 제한과 정합)
+  - 코멘트: pullrequestreview-3818443163 (nitpick)
+  - 변경: `src/app/admin/guestbook/[id]/AdminGuestbookThreadClient.tsx`
+  - 커밋: `6edd91c`
+  - 검증: `npm run format:check`, `npm run lint`
+- 방명록 UI 시나리오 테스트에 axe 접근성 검사 추가(serious/critical 위반 0)
+  - 코멘트: discussion_r2820993941
+  - 변경: `tests/ui/guestbook-private.spec.ts`
+  - 커밋: `4965f12`
+  - 검증: `npm run format:check`, `npm run lint`, `npm run test:ui -- tests/ui/guestbook-private.spec.ts`

@@ -25,6 +25,7 @@ AI(크론잡)가 웹 스크래핑한 정보를 자동으로 올리고, 사용자
 ├── plans/
 │   ├── blog-architecture.md      # 아키텍처 설계
 │   ├── implementation-plan.md    # 구현+테스트+결정 통합 계획
+│   ├── use-cases.md              # 유스케이스 명세 + 테스트 매핑(단일 문서)
 │   └── issue-<번호>-plan.md      # 이슈별 작업 계획(계획 문서 단일 위치)
 ├── src/
 │   ├── app/                      # App Router 페이지 & API
@@ -43,6 +44,7 @@ AI(크론잡)가 웹 스크래핑한 정보를 자동으로 올리고, 사용자
 
 - **아키텍처**: @plans/blog-architecture.md
 - **구현 계획**: @plans/implementation-plan.md
+- **유스케이스 명세**: @plans/use-cases.md
 - **이슈 계획**: @plans/issue-<번호>-plan.md
 - **코드베이스 문서**: @docs/codebase.md
 - **런북/운영 로그**: @docs/runbooks/deploy-log.md
@@ -238,3 +240,5 @@ EOF
 - UI 판별 기본값: Playwright 스크린샷 비교(`toHaveScreenshot`)를 사용하고, 최소 뷰포트 `360/768/1440`을 포함한다.
 - UI 테스트 권장 보완: 스크린샷 비교 + 기능 assertion + 접근성 검사(`@axe-core/playwright`)를 함께 적용한다.
 - UI 스크린샷 안정화: 애니메이션 비활성화, 고정 시드 데이터, 고정 타임존/로케일을 적용하고 실패 시 diff 이미지를 CI 아티팩트로 보관한다.
+- 작업 시작 전 `docs/codebase.md`의 `Sync Anchor (main)`과 `Task Context Map`을 먼저 확인한다.
+- 기능/테스트 변경 시 `plans/use-cases.md`의 유스케이스 명세/Traceability Matrix를 함께 갱신한다.

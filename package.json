@@ -21,6 +21,7 @@
     "test:step8": "node scripts/test-step-8.mjs",
     "test:step9": "node scripts/test-step-9.mjs",
     "test:step10": "node scripts/test-step-10.mjs",
+    "test:step11": "node scripts/test-step-11.mjs",
     "test:ui": "node scripts/test-ui.mjs",
     "test:ui:fast": "node scripts/test-ui.mjs --project=desktop-1440",
     "test:ui:update": "node scripts/test-ui.mjs --update-snapshots",

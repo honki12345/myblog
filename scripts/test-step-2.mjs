@@ -63,6 +63,8 @@ function testSchemaAndObjects(db) {
     "tags",
     "post_tags",
     "sources",
+    "post_comments",
+    "comment_tags",
     "schema_versions",
     "posts_fts",
   ];
@@ -114,6 +116,11 @@ function testSchemaAndObjects(db) {
     "idx_posts_status_published_at",
     "idx_posts_origin",
     "idx_sources_url",
+    "idx_post_comments_post_id_id",
+    "idx_post_comments_visible_by_post",
+    "idx_post_comments_visibility",
+    "idx_comment_tags_tag_path",
+    "idx_comment_tags_tag_path_comment_id",
   ]) {
     assert(indexes.includes(index), `Missing index: ${index}`);
   }
@@ -266,6 +273,57 @@ function testForeignKeyCascade(db) {
   assert(!orphan, "CASCADE delete failed");
 
   db.prepare("DELETE FROM tags WHERE id = ?").run(tagId);
+}
+
+function testCommentTables(db) {
+  const postSlug = `comment-post-${Date.now()}`;
+  const postId = Number(
+    db
+      .prepare(
+        "INSERT INTO posts (title, slug, content, status) VALUES (?, ?, ?, ?)",
+      )
+      .run("Comment FK", postSlug, "Comment FK content", "published")
+      .lastInsertRowid,
+  );
+  assert(postId > 0, "failed to seed comment FK post");
+
+  const commentId = Number(
+    db
+      .prepare(
+        `
+        INSERT INTO post_comments (post_id, content, is_hidden)
+        VALUES (?, ?, ?)
+        `,
+      )
+      .run(postId, "comment content", 0).lastInsertRowid,
+  );
+  assert(commentId > 0, "failed to create post_comment");
+
+  db.prepare(
+    "INSERT INTO comment_tags (comment_id, tag_path) VALUES (?, ?)",
+  ).run(commentId, "test/path");
+
+  const joined = db
+    .prepare(
+      `
+      SELECT pc.id, ct.tag_path
+      FROM post_comments pc
+      INNER JOIN comment_tags ct ON ct.comment_id = pc.id
+      WHERE pc.id = ?
+      `,
+    )
+    .get(commentId);
+  assert(joined?.tag_path === "test/path", "failed to join comment tag path");
+
+  db.prepare("DELETE FROM posts WHERE id = ?").run(postId);
+  const orphanComment = db
+    .prepare("SELECT id FROM post_comments WHERE id = ?")
+    .get(commentId);
+  const orphanCommentTag = db
+    .prepare("SELECT comment_id FROM comment_tags WHERE comment_id = ?")
+    .get(commentId);
+  assert(!orphanComment, "post_comments cascade delete failed");
+  assert(!orphanCommentTag, "comment_tags cascade delete failed");
 }
 
 function testStatusCheckConstraint(db) {
@@ -502,7 +560,7 @@ function testOriginMigrationBackfill() {
       .prepare("SELECT MAX(version) AS version FROM schema_versions")
       .get();
     assert(
-      schemaVersionRow?.version === 6,
+      schemaVersionRow?.version === 7,
       `unexpected schema version: ${schemaVersionRow?.version}`,
     );
   } finally {
@@ -529,6 +587,7 @@ function main() {
     testCrud(db);
     testFts(db);
     testForeignKeyCascade(db);
+    testCommentTables(db);
     testStatusCheckConstraint(db);
     testOriginConstraints(db);
 

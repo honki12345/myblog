@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import PostContent from "@/components/PostContent";
 import TagList from "@/components/TagList";
 import PostAdminActionsClient from "./PostAdminActionsClient";
+import PostCommentsAdminClient from "./PostCommentsAdminClient";
 import { getAdminSessionFromServerCookies } from "@/lib/admin-auth";
 import { getDb } from "@/lib/db";
 import { formatDate } from "@/lib/date";
@@ -135,6 +136,7 @@ export default async function PostDetailPage({ params }: PageProps) {
         ) : null}
       </header>
       <PostContent content={post.content} />
+      {showAdminActions ? <PostCommentsAdminClient postId={post.id} /> : null}
     </main>
   );
 }

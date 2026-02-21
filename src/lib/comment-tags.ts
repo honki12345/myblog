@@ -11,7 +11,9 @@ export function normalizeCommentTagPath(input: string): string {
   return input.trim().toLowerCase();
 }
 
-export function validateCommentTagPath(input: string): CommentTagPathValidationResult {
+export function validateCommentTagPath(
+  input: string,
+): CommentTagPathValidationResult {
   const normalizedPath = normalizeCommentTagPath(input);
   if (normalizedPath.length === 0) {
     return { valid: false, message: "tagPath is required." };

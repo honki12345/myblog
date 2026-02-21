@@ -362,7 +362,9 @@ export function getAdminCommentById(
   return row ? mapAdminCommentRow(row) : null;
 }
 
-export function listVisibleCommentsForPost(postId: number): PublicPostComment[] {
+export function listVisibleCommentsForPost(
+  postId: number,
+): PublicPostComment[] {
   const db = getDb();
   const rows = db
     .prepare(
@@ -388,7 +390,9 @@ export function listVisibleCommentsForPost(postId: number): PublicPostComment[] 
   return rows.map(mapPublicCommentRow);
 }
 
-export function collectWikiPathsForRevalidate(tagPaths: readonly string[]): string[] {
+export function collectWikiPathsForRevalidate(
+  tagPaths: readonly string[],
+): string[] {
   const paths = new Set<string>(["/wiki"]);
 
   for (const tagPath of tagPaths) {

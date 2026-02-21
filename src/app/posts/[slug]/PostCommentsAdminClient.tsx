@@ -178,9 +178,9 @@ export default function PostCommentsAdminClient({
         return;
       }
 
-      const data = (await response.json().catch(() => null)) as
-        | { error?: { message?: string } }
-        | null;
+      const data = (await response.json().catch(() => null)) as {
+        error?: { message?: string };
+      } | null;
       if (!response.ok) {
         setError(parseErrorMessage(data, "댓글 저장에 실패했습니다."));
         return;
@@ -224,9 +224,9 @@ export default function PostCommentsAdminClient({
         return;
       }
 
-      const data = (await response.json().catch(() => null)) as
-        | { error?: { message?: string } }
-        | null;
+      const data = (await response.json().catch(() => null)) as {
+        error?: { message?: string };
+      } | null;
       if (!response.ok) {
         setError(parseErrorMessage(data, "댓글 삭제에 실패했습니다."));
         return;

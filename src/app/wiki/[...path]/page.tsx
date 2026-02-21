@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { buildWikiPathHref, normalizeWikiPathFromSegments } from "@/lib/comment-tags";
+import {
+  buildWikiPathHref,
+  normalizeWikiPathFromSegments,
+} from "@/lib/comment-tags";
 import { formatDate } from "@/lib/date";
 import { getWikiPathOverview } from "@/lib/wiki";
 

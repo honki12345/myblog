@@ -598,7 +598,11 @@ async function runApiScenario() {
   return { postId };
 }
 
-function seedPerformanceDataset(postId, totalComments = 10_000, totalPaths = 2_000) {
+function seedPerformanceDataset(
+  postId,
+  totalComments = 10_000,
+  totalPaths = 2_000,
+) {
   const db = new Database(TEST_DB_PATH);
   db.pragma("foreign_keys = ON");
 
@@ -654,7 +658,8 @@ async function measureP95(label, iterations, runOnce) {
   }
 
   const p95 = percentile95(samples);
-  const average = samples.reduce((sum, value) => sum + value, 0) / samples.length;
+  const average =
+    samples.reduce((sum, value) => sum + value, 0) / samples.length;
   console.log(
     `[step11] ${label}: avg=${average.toFixed(1)}ms p95=${p95.toFixed(1)}ms iterations=${samples.length}`,
   );
@@ -669,7 +674,10 @@ async function runPerformanceScenario(postId) {
     const root = await requestJson("/api/wiki");
     assert(root.status === 200, "warmup /api/wiki should return 200");
     const path = await requestJson("/api/wiki/cat-0/topic-0?limit=200");
-    assert(path.status === 200, "warmup /api/wiki/cat-0/topic-0 should return 200");
+    assert(
+      path.status === 200,
+      "warmup /api/wiki/cat-0/topic-0 should return 200",
+    );
   }
 
   const rootP95 = await measureP95("wiki-root", 25, async () => {

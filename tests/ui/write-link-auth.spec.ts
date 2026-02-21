@@ -30,18 +30,19 @@ test.beforeEach(() => {
 test("logged out pages hide admin write entry links", async ({
   page,
 }, testInfo) => {
-  await page.goto("/", { waitUntil: "networkidle" });
+  await page.goto("/wiki", { waitUntil: "networkidle" });
 
   const nav = page.locator('nav[aria-label="주요 메뉴"]');
   const loginLink = nav.getByRole("link", { name: "로그인" });
 
   await expect(page.locator('a[href^="/admin/write"]')).toHaveCount(0);
+  await expect(nav.getByRole("link", { name: "글 목록" })).toHaveCount(0);
   await expect(nav).toBeVisible();
-  await expect(loginLink).toHaveAttribute("href", "/admin/login?next=%2F");
+  await expect(loginLink).toHaveAttribute("href", "/admin/login?next=%2Fwiki");
   await expect(page.locator("main").first()).toBeVisible();
   await assertNoHorizontalPageScroll(
     page,
-    `[${testInfo.project.name}] / has horizontal overflow (logged out)`,
+    `[${testInfo.project.name}] /wiki has horizontal overflow (logged out)`,
   );
 
   const maxDiffPixelRatio = getVisualDiffThreshold(testInfo.project.name);

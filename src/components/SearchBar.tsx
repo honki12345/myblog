@@ -2,19 +2,22 @@ import Link from "next/link";
 
 type SearchBarProps = {
   query: string | null;
+  isAdmin?: boolean;
 };
 
-export default function SearchBar({ query }: SearchBarProps) {
+export default function SearchBar({ query, isAdmin = false }: SearchBarProps) {
   const normalizedQuery = query ?? "";
   const hasQuery = normalizedQuery.length > 0;
+  const postsPath = hasQuery
+    ? `/posts?q=${encodeURIComponent(normalizedQuery)}`
+    : "/posts";
+  const loginHref = `/admin/login?next=${encodeURIComponent(postsPath)}`;
+  const action = isAdmin ? "/posts" : "/admin/login";
 
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-      <form
-        method="get"
-        action="/posts"
-        className="flex w-full max-w-xl items-stretch gap-2"
-      >
+      <form method="get" action={action} className="flex w-full max-w-xl items-stretch gap-2">
+        {!isAdmin ? <input type="hidden" name="next" value={postsPath} /> : null}
         <label htmlFor="posts-search" className="sr-only">
           검색어
         </label>
@@ -36,7 +39,10 @@ export default function SearchBar({ query }: SearchBarProps) {
       </form>
 
       {hasQuery ? (
-        <Link href="/posts" className="text-sm text-slate-600 hover:underline">
+        <Link
+          href={isAdmin ? "/posts" : loginHref}
+          className="text-sm text-slate-600 hover:underline"
+        >
           초기화
         </Link>
       ) : null}

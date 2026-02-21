@@ -6,6 +6,7 @@ import "katex/dist/katex.min.css";
 import "./globals.css";
 import AdminAuthNavButton from "@/components/AdminAuthNavButton";
 import HomeTitleLink from "@/components/HomeTitleLink";
+import { getAdminSessionFromServerCookies } from "@/lib/admin-auth";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -25,11 +26,14 @@ export const metadata: Metadata = {
   description: "AI 수집 글과 직접 작성 글을 함께 발행하는 개인 블로그",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const adminSession = await getAdminSessionFromServerCookies();
+  const isAdmin = Boolean(adminSession);
+
   return (
     <html lang="ko">
       <body
@@ -45,11 +49,13 @@ export default function RootLayout({
                 aria-label="주요 메뉴"
                 className="flex w-full min-w-0 flex-wrap items-center gap-1 text-sm font-medium sm:w-auto sm:justify-end sm:gap-2"
               >
-                <Link href="/posts" className="header-nav-item">
-                  글 목록
-                </Link>
-                <Link href="/tags" className="header-nav-item">
-                  태그
+                {isAdmin ? (
+                  <Link href="/posts" className="header-nav-item">
+                    글 목록
+                  </Link>
+                ) : null}
+                <Link href="/wiki" className="header-nav-item">
+                  위키
                 </Link>
                 <Suspense
                   fallback={

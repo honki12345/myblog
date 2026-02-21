@@ -1,8 +1,13 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { getAdminSessionFromRequest } from "@/lib/admin-auth";
 import { logApiRequest, summarizeApiPayload } from "@/lib/api-log";
 import { getBearerToken, verifyApiKey } from "@/lib/auth";
+import {
+  buildWikiPathHref,
+  normalizeWikiPathFromTagName,
+} from "@/lib/comment-tags";
 import { getDb } from "@/lib/db";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { createSlug, withSlugSuffix } from "@/lib/slug";
@@ -160,9 +165,12 @@ function isDuplicateSourceError(error: unknown): boolean {
 }
 
 function revalidatePostRelatedPaths(slug: string, tags: string[]) {
-  const paths = new Set<string>(["/", "/posts", `/posts/${slug}`]);
+  const paths = new Set<string>(["/", "/wiki", "/posts", `/posts/${slug}`]);
   for (const tag of tags) {
-    paths.add(`/tags/${encodeURIComponent(tag)}`);
+    const wikiPath = normalizeWikiPathFromTagName(tag);
+    if (wikiPath) {
+      paths.add(buildWikiPathHref(wikiPath));
+    }
   }
 
   for (const path of paths) {
@@ -198,14 +206,18 @@ const RATE_LIMIT_WINDOW_MS = parsePositiveIntegerEnv(
 );
 const SINGLE_RATE_LIMIT_KEY_PREFIX = "posts:create:";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const adminSession = getAdminSessionFromRequest(request, { touch: false });
+  if (!adminSession) {
+    return errorResponse(401, "UNAUTHORIZED", "Admin session is required.");
+  }
+
   const db = getDb();
   const rows = db
     .prepare(
       `
       SELECT id, title, slug, content, status, source_url, created_at, updated_at, published_at
       FROM posts
-      WHERE status = 'published'
       ORDER BY id DESC
       LIMIT 100
       `,

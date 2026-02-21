@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { seedVisualPosts } from "./helpers";
+import { authenticateAdminSession, seedVisualPosts } from "./helpers";
 
 const THUMBNAIL_SEED_TITLE = "PW-SEED-홈 화면 글";
 const NO_THUMBNAIL_SEED_TITLE = "PW-SEED-목록 화면 글";
@@ -58,12 +58,14 @@ async function clickWhitespaceAboveTags(
   await page.mouse.click(x, y);
 }
 
-test("public: post cards are clickable across thumbnail/summary/whitespace", async ({
+test("admin: post cards are clickable across thumbnail/summary/whitespace", async ({
   page,
   request,
 }) => {
   const seeded = await seedVisualPosts(request);
   const expectedDetailHref = `/posts/${seeded.detailSlug}`;
+  await authenticateAdminSession(page, { nextPath: "/posts?per_page=50" });
+  await page.waitForLoadState("networkidle");
 
   await gotoArchive(page);
   const cardWithThumbnail = getPostCardByTitle(page, THUMBNAIL_SEED_TITLE);
@@ -130,28 +132,32 @@ test("public: post cards are clickable across thumbnail/summary/whitespace", asy
   ).toBeVisible();
 });
 
-test("public: tag chips take precedence over card navigation", async ({
+test("admin: tag chips take precedence over card navigation", async ({
   page,
   request,
 }) => {
   await seedVisualPosts(request);
+  await authenticateAdminSession(page, { nextPath: "/posts?per_page=50" });
+  await page.waitForLoadState("networkidle");
   await gotoArchive(page);
 
   const card = getPostCardByTitle(page, THUMBNAIL_SEED_TITLE);
   const tagLink = card.getByRole("link", { name: "#sample", exact: true });
 
   await tagLink.click();
-  await expect(page).toHaveURL(/\/tags\/sample$/);
+  await expect(page).toHaveURL(/\/wiki\/sample$/);
   await expect(
-    page.getByRole("heading", { name: "태그: sample" }),
+    page.getByRole("heading", { name: "위키 경로: /sample" }),
   ).toBeVisible();
 });
 
-test("public: post cards expose focus-visible feedback on keyboard navigation", async ({
+test("admin: post cards expose focus-visible feedback on keyboard navigation", async ({
   page,
   request,
 }) => {
   await seedVisualPosts(request);
+  await authenticateAdminSession(page, { nextPath: "/posts?per_page=50" });
+  await page.waitForLoadState("networkidle");
   await gotoArchive(page);
 
   const card = getPostCardByTitle(page, THUMBNAIL_SEED_TITLE);

@@ -1,6 +1,10 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
-import { runCleanupScript, waitForDocumentTitle } from "./helpers";
+import {
+  authenticateAdminSession,
+  runCleanupScript,
+  waitForDocumentTitle,
+} from "./helpers";
 
 const DISABLE_ANIMATION_STYLE = `
   *,
@@ -39,22 +43,21 @@ async function assertNoSeriousA11yViolations(page: Page) {
   expect(blockingViolations).toEqual([]);
 }
 
-test("home: empty state 안내문에서 아카이브 링크 언급이 제거된다", async ({
+test("home: 위키 루트 빈 상태 안내문이 노출된다", async ({
   page,
 }, testInfo) => {
   runCleanupScript();
 
   const maxDiffPixelRatio = getEmptyStateDiffThreshold(testInfo.project.name);
   await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
-  await page.goto("/", { waitUntil: "networkidle" });
+  await authenticateAdminSession(page, { nextPath: "/" });
+  await page.waitForLoadState("networkidle");
   await page.addStyleTag({ content: DISABLE_ANIMATION_STYLE });
 
+  await expect(page.getByRole("heading", { name: "홈", exact: true })).toBeVisible();
   await expect(
-    page.getByText(
-      /아직 글이 없습니다\.\s*상단 메뉴\(글 목록\/태그\)에서 탐색을 시작해 보세요\./,
-    ),
+    page.getByText("아직 공개된 위키 데이터가 없습니다."),
   ).toBeVisible();
-  await expect(page.getByText("아카이브 링크")).toHaveCount(0);
 
   await assertNoSeriousA11yViolations(page);
 

@@ -6,6 +6,10 @@ import {
   runCleanupScript,
 } from "./helpers";
 
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 async function triggerRevalidation(
   request: import("@playwright/test").APIRequestContext,
   post: {
@@ -37,7 +41,10 @@ test.beforeEach(() => {
   runCleanupScript();
 });
 
-test("public posts list hides draft", async ({ page, request }) => {
+test("non-admin routes redirect to login and protected APIs return 401", async ({
+  page,
+  request,
+}) => {
   const seed = Date.now();
   const publishedTitle = `PW-DRAFT-VIS-PUBLISHED-${seed}`;
   const draftTitle = `PW-DRAFT-VIS-DRAFT-${seed}`;
@@ -63,32 +70,28 @@ test("public posts list hides draft", async ({ page, request }) => {
   await triggerRevalidation(request, { ...publishedPost, ...published });
   await triggerRevalidation(request, { ...draftPost, ...draft });
 
-  const apiResponse = await request.get("/api/posts");
-  expect(apiResponse.ok()).toBeTruthy();
-  const apiPayload = (await apiResponse.json()) as {
-    items?: Array<{ id: number }>;
-  };
-  const apiIds = Array.isArray(apiPayload.items)
-    ? apiPayload.items.map((item) => item.id)
-    : [];
-  expect(apiIds).toContain(publishedPost.id);
-  expect(apiIds).not.toContain(draftPost.id);
+  const protectedPaths = [
+    "/",
+    "/posts?per_page=50",
+    `/posts/${publishedPost.slug}`,
+    "/tags",
+    "/tags/draft-vis",
+  ] as const;
 
-  await page.goto("/posts?per_page=50", { waitUntil: "networkidle" });
+  for (const path of protectedPaths) {
+    await page.goto(path, { waitUntil: "networkidle" });
+    const expected = `/admin/login?next=${encodeURIComponent(path)}`;
+    await expect(page).toHaveURL(new RegExp(`${escapeRegex(expected)}$`));
+  }
 
-  await expect(page.getByRole("link", { name: publishedTitle })).toBeVisible();
-  await expect(page.getByRole("link", { name: draftTitle })).toHaveCount(0);
+  const postsApi = await request.get("/api/posts");
+  expect(postsApi.status()).toBe(401);
 
-  await page.goto("/", { waitUntil: "networkidle" });
-  await expect(page.getByRole("link", { name: publishedTitle })).toBeVisible();
-  await expect(page.getByRole("link", { name: draftTitle })).toHaveCount(0);
-
-  await page.goto("/tags/draft-vis", { waitUntil: "networkidle" });
-  await expect(page.getByRole("link", { name: publishedTitle })).toBeVisible();
-  await expect(page.getByRole("link", { name: draftTitle })).toHaveCount(0);
+  const suggestApi = await request.get("/api/posts/suggest?q=draft");
+  expect(suggestApi.status()).toBe(401);
 });
 
-test("admin posts list shows draft and draft link goes to editor", async ({
+test("admin can access protected pages and draft data", async ({
   page,
   request,
 }) => {
@@ -135,16 +138,15 @@ test("admin posts list shows draft and draft link goes to editor", async ({
     page.getByRole("heading", { name: `글 수정 #${draftPost.id}` }),
   ).toBeVisible();
 
-  await page.goto("/posts?per_page=50", { waitUntil: "networkidle" });
-  await page.getByRole("link", { name: publishedTitle }).click();
-  await expect(page).toHaveURL(new RegExp(`/posts/${publishedPost.slug}$`));
-  await expect(
-    page.getByRole("heading", { name: publishedTitle }),
-  ).toBeVisible();
-
   await page.goto("/", { waitUntil: "networkidle" });
-  await expect(page.getByRole("link", { name: draftTitle })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "홈" })).toBeVisible();
 
-  await page.goto("/tags/draft-vis", { waitUntil: "networkidle" });
-  await expect(page.getByRole("link", { name: draftTitle })).toBeVisible();
+  await page.goto("/tags", { waitUntil: "networkidle" });
+  await expect(page).toHaveURL(/\/wiki$/);
+
+  const tagResponse = await page.goto("/tags/draft-vis", {
+    waitUntil: "domcontentloaded",
+  });
+  expect(tagResponse?.status()).toBe(404);
+  await expect(page).toHaveURL(/\/wiki\/draft-vis$/);
 });

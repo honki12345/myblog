@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import PostContent from "@/components/PostContent";
 import TagList from "@/components/TagList";
 import PostAdminActionsClient from "./PostAdminActionsClient";
@@ -24,6 +24,10 @@ type PostDetailRow = {
   updated_at: string;
   tags_csv: string;
 };
+
+function buildLoginHref(nextPath: string): string {
+  return `/admin/login?next=${encodeURIComponent(nextPath)}`;
+}
 
 function loadPublishedPostBySlug(slug: string): PostDetailRow | null {
   const db = getDb();
@@ -99,6 +103,11 @@ export default async function PostDetailPage({ params }: PageProps) {
     notFound();
   }
 
+  const adminSession = await getAdminSessionFromServerCookies();
+  if (!adminSession) {
+    redirect(buildLoginHref(`/posts/${encodeURIComponent(rawSlug)}`));
+  }
+
   const post = loadPublishedPostBySlug(slug);
 
   if (!post) {
@@ -111,9 +120,6 @@ export default async function PostDetailPage({ params }: PageProps) {
       ? post.tags_csv.split("\u001f").filter((tag) => tag.length > 0)
       : [];
 
-  const adminSession = await getAdminSessionFromServerCookies();
-  const showAdminActions = Boolean(adminSession);
-
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8 sm:px-6 lg:px-8">
       <header className="space-y-3">
@@ -123,20 +129,18 @@ export default async function PostDetailPage({ params }: PageProps) {
           <span>slug: /posts/{post.slug}</span>
         </div>
         {tags.length > 0 ? <TagList tags={tags} /> : null}
-        {showAdminActions ? (
-          <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
-            <Link
-              href={`/admin/write?id=${post.id}`}
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-            >
-              수정
-            </Link>
-            <PostAdminActionsClient postId={post.id} />
-          </div>
-        ) : null}
+        <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
+          <Link
+            href={`/admin/write?id=${post.id}`}
+            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+          >
+            수정
+          </Link>
+          <PostAdminActionsClient postId={post.id} />
+        </div>
       </header>
       <PostContent content={post.content} />
-      {showAdminActions ? <PostCommentsAdminClient postId={post.id} /> : null}
+      <PostCommentsAdminClient postId={post.id} />
     </main>
   );
 }

@@ -243,7 +243,12 @@ async function requestJson(pathname, options = {}) {
 async function requestText(pathname) {
   const response = await fetch(`${apiBase}${pathname}`);
   const text = await response.text();
-  return { status: response.status, text };
+  return {
+    status: response.status,
+    text,
+    url: response.url,
+    redirected: response.redirected,
+  };
 }
 
 async function main() {
@@ -268,40 +273,52 @@ async function main() {
       `expected POST /api/posts to return 201, got ${created.status}`,
     );
 
-    const searchHit = await requestText(
-      `/posts?q=${encodeURIComponent("Kubernetes")}`,
-    );
+    const searchHit = await requestText(`/posts?q=${encodeURIComponent("Kubernetes")}`);
     assert(
       searchHit.status === 200,
       `expected GET /posts?q=Kubernetes to return 200, got ${searchHit.status}`,
     );
     assert(
-      searchHit.text.includes("Kubernetes 클러스터 관리"),
-      "expected search results to include the created post title",
+      searchHit.redirected,
+      "expected GET /posts?q=Kubernetes to redirect to admin login",
+    );
+    assert(
+      searchHit.url.includes("/admin/login?next=%2Fposts%3Fq%3DKubernetes"),
+      `expected redirected url to include encoded next path, got ${searchHit.url}`,
     );
 
-    const searchMiss = await requestText(
-      `/posts?q=${encodeURIComponent("존재하지않는검색어12345")}`,
-    );
+    const searchMiss = await requestText(`/posts?q=${encodeURIComponent("존재하지않는검색어12345")}`);
     assert(
       searchMiss.status === 200,
       `expected GET /posts?q=존재하지않는검색어12345 to return 200, got ${searchMiss.status}`,
     );
     assert(
-      searchMiss.text.includes("검색 결과가 없습니다"),
-      "expected empty search message",
+      searchMiss.redirected,
+      "expected GET /posts?q=존재하지않는검색어12345 to redirect to admin login",
     );
 
-    const searchSyntaxError = await requestText(
-      `/posts?q=${encodeURIComponent('"unclosed')}`,
-    );
+    const searchSyntaxError = await requestText(`/posts?q=${encodeURIComponent('"unclosed')}`);
     assert(
       searchSyntaxError.status === 200,
       `expected GET /posts?q=%22unclosed to return 200, got ${searchSyntaxError.status}`,
     );
     assert(
-      searchSyntaxError.text.includes("검색어가 올바르지 않습니다"),
-      "expected invalid query message",
+      searchSyntaxError.redirected,
+      "expected GET /posts?q=%22unclosed to redirect to admin login",
+    );
+
+    const listApi = await requestJson("/api/posts");
+    assert(
+      listApi.status === 401,
+      `expected GET /api/posts to return 401 without admin session, got ${listApi.status}`,
+    );
+
+    const suggestApi = await requestJson(
+      `/api/posts/suggest?q=${encodeURIComponent("Kubernetes")}`,
+    );
+    assert(
+      suggestApi.status === 401,
+      `expected GET /api/posts/suggest to return 401 without admin session, got ${suggestApi.status}`,
     );
   } finally {
     await stopServer(server);

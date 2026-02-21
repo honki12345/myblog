@@ -32,7 +32,7 @@ test("icons links exist and resources are reachable", async ({
   page,
   request,
 }) => {
-  await page.goto("/", { waitUntil: "networkidle" });
+  await page.goto("/wiki", { waitUntil: "networkidle" });
 
   const iconHrefs = await page
     .locator('head link[rel="icon"]')

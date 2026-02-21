@@ -89,7 +89,7 @@ async function assertNoSeriousA11yViolations(page: Page, message: string) {
 }
 
 for (const route of routes) {
-  test(`visual snapshot: ${route.name}`, async ({
+  test(`@visual visual snapshot: ${route.name}`, async ({
     page,
     request,
   }, testInfo) => {

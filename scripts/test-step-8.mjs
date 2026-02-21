@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { readFile, rm } from "node:fs/promises";
+import { access, readFile, readdir, rm } from "node:fs/promises";
 import { createRequire } from "node:module";
 import net from "node:net";
 import path from "node:path";
@@ -20,6 +20,9 @@ const LOCAL_LOG_MODE = process.argv.includes("--journalctl")
   ? "journalctl"
   : "stdout";
 const JOURNAL_SERVICE = process.env.STEP8_JOURNAL_SERVICE ?? "blog";
+const STEP8_SERVER_MODE = (process.env.STEP8_SERVER_MODE ?? "auto")
+  .trim()
+  .toLowerCase();
 
 let apiBase = `http://127.0.0.1:${DEFAULT_PORT}`;
 
@@ -52,7 +55,7 @@ function canBindPort(port) {
     server.unref();
 
     server.once("error", () => resolve(false));
-    server.listen({ port, host: DEV_SERVER_HOST }, () => {
+    server.listen({ port, exclusive: true }, () => {
       server.close(() => resolve(true));
     });
   });
@@ -182,46 +185,131 @@ async function waitForServer(url, retries = 60, delayMs = 500) {
   throw new Error(`Timed out waiting for server: ${url}`);
 }
 
-async function startServer(apiKey, logs) {
+function resolveServerMode() {
+  if (
+    STEP8_SERVER_MODE === "standalone" ||
+    STEP8_SERVER_MODE === "dev" ||
+    STEP8_SERVER_MODE === "auto"
+  ) {
+    return STEP8_SERVER_MODE;
+  }
+
+  throw new Error(
+    `Unsupported STEP8_SERVER_MODE="${STEP8_SERVER_MODE}". Expected one of: auto, standalone, dev`,
+  );
+}
+
+async function resolveStandaloneServerDir() {
+  const primaryServerPath = path.join(ROOT, ".next", "standalone", "server.js");
+
+  try {
+    await access(primaryServerPath);
+    return path.dirname(primaryServerPath);
+  } catch {
+    // fallback to worktree-nested standalone layout
+  }
+
+  const worktreesDir = path.join(ROOT, ".next", "standalone", ".worktrees");
+  try {
+    const entries = await readdir(worktreesDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) {
+        continue;
+      }
+
+      const candidate = path.join(worktreesDir, entry.name, "server.js");
+      try {
+        await access(candidate);
+        return path.dirname(candidate);
+      } catch {
+        // continue searching
+      }
+    }
+  } catch {
+    // fall through to final error
+  }
+
+  throw new Error("standalone server.js not found");
+}
+
+async function startServer(apiKey, logs, options = {}) {
+  const { env = {} } = options;
   const startPort = parsePositiveIntegerEnv(
     process.env.STEP8_PORT_BASE,
     DEFAULT_PORT,
   );
   const port = await findAvailablePort(startPort);
   apiBase = `http://${DEV_SERVER_HOST}:${port}`;
+  const mode = resolveServerMode();
 
-  const child = spawn(
-    process.execPath,
-    [
-      NEXT_BIN,
-      "dev",
-      "--webpack",
-      "--hostname",
-      DEV_SERVER_HOST,
-      "--port",
-      String(port),
-    ],
-    {
-      cwd: ROOT,
-      env: {
-        ...process.env,
-        BLOG_API_KEY: apiKey,
-        DATABASE_PATH: TEST_DB_PATH,
-        NEXT_PUBLIC_SITE_URL: apiBase,
-        RATE_LIMIT_BULK_MAX_REQUESTS:
-          process.env.RATE_LIMIT_BULK_MAX_REQUESTS ?? "3",
-        RATE_LIMIT_BULK_WINDOW_MS:
-          process.env.RATE_LIMIT_BULK_WINDOW_MS ?? "60000",
-        NEXT_TELEMETRY_DISABLED: "1",
+  const sharedEnv = {
+    ...process.env,
+    BLOG_API_KEY: apiKey,
+    DATABASE_PATH: TEST_DB_PATH,
+    NEXT_PUBLIC_SITE_URL: apiBase,
+    RATE_LIMIT_BULK_MAX_REQUESTS:
+      process.env.RATE_LIMIT_BULK_MAX_REQUESTS ?? "3",
+    RATE_LIMIT_BULK_WINDOW_MS: process.env.RATE_LIMIT_BULK_WINDOW_MS ?? "60000",
+    NEXT_TELEMETRY_DISABLED: "1",
+    ...env,
+  };
+
+  let child;
+
+  if (mode === "standalone" || mode === "auto") {
+    try {
+      const standaloneServerDir = await resolveStandaloneServerDir();
+      child = spawn(process.execPath, ["server.js"], {
+        cwd: standaloneServerDir,
+        env: {
+          ...sharedEnv,
+          PORT: String(port),
+          HOSTNAME: DEV_SERVER_HOST,
+        },
+        detached: true,
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+      child.__serverMode = "standalone";
+    } catch (error) {
+      if (mode === "standalone") {
+        throw error;
+      }
+
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(
+        `[step8] standalone unavailable (${message}); falling back to next dev`,
+      );
+    }
+  }
+
+  if (!child) {
+    child = spawn(
+      process.execPath,
+      [
+        NEXT_BIN,
+        "dev",
+        "--webpack",
+        "--hostname",
+        DEV_SERVER_HOST,
+        "--port",
+        String(port),
+      ],
+      {
+        cwd: ROOT,
+        env: sharedEnv,
+        detached: true,
+        stdio: ["ignore", "pipe", "pipe"],
       },
-      detached: true,
-      stdio: ["ignore", "pipe", "pipe"],
-    },
-  );
+    );
+    child.__serverMode = "dev";
+  }
   child.__step8Port = port;
 
   attachOutput(child.stdout, logs, process.stdout);
   attachOutput(child.stderr, logs, process.stderr);
+  console.log(
+    `[step8] server mode=${child.__serverMode} port=${port} base=${apiBase}`,
+  );
 
   try {
     await waitForServer(`${apiBase}/api/health`);
@@ -741,9 +829,9 @@ async function runMetadataAndLogChecks(apiKey, logs) {
   }
 }
 
-async function runSession(apiKey, runner) {
+async function runSession(apiKey, runner, options = {}) {
   const logs = [];
-  const server = await startServer(apiKey, logs);
+  const server = await startServer(apiKey, logs, options);
 
   try {
     await runner(logs);
@@ -758,11 +846,23 @@ async function main() {
   await cleanupTestDb();
 
   try {
-    await runSession(apiKey, () => runBulkCoreChecks(apiKey));
-    await runSession(apiKey, () => runBulkDuplicateChecks(apiKey));
-    await runSession(apiKey, () => runBulkRaceCheck(apiKey));
+    await runSession(
+      apiKey,
+      async (logs) => {
+        await runBulkCoreChecks(apiKey);
+        await runBulkDuplicateChecks(apiKey);
+        await runBulkRaceCheck(apiKey);
+        await runMetadataAndLogChecks(apiKey, logs);
+      },
+      {
+        env: {
+          RATE_LIMIT_BULK_MAX_REQUESTS: "100",
+          RATE_LIMIT_BULK_WINDOW_MS: "60000",
+        },
+      },
+    );
+
     await runSession(apiKey, () => runBulkRateLimitCheck(apiKey));
-    await runSession(apiKey, (logs) => runMetadataAndLogChecks(apiKey, logs));
 
     console.log("\nStep 8 checks passed.");
   } finally {

@@ -14,6 +14,8 @@ test("critical pages have no serious axe violations", async ({
     "/tags",
     "/tags?q=sa",
     "/tags/sample",
+    "/wiki",
+    `/wiki/${seeded.wikiPath}`,
     "/admin/login",
   ];
 

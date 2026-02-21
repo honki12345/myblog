@@ -215,6 +215,43 @@ BEGIN
 END;
 `;
 
+const ISSUE102_SCHEMA_SQL = `
+CREATE TABLE IF NOT EXISTS post_comments (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  post_id    INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+  content    TEXT NOT NULL,
+  is_hidden  INTEGER NOT NULL DEFAULT 0 CHECK (is_hidden IN (0, 1)),
+  deleted_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS comment_tags (
+  comment_id INTEGER PRIMARY KEY
+    REFERENCES post_comments(id) ON DELETE CASCADE,
+  tag_path   TEXT NOT NULL
+    CHECK (
+      length(tag_path) BETWEEN 1 AND 120
+      AND tag_path = lower(tag_path)
+      AND tag_path NOT LIKE '/%'
+      AND tag_path NOT LIKE '%/'
+      AND tag_path NOT LIKE '%//%'
+    )
+);
+
+CREATE INDEX IF NOT EXISTS idx_post_comments_post_id_id
+  ON post_comments(post_id, id DESC);
+CREATE INDEX IF NOT EXISTS idx_post_comments_visible_by_post
+  ON post_comments(post_id, id DESC)
+  WHERE is_hidden = 0 AND deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_post_comments_visibility
+  ON post_comments(is_hidden, deleted_at, id DESC);
+CREATE INDEX IF NOT EXISTS idx_comment_tags_tag_path
+  ON comment_tags(tag_path);
+CREATE INDEX IF NOT EXISTS idx_comment_tags_tag_path_comment_id
+  ON comment_tags(tag_path, comment_id);
+`;
+
 function hasTableColumn(
   database: Database.Database,
   tableName: string,
@@ -381,6 +418,16 @@ export function runMigrations(database: Database.Database): void {
         )
         .run(6, "Private guestbook thread schema for Issue #75");
       currentVersion = 6;
+    }
+
+    if (currentVersion < 7) {
+      database.exec(ISSUE102_SCHEMA_SQL);
+      database
+        .prepare(
+          "INSERT INTO schema_versions (version, description) VALUES (?, ?)",
+        )
+        .run(7, "Comments tag wiki schema for Issue #102");
+      currentVersion = 7;
     }
   });
 

@@ -192,6 +192,7 @@ async function main() {
   });
   await runSingle("test:step9");
   await runSingle("test:step10");
+  await runSingle("test:step11");
 
   // Run each viewport as a separate Playwright invocation so a single run
   // doesn't outlive its webServer process or leave the port occupied.

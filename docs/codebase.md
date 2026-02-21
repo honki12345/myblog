@@ -21,15 +21,16 @@
 
 ### Core capabilities
 
-- 공개 웹: `/`, `/posts`, `/posts/[slug]`, `/tags`, `/tags/[tag]`
+- 공개 웹: `/`, `/posts`, `/posts/[slug]`, `/tags`, `/tags/[tag]`, `/wiki`, `/wiki/[...path]`
 - 관리자 웹: `/admin/login`, `/admin/write`, `/admin/notes`, `/admin/todos`, `/admin/schedules`, `/admin/guestbook`, `/admin/guestbook/[id]`
 - 호환 라우트: `/write`는 `/admin/write`로 리다이렉트(쿼리 유지)
 - AI/API Key 경로: `/api/posts`, `/api/posts/bulk`, `/api/posts/[id]`, `/api/posts/check`, `/api/posts/suggest`, `/api/uploads`
 - Inbox 경로: `/api/inbox`, `/api/inbox/[id]` (URL host 기반 `x/doc` 자동 판별)
-- Admin API 경로: `/api/admin/auth/*`, `/api/admin/posts*`, `/api/admin/notes*`, `/api/admin/todos*`, `/api/admin/schedules*`, `/api/admin/uploads`, `/api/admin/guestbook/*`
+- Admin API 경로: `/api/admin/auth/*`, `/api/admin/posts*`, `/api/admin/posts/[id]/comments*`, `/api/admin/notes*`, `/api/admin/todos*`, `/api/admin/schedules*`, `/api/admin/uploads`, `/api/admin/guestbook/*`
+- Wiki API 경로: `/api/wiki`, `/api/wiki/[...path]`
 - Guestbook API 경로: `/api/guestbook/threads`, `/api/guestbook/login`, `/api/guestbook/thread`, `/api/guestbook/messages`, `/api/guestbook/logout`
 - SQLite(better-sqlite3, WAL, FTS5) + 마크다운 렌더링(GFM/Math/Shiki/KaTeX/sanitize)
-- Playwright 기반 시각 회귀 + 접근성 + 기능 E2E, step1~step10 스크립트 게이트
+- Playwright 기반 시각 회귀 + 접근성 + 기능 E2E, step1~step11 스크립트 게이트
 
 ### Non-goals / limitations (current implementation)
 
@@ -48,10 +49,11 @@ Sources: `AGENTS.md`, `src/app/layout.tsx`, `src/app/page.tsx`, `src/app/posts/p
 | Layer                  | Responsibility                                                       | Key files                                                                                                                             |
 | ---------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
 | Public pages (RSC)     | 홈/아카이브/태그/상세 조회, admin 세션 여부에 따른 draft 가시성 제어 | `src/app/page.tsx`, `src/app/posts/page.tsx`, `src/app/tags/page.tsx`, `src/app/tags/[tag]/page.tsx`, `src/app/posts/[slug]/page.tsx` |
+| Wiki pages             | 댓글 태그 경로 기반 카테고리/브레드크럼/원문 링크 조회               | `src/app/wiki/page.tsx`, `src/app/wiki/[...path]/page.tsx`                                                                            |
 | Admin pages            | 로그인/글쓰기/메모/할일/일정/방명록 인박스 UI                        | `src/app/admin/**`                                                                                                                    |
 | Guestbook pages        | 게스트 스레드 생성/로그인/대화 UI, noindex 페이지                    | `src/app/guestbook/page.tsx`, `src/app/guestbook/GuestbookClient.tsx`                                                                 |
-| Public/API key routes  | 포스트 생성/수정/조회/중복검사/업로드/인입큐/헬스체크                | `src/app/api/posts/**`, `src/app/api/uploads/route.ts`, `src/app/api/inbox/**`, `src/app/api/health/route.ts`                         |
-| Admin API routes       | 2FA 인증, CSRF 보호 CRUD, 관리자 업로드, 관리자 방명록 응답          | `src/app/api/admin/**`                                                                                                                |
+| Public/API key routes  | 포스트 생성/수정/조회/중복검사/업로드/인입큐/헬스체크/위키 조회      | `src/app/api/posts/**`, `src/app/api/uploads/route.ts`, `src/app/api/inbox/**`, `src/app/api/health/route.ts`, `src/app/api/wiki/**`  |
+| Admin API routes       | 2FA 인증, CSRF 보호 CRUD, 관리자 업로드, 관리자 방명록/댓글 응답     | `src/app/api/admin/**`                                                                                                                |
 | Guestbook API routes   | 게스트 스레드/로그인/메시지/로그아웃                                 | `src/app/api/guestbook/**`                                                                                                            |
 | Auth/session utilities | admin 세션/챌린지/TOTP, CSRF 서명 검증, guestbook 세션               | `src/lib/admin-auth.ts`, `src/lib/admin-csrf.ts`, `src/lib/guestbook.ts`, `src/lib/admin-api.ts`, `src/lib/guestbook-api.ts`          |
 | Data layer             | SQLite 연결, 스키마 버전 마이그레이션, FTS/트리거/인덱스             | `src/lib/db.ts`                                                                                                                       |
@@ -63,6 +65,7 @@ Sources: `AGENTS.md`, `src/app/layout.tsx`, `src/app/page.tsx`, `src/app/posts/p
 - 공개 조회 흐름: RSC가 `post-list` 질의로 `published` 중심 데이터를 렌더링하고, admin 세션이 있으면 draft를 함께 노출한다.
 - 관리자 인증 흐름: `/api/admin/auth/login`(1차) -> `admin_login_challenge` 쿠키 -> `/api/admin/auth/verify`(2차) -> `admin_session` + `admin_csrf` 쿠키 발급.
 - 관리자 콘텐츠 흐름: `/api/admin/posts*`와 `/api/admin/{notes,todos,schedules}*`가 세션+CSRF를 검증하고 DB를 갱신하며 관련 경로를 `revalidatePath` 한다.
+- 댓글/위키 흐름: 관리자가 `/api/admin/posts/[id]/comments*`로 댓글+태그경로를 관리하고, 공개 `/api/wiki*`/`/wiki*`는 `is_hidden=0 AND deleted_at IS NULL`만 트리/경로로 노출한다.
 - 방명록 흐름: 게스트가 스레드 생성/로그인 시 `guestbook_session` 쿠키 발급 -> 스레드 단위 메시지 작성 -> 관리자가 `/api/admin/guestbook/*`에서 조회/답장.
 - Inbox 흐름: `/api/inbox` POST가 URL host 기반으로 `x`/`doc` source를 자동 판별하고 정규화 후 큐 적재(중복은 duplicate 응답).
 - 관측 흐름: `POST /api/posts`, `POST /api/posts/bulk`는 요청 요약 구조화 로그를 출력한다.
@@ -122,6 +125,10 @@ Sources: `src/app/api/admin/auth/login/route.ts`, `src/app/api/admin/auth/verify
 | `POST`             | `/api/admin/auth/logout`                                                      | admin 세션 + CSRF | 세션/CSRF 쿠키 무효화                                                     | `UNAUTHORIZED`, `CSRF_FAILED`                                                           |
 | `GET/POST`         | `/api/admin/posts`                                                            | 세션 / 세션+CSRF  | 관리자 글 목록/생성(origin=`original`)                                    | `UNAUTHORIZED`, `CSRF_FAILED`, `INVALID_INPUT`, `INTERNAL_ERROR`                        |
 | `GET/PATCH/DELETE` | `/api/admin/posts/[id]`                                                       | 세션 / 세션+CSRF  | 관리자 글 조회/수정/삭제(삭제 시 `sources.post_id` NULL 처리 후 삭제)     | `UNAUTHORIZED`, `CSRF_FAILED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`           |
+| `GET/POST`         | `/api/admin/posts/[id]/comments`                                              | 세션 / 세션+CSRF  | 관리자 댓글 목록/생성(태그 경로 1개 필수, 소문자 정규화)                  | `UNAUTHORIZED`, `CSRF_FAILED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`           |
+| `PATCH/DELETE`     | `/api/admin/posts/[id]/comments/[commentId]`                                  | 세션+CSRF         | 관리자 댓글 수정/soft delete(`deleted_at`)                                | `UNAUTHORIZED`, `CSRF_FAILED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`           |
+| `GET`              | `/api/wiki`                                                                   | 없음              | 공개 위키 루트 카테고리/집계 조회                                         | `INTERNAL_ERROR`                                                                        |
+| `GET`              | `/api/wiki/[...path]?limit=`                                                  | 없음              | 경로별 하위 카테고리/댓글 조회(숨김·삭제 제외, 하위 경로 포함)            | `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`                                          |
 | `GET/POST`         | `/api/admin/notes`, `/api/admin/todos`, `/api/admin/schedules`                | 세션 / 세션+CSRF  | 관리자 워크스페이스 리소스 목록/생성                                      | `UNAUTHORIZED`, `CSRF_FAILED`, `INVALID_INPUT`, `INTERNAL_ERROR`                        |
 | `GET/PATCH/DELETE` | `/api/admin/notes/[id]`, `/api/admin/todos/[id]`, `/api/admin/schedules/[id]` | 세션 / 세션+CSRF  | 워크스페이스 리소스 단건 조회/수정/삭제                                   | `UNAUTHORIZED`, `CSRF_FAILED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`           |
 | `POST`             | `/api/admin/uploads`                                                          | 세션+CSRF         | 관리자 업로드(검증 규칙은 `/api/uploads`와 동일)                          | `UNAUTHORIZED`, `CSRF_FAILED`, `INVALID_INPUT`, `INTERNAL_ERROR`                        |
@@ -177,6 +184,8 @@ Sources: `src/app/api/admin/auth/login/route.ts`, `src/app/api/admin/auth/verify
 - 관리자 상태 변경 API는 signed double-submit CSRF(`x-csrf-token` + `admin_csrf`)를 요구한다.
 - 방명록 관련 경로(`/guestbook`, `/api/guestbook/*`, `/admin/guestbook/*`, `/api/admin/guestbook/*`)는 noindex 정책을 적용한다.
 - 포스트 생성/수정/삭제 시 홈/목록/상세/태그 경로를 `revalidatePath` 한다.
+- 댓글 생성/수정/삭제 시 `/posts/[slug]`, `/wiki`, `/wiki/[...path]`를 `revalidatePath` 한다.
+- 공개 위키/댓글 조회는 `post_comments.is_hidden=0 AND post_comments.deleted_at IS NULL`만 노출한다.
 - `posts.origin`은 immutable 트리거로 보호된다(`ai`/`original`).
 - 레이트리밋 기본값:
   - `POST /api/posts`: 10회/60초
@@ -232,7 +241,7 @@ Sources: `src/app/api/posts/route.ts`, `src/app/api/posts/bulk/route.ts`, `src/a
 
 ### Operational notes
 
-- DB 최초 연결 시 마이그레이션 실행, 현재 스키마 버전은 `6`(admin/inbox/guestbook 포함).
+- DB 최초 연결 시 마이그레이션 실행, 현재 스키마 버전은 `7`(admin/inbox/guestbook/comments/wiki 포함).
 - SQLite PRAGMA: `journal_mode=WAL`, `foreign_keys=ON`, `busy_timeout=5000`, `synchronous=NORMAL`, `cache_size=-2000`
 - 배포 워크플로우는 `/var/lib/blog/{data,uploads}` 영속 경로를 사용하고 릴리즈 디렉토리에 심볼릭 링크를 건다.
 - 운영 DB 백업은 `cp` 대신 `sqlite3 .backup` 전략을 사용한다.
@@ -259,17 +268,18 @@ Sources: `.env.example`, `package.json`, `next.config.ts`, `src/lib/db.ts`, `src
 
 > 자동 스크립트 대신 아래 경로 매핑 표를 작업 시작 체크리스트로 사용한다.
 
-| 작업 유형                | 필수 참고 경로                                                                                                                             | 선택 참고 경로                                                                                                                            | 점검 포인트                                |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| 공통 (모든 작업)         | `docs/codebase.md` (Sync Anchor, Architecture, API), `AGENTS.md`                                                                           | `plans/implementation-plan.md`, `plans/use-cases.md`                                                                                      | 시작 전 동기화 기준 커밋과 운영 규칙 확인  |
-| AI/API Key 경로 변경     | `src/app/api/posts/**`, `src/app/api/inbox/**`, `src/app/api/uploads/route.ts`, `src/lib/inbox-url.ts`                                     | `scripts/test-step-3.mjs`, `scripts/test-step-8.mjs`                                                                                      | 인증/정규화/레이트리밋/로그 요약 회귀 확인 |
-| 관리자 인증/권한 변경    | `src/lib/admin-auth.ts`, `src/lib/admin-csrf.ts`, `src/app/api/admin/auth/**`, `src/lib/admin-api.ts`                                      | `scripts/test-step-9.mjs`, `tests/ui/admin-*.spec.ts`                                                                                     | 2FA challenge/session/CSRF 계약 확인       |
-| 관리자 워크스페이스 변경 | `src/app/admin/**`, `src/app/api/admin/{posts,notes,todos,schedules}/**`                                                                   | `scripts/test-step-9.mjs`, `tests/ui/admin-workspace.spec.ts`                                                                             | 권한/CSRF + revalidate 동작 확인           |
-| 방명록 변경              | `src/app/guestbook/**`, `src/app/admin/guestbook/**`, `src/app/api/guestbook/**`, `src/app/api/admin/guestbook/**`, `src/lib/guestbook.ts` | `tests/ui/guestbook-private.spec.ts`, `next.config.ts`, `src/app/robots.ts`                                                               | 세션 격리/noindex/관리자 답장 흐름 확인    |
-| 검색/태그/아카이브 변경  | `src/app/posts/page.tsx`, `src/app/tags/**`, `src/app/api/posts/suggest/route.ts`, `src/lib/post-list.ts`                                  | `scripts/test-step-10.mjs`, `tests/ui/posts-archive.spec.ts`, `tests/ui/posts-search-autocomplete.spec.ts`, `tests/ui/tags-index.spec.ts` | FTS 오류 폴백/자동완성/필터 조합 회귀 확인 |
-| DB 스키마/마이그레이션   | `src/lib/db.ts`                                                                                                                            | `scripts/test-step-2.mjs`, `scripts/test-all.mjs`                                                                                         | schema version/인덱스/트리거/FTS 영향 확인 |
-| 배포/운영 변경           | `.github/workflows/*.yml`, `next.config.ts`                                                                                                | `docs/runbooks/deploy-log.md`, `scripts/test-step-6.mjs`, `scripts/test-step-7-remote.mjs`                                                | standalone/롤백/헬스체크 경로 확인         |
-| 테스트 전용 변경         | `scripts/test-step-*.mjs`, `tests/ui/*.spec.ts`, `package.json`                                                                            | `plans/use-cases.md`                                                                                                                      | 테스트 식별자와 유스케이스 매핑 업데이트   |
+| 작업 유형                | 필수 참고 경로                                                                                                                             | 선택 참고 경로                                                                                                                            | 점검 포인트                                 |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| 공통 (모든 작업)         | `docs/codebase.md` (Sync Anchor, Architecture, API), `AGENTS.md`                                                                           | `plans/implementation-plan.md`, `plans/use-cases.md`                                                                                      | 시작 전 동기화 기준 커밋과 운영 규칙 확인   |
+| AI/API Key 경로 변경     | `src/app/api/posts/**`, `src/app/api/inbox/**`, `src/app/api/uploads/route.ts`, `src/lib/inbox-url.ts`                                     | `scripts/test-step-3.mjs`, `scripts/test-step-8.mjs`                                                                                      | 인증/정규화/레이트리밋/로그 요약 회귀 확인  |
+| 관리자 인증/권한 변경    | `src/lib/admin-auth.ts`, `src/lib/admin-csrf.ts`, `src/app/api/admin/auth/**`, `src/lib/admin-api.ts`                                      | `scripts/test-step-9.mjs`, `tests/ui/admin-*.spec.ts`                                                                                     | 2FA challenge/session/CSRF 계약 확인        |
+| 관리자 워크스페이스 변경 | `src/app/admin/**`, `src/app/api/admin/{posts,notes,todos,schedules}/**`                                                                   | `scripts/test-step-9.mjs`, `tests/ui/admin-workspace.spec.ts`                                                                             | 권한/CSRF + revalidate 동작 확인            |
+| 방명록 변경              | `src/app/guestbook/**`, `src/app/admin/guestbook/**`, `src/app/api/guestbook/**`, `src/app/api/admin/guestbook/**`, `src/lib/guestbook.ts` | `tests/ui/guestbook-private.spec.ts`, `next.config.ts`, `src/app/robots.ts`                                                               | 세션 격리/noindex/관리자 답장 흐름 확인     |
+| 검색/태그/아카이브 변경  | `src/app/posts/page.tsx`, `src/app/tags/**`, `src/app/api/posts/suggest/route.ts`, `src/lib/post-list.ts`                                  | `scripts/test-step-10.mjs`, `tests/ui/posts-archive.spec.ts`, `tests/ui/posts-search-autocomplete.spec.ts`, `tests/ui/tags-index.spec.ts` | FTS 오류 폴백/자동완성/필터 조합 회귀 확인  |
+| 댓글/위키 변경           | `src/app/wiki/**`, `src/app/api/wiki/**`, `src/app/api/admin/posts/[id]/comments/**`, `src/lib/comment-tags.ts`, `src/lib/wiki.ts`         | `scripts/test-step-11.mjs`, `tests/ui/wiki-view.spec.ts`, `tests/ui/accessibility.spec.ts`                                                | 숨김/삭제 비노출, 경로 집계, CSRF 회귀 확인 |
+| DB 스키마/마이그레이션   | `src/lib/db.ts`                                                                                                                            | `scripts/test-step-2.mjs`, `scripts/test-all.mjs`                                                                                         | schema version/인덱스/트리거/FTS 영향 확인  |
+| 배포/운영 변경           | `.github/workflows/*.yml`, `next.config.ts`                                                                                                | `docs/runbooks/deploy-log.md`, `scripts/test-step-6.mjs`, `scripts/test-step-7-remote.mjs`                                                | standalone/롤백/헬스체크 경로 확인          |
+| 테스트 전용 변경         | `scripts/test-step-*.mjs`, `tests/ui/*.spec.ts`, `package.json`                                                                            | `plans/use-cases.md`                                                                                                                      | 테스트 식별자와 유스케이스 매핑 업데이트    |
 
 ### Test strategy and commands
 
@@ -284,9 +294,10 @@ Sources: `.env.example`, `package.json`, `next.config.ts`, `src/lib/db.ts`, `src
   - `npm run test:step8`: bulk API + 구조화 로그 검증
   - `npm run test:step9`: 관리자 인증/워크스페이스/CSRF 계약 검증
   - `npm run test:step10`: FTS 검색 UI 계약(검색 성공/미스/문법오류 폴백) 검증
+  - `npm run test:step11`: 관리자 댓글 CRUD + 공개 wiki 경로/집계 + p95 성능 기준 검증
   - `npm run test:ui`: Playwright 시각 회귀 + 기능 assertion + 접근성
 - 전체 회귀: `npm run test:all`
-  - 실행 순서: `step1 -> (step2+step4 병렬) -> step3 -> step5 -> step8 -> step9 -> step10 -> ui(360/768/1440)`
+  - 실행 순서: `step1 -> (step2+step4 병렬) -> step3 -> step5 -> step8 -> step9 -> step10 -> step11 -> ui(360/768/1440)`
   - `PLAYWRIGHT_SKIP_BUILD=1` 재사용 전략으로 build 중복을 줄인다.
 
 ### CI/CD workflow summary
@@ -295,7 +306,7 @@ Sources: `.env.example`, `package.json`, `next.config.ts`, `src/lib/db.ts`, `src
 - `deploy.yml`: `main` push(path filter) 또는 수동 실행에서만 배포를 수행한다.
 - 배포 실패 시 이전 릴리즈 symlink로 롤백하고 서비스 상태를 재검증한다.
 
-Sources: `package.json`, `scripts/test-step-1.mjs`, `scripts/test-step-2.mjs`, `scripts/test-step-3.mjs`, `scripts/test-step-4.mjs`, `scripts/test-step-5.mjs`, `scripts/test-step-6.mjs`, `scripts/test-step-7-remote.mjs`, `scripts/test-step-8.mjs`, `scripts/test-step-9.mjs`, `scripts/test-step-10.mjs`, `scripts/test-all.mjs`, `scripts/test-ui.mjs`, `playwright.config.ts`, `tests/ui/*.spec.ts`, `.github/workflows/ci.yml`, `.github/workflows/deploy.yml`, `plans/use-cases.md`
+Sources: `package.json`, `scripts/test-step-1.mjs`, `scripts/test-step-2.mjs`, `scripts/test-step-3.mjs`, `scripts/test-step-4.mjs`, `scripts/test-step-5.mjs`, `scripts/test-step-6.mjs`, `scripts/test-step-7-remote.mjs`, `scripts/test-step-8.mjs`, `scripts/test-step-9.mjs`, `scripts/test-step-10.mjs`, `scripts/test-step-11.mjs`, `scripts/test-all.mjs`, `scripts/test-ui.mjs`, `playwright.config.ts`, `tests/ui/*.spec.ts`, `.github/workflows/ci.yml`, `.github/workflows/deploy.yml`, `plans/use-cases.md`
 
 ## 6. Extension Points
 
@@ -303,6 +314,7 @@ Sources: `package.json`, `scripts/test-step-1.mjs`, `scripts/test-step-2.mjs`, `
 
 - 신규 공개 API: `src/app/api/<feature>/route.ts` + 공통 에러 포맷 유지
 - 신규 관리자 API: `src/app/api/admin/<feature>/route.ts` + `requireAdminSessionWithCsrf` 적용
+- 신규 위키/댓글 기능: `src/lib/comment-tags.ts`, `src/lib/wiki.ts`, `src/app/api/wiki/**`, `src/app/api/admin/posts/[id]/comments/**`, `src/app/wiki/**`
 - 신규 방명록 기능: `src/app/api/guestbook/**`, `src/app/api/admin/guestbook/**`, `src/lib/guestbook.ts`
 - DB 확장: `src/lib/db.ts`에서 스키마 SQL + `schema_versions` 마이그레이션 단계 추가
 - 검색/목록 확장: `src/lib/post-list.ts`, `src/lib/fts.ts`, `src/app/api/posts/suggest/route.ts`
@@ -315,6 +327,8 @@ Sources: `package.json`, `scripts/test-step-1.mjs`, `scripts/test-step-2.mjs`, `
 - `POST /api/inbox`는 `source` 입력을 받지 않는다(서버 자동 판별).
 - 관리자 상태 변경 API는 반드시 CSRF 헤더를 요구한다(`admin_csrf` 쿠키와 동일 값).
 - `DELETE /api/admin/posts/[id]` 시 `sources.post_id`를 NULL 처리해 출처 URL 유니크 이력을 보존한다.
+- 댓글 태그 경로는 `^[a-z0-9-]+(?:/[a-z0-9-]+)*$` + depth 4/segment 32/total 120 제한을 유지해야 한다.
+- 공개 위키는 `hidden/deleted` 댓글을 절대 노출하지 않는다.
 - `/write`는 호환용 리다이렉트 라우트이며 실 편집 경로는 `/admin/write`다.
 - guestbook 관련 경로는 색인 차단(noindex/robots disallow)이 기본이다.
 - 레이트리밋은 메모리 기반이므로 수평 확장 시 외부 저장소가 필요하다.

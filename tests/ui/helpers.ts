@@ -27,6 +27,13 @@ export type SeededPost = {
   origin?: "original" | "ai";
 };
 
+export type SeededComment = {
+  postId: number;
+  content: string;
+  tagPath: string;
+  isHidden?: boolean;
+};
+
 export async function waitForDocumentTitle(page: Page): Promise<void> {
   // Next.js navigation can briefly clear `document.title` while applying metadata.
   // Wait until it settles so axe doesn't fail flakily on `document-title`.
@@ -417,6 +424,42 @@ export async function insertPostDirect(
   }
 }
 
+export async function insertCommentDirect(
+  request: APIRequestContext,
+  comment: SeededComment,
+): Promise<{ id: number }> {
+  await ensureDbReady(request);
+
+  const db = openDb();
+  db.pragma("foreign_keys = ON");
+
+  try {
+    const normalizedTagPath = comment.tagPath.trim().toLowerCase();
+    return db.transaction(() => {
+      const created = db
+        .prepare(
+          `
+          INSERT INTO post_comments (post_id, content, is_hidden, created_at, updated_at)
+          VALUES (?, ?, ?, datetime('now'), datetime('now'))
+          `,
+        )
+        .run(comment.postId, comment.content, comment.isHidden ? 1 : 0);
+
+      const commentId = Number(created.lastInsertRowid);
+      db.prepare(
+        `
+        INSERT INTO comment_tags (comment_id, tag_path)
+        VALUES (?, ?)
+        `,
+      ).run(commentId, normalizedTagPath);
+
+      return { id: commentId };
+    })();
+  } finally {
+    db.close();
+  }
+}
+
 async function triggerRevalidationForSeededPost(
   request: APIRequestContext,
   post: SeededPost & { id: number },
@@ -444,7 +487,7 @@ async function triggerRevalidationForSeededPost(
 
 export async function seedVisualPosts(
   request: APIRequestContext,
-): Promise<{ detailSlug: string }> {
+): Promise<{ detailSlug: string; wikiPath: string }> {
   runCleanupScript();
   const seededPosts: Array<SeededPost & { id: number; slug: string }> = [];
 
@@ -536,5 +579,13 @@ $$E=mc^2$$
     await triggerRevalidationForSeededPost(request, seededPost);
   }
 
-  return { detailSlug: postA.slug };
+  const wikiPath = "sample/wiki";
+  await insertCommentDirect(request, {
+    postId: postD.id,
+    content: "PW-SEED 위키 댓글",
+    tagPath: wikiPath,
+    isHidden: false,
+  });
+
+  return { detailSlug: postA.slug, wikiPath };
 }

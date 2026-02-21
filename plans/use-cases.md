@@ -28,6 +28,7 @@
 | `ADMIN` | 관리자 로그인(2FA), 세션, CSRF, 워크스페이스 |
 | `UPLOAD` | 이미지 업로드 인증/검증/저장 |
 | `VISIBILITY` | 공개/관리자 노출 정책(초안 포함 여부) |
+| `WIKI` | 댓글 태그 경로 기반 위키 조회/관리자 댓글 CRUD |
 
 ## 4. 유스케이스 명세
 
@@ -127,6 +128,22 @@
 - 수용기준: draft 클릭 시 관리자 편집 경로(`/admin/write?id=...`)로 이동
 - 연결 테스트: `tests/ui/draft-visibility.spec.ts`, `tests/ui/write-link-auth.spec.ts`
 
+### UC-WIKI-001 관리자 댓글 CRUD + 태그 경로 검증/CSRF
+
+- 사전조건: 유효한 관리자 세션 + `admin_csrf` 쿠키
+- 기본흐름: `POST/PATCH/DELETE /api/admin/posts/:id/comments*`로 댓글 생성/수정/삭제
+- 예외흐름: 익명/세션 누락 `401`, CSRF 누락 `403`, 태그 경로 형식 오류 `400`
+- 수용기준: 태그 경로가 소문자 규칙(`^[a-z0-9-]+(?:/[a-z0-9-]+)*$`)으로 정규화되고 댓글 상태 변경 후 위키 경로 반영
+- 연결 테스트: `scripts/test-step-11.mjs`, `tests/ui/wiki-view.spec.ts`
+
+### UC-WIKI-002 공개 위키 트리/경로 조회 + 숨김/삭제 비노출
+
+- 사전조건: 댓글 + 태그 경로 데이터 존재
+- 기본흐름: `/api/wiki`, `/api/wiki/[...path]`, `/wiki`, `/wiki/[...path]`에서 카테고리/브레드크럼/원문 링크 조회
+- 예외흐름: 잘못된 경로는 `400`, 존재하지 않는 경로는 `404`
+- 수용기준: 공개 조회에서 `is_hidden=0 AND deleted_at IS NULL`만 노출되고 하위 경로 집계가 일관됨
+- 연결 테스트: `scripts/test-step-11.mjs`, `tests/ui/accessibility.spec.ts`, `tests/ui/wiki-view.spec.ts`
+
 ## 5. Traceability Matrix
 
 | UC ID | 카테고리 | 유스케이스 | 연결 테스트(주요) | 상태 |
@@ -143,3 +160,5 @@
 | UC-ADMIN-002 | ADMIN | 워크스페이스 CRUD + CSRF | `scripts/test-step-9.mjs`, `tests/ui/admin-workspace.spec.ts` | Active |
 | UC-UPLOAD-001 | UPLOAD | 업로드 인증/유효성 검증 | `scripts/test-step-3.mjs`, `scripts/test-step-9.mjs` | Active |
 | UC-VISIBILITY-001 | VISIBILITY | 공개/관리자 노출 정책 | `tests/ui/draft-visibility.spec.ts`, `tests/ui/write-link-auth.spec.ts` | Active |
+| UC-WIKI-001 | WIKI | 관리자 댓글 CRUD + 태그 경로 검증 | `scripts/test-step-11.mjs`, `tests/ui/wiki-view.spec.ts` | Active |
+| UC-WIKI-002 | WIKI | 공개 위키 트리/경로 조회 + 숨김/삭제 비노출 | `scripts/test-step-11.mjs`, `tests/ui/accessibility.spec.ts`, `tests/ui/wiki-view.spec.ts` | Active |

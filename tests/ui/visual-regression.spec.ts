@@ -248,14 +248,18 @@ for (const route of routes) {
       await expect(
         page.getByRole("heading", { name: "위키 경로: /sample" }),
       ).toBeVisible();
-      await expect(page.getByRole("heading", { name: "하위 카테고리" })).toBeVisible();
+      await expect(
+        page.getByRole("heading", { name: "하위 카테고리" }),
+      ).toBeVisible();
     }
 
     if (route.name === "tags") {
       await expect(
         page.getByRole("heading", { name: "댓글 위키", exact: true }),
       ).toBeVisible();
-      await expect(page.getByRole("heading", { name: "카테고리 트리" })).toBeVisible();
+      await expect(
+        page.getByRole("heading", { name: "카테고리 트리" }),
+      ).toBeVisible();
     }
 
     await assertNoHorizontalPageScroll(

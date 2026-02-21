@@ -16,8 +16,14 @@ export default function SearchBar({ query, isAdmin = false }: SearchBarProps) {
 
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-      <form method="get" action={action} className="flex w-full max-w-xl items-stretch gap-2">
-        {!isAdmin ? <input type="hidden" name="next" value={postsPath} /> : null}
+      <form
+        method="get"
+        action={action}
+        className="flex w-full max-w-xl items-stretch gap-2"
+      >
+        {!isAdmin ? (
+          <input type="hidden" name="next" value={postsPath} />
+        ) : null}
         <label htmlFor="posts-search" className="sr-only">
           검색어
         </label>

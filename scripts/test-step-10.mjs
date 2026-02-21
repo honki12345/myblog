@@ -273,7 +273,9 @@ async function main() {
       `expected POST /api/posts to return 201, got ${created.status}`,
     );
 
-    const searchHit = await requestText(`/posts?q=${encodeURIComponent("Kubernetes")}`);
+    const searchHit = await requestText(
+      `/posts?q=${encodeURIComponent("Kubernetes")}`,
+    );
     assert(
       searchHit.status === 200,
       `expected GET /posts?q=Kubernetes to return 200, got ${searchHit.status}`,
@@ -287,7 +289,9 @@ async function main() {
       `expected redirected url to include encoded next path, got ${searchHit.url}`,
     );
 
-    const searchMiss = await requestText(`/posts?q=${encodeURIComponent("존재하지않는검색어12345")}`);
+    const searchMiss = await requestText(
+      `/posts?q=${encodeURIComponent("존재하지않는검색어12345")}`,
+    );
     assert(
       searchMiss.status === 200,
       `expected GET /posts?q=존재하지않는검색어12345 to return 200, got ${searchMiss.status}`,
@@ -297,7 +301,9 @@ async function main() {
       "expected GET /posts?q=존재하지않는검색어12345 to redirect to admin login",
     );
 
-    const searchSyntaxError = await requestText(`/posts?q=${encodeURIComponent('"unclosed')}`);
+    const searchSyntaxError = await requestText(
+      `/posts?q=${encodeURIComponent('"unclosed')}`,
+    );
     assert(
       searchSyntaxError.status === 200,
       `expected GET /posts?q=%22unclosed to return 200, got ${searchSyntaxError.status}`,

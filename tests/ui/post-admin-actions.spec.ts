@@ -61,10 +61,7 @@ test.beforeEach(() => {
   runCleanupScript();
 });
 
-test("non-admin post detail redirects to login", async ({
-  page,
-  request,
-}) => {
+test("non-admin post detail redirects to login", async ({ page, request }) => {
   const seed: SeededPost = {
     title: "PW-SEED-ADMIN-ACTIONS",
     content: "## 관리자 액션 테스트\n\n공개 글 상세 페이지 테스트",

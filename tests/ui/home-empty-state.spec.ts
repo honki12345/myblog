@@ -54,7 +54,9 @@ test("home: 위키 루트 빈 상태 안내문이 노출된다", async ({
   await page.waitForLoadState("networkidle");
   await page.addStyleTag({ content: DISABLE_ANIMATION_STYLE });
 
-  await expect(page.getByRole("heading", { name: "홈", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "홈", exact: true }),
+  ).toBeVisible();
   await expect(
     page.getByText("아직 공개된 위키 데이터가 없습니다."),
   ).toBeVisible();

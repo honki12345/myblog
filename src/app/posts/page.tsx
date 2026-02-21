@@ -25,7 +25,9 @@ function buildLoginHref(nextPath: string): string {
   return `/admin/login?next=${encodeURIComponent(nextPath)}`;
 }
 
-function buildPostsNextPath(params: Awaited<PageProps["searchParams"]>): string {
+function buildPostsNextPath(
+  params: Awaited<PageProps["searchParams"]>,
+): string {
   const search = new URLSearchParams();
   const entries: Array<[key: string, value: string | undefined]> = [
     ["page", params.page],

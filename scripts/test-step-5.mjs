@@ -420,7 +420,10 @@ async function runChecks(apiKey) {
   });
 
   const koreanDetailPlain = await requestText(`/posts/${koreanCreated.slug}`);
-  assert(koreanDetailPlain.status === 200, "korean slug detail should return 200");
+  assert(
+    koreanDetailPlain.status === 200,
+    "korean slug detail should return 200",
+  );
   assert(
     koreanDetailPlain.text.includes("관리자 로그인"),
     "korean slug detail should redirect to login page",

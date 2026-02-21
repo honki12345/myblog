@@ -22,7 +22,9 @@ test("admin /tags redirects to /wiki", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "댓글 위키" })).toBeVisible();
 });
 
-test("logged out /tags/[tag] redirects to login with next", async ({ page }) => {
+test("logged out /tags/[tag] redirects to login with next", async ({
+  page,
+}) => {
   await page.goto("/tags/sample", { waitUntil: "networkidle" });
   const expected = "/admin/login?next=%2Ftags%2Fsample";
   await expect(page).toHaveURL(new RegExp(`${escapeRegex(expected)}$`));

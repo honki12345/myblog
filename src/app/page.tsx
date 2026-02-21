@@ -58,7 +58,9 @@ export default async function Home() {
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <h2 className="text-lg font-semibold tracking-tight">위키 루트 카테고리</h2>
+          <h2 className="text-lg font-semibold tracking-tight">
+            위키 루트 카테고리
+          </h2>
           <p className="text-xs text-slate-600">
             공개 댓글 {overview.totalComments}개 / 경로 {overview.totalPaths}개
           </p>

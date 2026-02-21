@@ -529,6 +529,49 @@ async function runInboxUrlUnitTests() {
       "dispatcher" in lastFetchInit,
     "doc URL fetch should include dispatcher to prevent DNS rebinding",
   );
+  const dispatcher = lastFetchInit.dispatcher;
+  const optionsSymbol = Object.getOwnPropertySymbols(dispatcher).find(
+    (symbol) => symbol.description === "options",
+  );
+  assert(optionsSymbol, "undici dispatcher options symbol should exist");
+  const lookup = dispatcher[optionsSymbol]?.connect?.lookup;
+  assert(
+    typeof lookup === "function",
+    "dispatcher should expose connect.lookup function",
+  );
+
+  const lookupSingle = await new Promise((resolve, reject) => {
+    lookup("example.com", { family: 4 }, (error, address, family) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+
+      resolve({ address, family });
+    });
+  });
+  assert(
+    lookupSingle.address === "93.184.216.34" && lookupSingle.family === 4,
+    "lookup single-address callback should return pinned IPv4",
+  );
+
+  const lookupAll = await new Promise((resolve, reject) => {
+    lookup("example.com", { all: true }, (error, addresses) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+
+      resolve(addresses);
+    });
+  });
+  assert(
+    Array.isArray(lookupAll) &&
+      lookupAll.length === 1 &&
+      lookupAll[0]?.address === "93.184.216.34" &&
+      lookupAll[0]?.family === 4,
+    "lookup all-address callback should return pinned address array",
+  );
 
   const oversizeLocation = `https://example.com/` + "a".repeat(2100);
   const oversizeRedirectMap = new Map([
@@ -1132,7 +1175,6 @@ async function runInboxSession(apiKey, server) {
     method: "POST",
     body: {
       url: "https://x.com/i/web/status/1",
-      source: "x",
       client: "ios_shortcuts",
     },
   });
@@ -1143,7 +1185,6 @@ async function runInboxSession(apiKey, server) {
     headers: { Authorization: "Bearer wrong-token" },
     body: {
       url: "https://x.com/i/web/status/1",
-      source: "x",
       client: "ios_shortcuts",
     },
   });
@@ -1154,18 +1195,32 @@ async function runInboxSession(apiKey, server) {
     apiKey,
     body: {
       url: "https://x.com/i/web/status/1",
-      source: "x",
       client: "not-ios",
     },
   });
   assertErrorResponse(invalidBody, 400, "INVALID_INPUT");
+
+  const legacySourceRejected = await callJson("/api/inbox", {
+    method: "POST",
+    apiKey,
+    body: {
+      url: "https://x.com/i/web/status/1",
+      source: "x",
+      client: "ios_shortcuts",
+    },
+  });
+  assertErrorResponse(legacySourceRejected, 400, "INVALID_INPUT");
+  assert(
+    legacySourceRejected.data?.error?.details?.reason ===
+      "legacy source field is not supported",
+    "legacy source payload should be rejected with explicit reason",
+  );
 
   const invalidUrl = await callJson("/api/inbox", {
     method: "POST",
     apiKey,
     body: {
       url: "http://x.com/i/web/status/123",
-      source: "x",
       client: "ios_shortcuts",
     },
   });
@@ -1176,7 +1231,6 @@ async function runInboxSession(apiKey, server) {
     apiKey,
     body: {
       url: "http://example.com/a",
-      source: "doc",
       client: "ios_shortcuts",
     },
   });
@@ -1187,7 +1241,6 @@ async function runInboxSession(apiKey, server) {
     apiKey,
     body: {
       url: "https://example.com:8443/a",
-      source: "doc",
       client: "ios_shortcuts",
     },
   });
@@ -1198,7 +1251,6 @@ async function runInboxSession(apiKey, server) {
     apiKey,
     body: {
       url: "https://localhost/a",
-      source: "doc",
       client: "ios_shortcuts",
     },
   });
@@ -1210,7 +1262,6 @@ async function runInboxSession(apiKey, server) {
     apiKey,
     body: {
       url: `https://twitter.com/i/web/status/${statusId1}`,
-      source: "x",
       client: "ios_shortcuts",
       note: "test note",
     },
@@ -1224,6 +1275,7 @@ async function runInboxSession(apiKey, server) {
     created.data?.status === "queued",
     "inbox create response should be queued",
   );
+  assert(created.data?.source === "x", "x URL should be auto-detected as x");
   const inboxItemId1 = created.data.id;
 
   const docSeed = `doc-${seed}`;
@@ -1232,7 +1284,6 @@ async function runInboxSession(apiKey, server) {
     apiKey,
     body: {
       url: `https://example.com/${docSeed}?utm_source=x&x=1#b`,
-      source: "doc",
       client: "ios_shortcuts",
     },
   });
@@ -1241,6 +1292,10 @@ async function runInboxSession(apiKey, server) {
     typeof docCreated.data?.id === "number",
     "doc inbox create response should include numeric id",
   );
+  assert(
+    docCreated.data?.source === "doc",
+    "doc URL should be auto-detected as doc",
+  );
   const inboxDocId = docCreated.data.id;
 
   const duplicated = await callJson("/api/inbox", {
@@ -1248,7 +1303,6 @@ async function runInboxSession(apiKey, server) {
     apiKey,
     body: {
       url: `https://x.com/i/web/status/${statusId1}`,
-      source: "x",
       client: "ios_shortcuts",
     },
   });
@@ -1270,7 +1324,6 @@ async function runInboxSession(apiKey, server) {
     apiKey,
     body: {
       url: `https://example.com/${docSeed}?utm_medium=y&x=1#c`,
-      source: "doc",
       client: "ios_shortcuts",
     },
   });
@@ -1388,7 +1441,6 @@ async function runInboxSession(apiKey, server) {
     apiKey,
     body: {
       url: `https://x.com/i/web/status/${statusId2}`,
-      source: "x",
       client: "ios_shortcuts",
     },
   });
@@ -1438,7 +1490,6 @@ async function runInboxRateLimitSession(apiKey, server) {
       apiKey,
       body: {
         url: `https://x.com/i/web/status/${statusId}`,
-        source: "x",
         client: "ios_shortcuts",
       },
     });

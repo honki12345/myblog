@@ -22,14 +22,20 @@ export type NormalizeDocUrlOptions = {
   resolveHostname?: ResolveHostnameLike;
 };
 
-const ALLOWED_HOSTS = new Set(["x.com", "twitter.com", "t.co"]);
-
 function isRedirectStatus(status: number): boolean {
   return status >= 300 && status < 400;
 }
 
 function normalizeHost(hostname: string): string {
   return hostname.trim().toLowerCase();
+}
+
+const X_SOURCE_HOSTS = new Set(["x.com", "twitter.com", "t.co"]);
+const ALLOWED_HOSTS = X_SOURCE_HOSTS;
+
+export function isXSourceHost(hostname: string): boolean {
+  const normalizedHost = normalizeHost(hostname).replace(/\.$/, "");
+  return X_SOURCE_HOSTS.has(normalizedHost);
 }
 
 type RequestInitInternal = RequestInit & { dispatcher?: unknown };
@@ -627,24 +633,40 @@ function createPinnedDispatcher(hostname: string, addresses: string[]): Agent {
   return new Agent({
     connect: {
       lookup: (lookupHostname, options, callback) => {
+        const callbackAny = callback as (...args: unknown[]) => void;
+        const lookupOptions =
+          typeof options === "object" && options
+            ? (options as { family?: number; all?: boolean })
+            : null;
         const normalizedLookup = normalizeHost(lookupHostname).replace(
           /\.$/,
           "",
         );
+        const wantsAll = lookupOptions?.all === true;
         if (normalizedLookup !== expectedHostname) {
-          callback(new Error("unexpected lookup hostname"), "0.0.0.0", 4);
+          if (wantsAll) {
+            callbackAny(new Error("unexpected lookup hostname"), []);
+          } else {
+            callbackAny(new Error("unexpected lookup hostname"), "0.0.0.0", 4);
+          }
           return;
         }
 
         const family =
-          typeof options === "number"
-            ? options
-            : typeof options === "object" && options
-              ? (options.family as number | undefined)
-              : undefined;
+          typeof options === "number" ? options : lookupOptions?.family;
 
         const pinned = pickPinnedAddress(addresses, family);
-        callback(null, pinned.address, pinned.family);
+        if (wantsAll) {
+          callbackAny(null, [
+            {
+              address: pinned.address,
+              family: pinned.family,
+            },
+          ]);
+          return;
+        }
+
+        callbackAny(null, pinned.address, pinned.family);
       },
     },
   });

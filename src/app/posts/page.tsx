@@ -6,6 +6,7 @@ import { isFtsQuerySyntaxError } from "@/lib/fts";
 import {
   listPostsWithTotalCount,
   type PostListItem,
+  type PostReadFilter,
   type PostStatus,
   type PostTypeFilter,
 } from "@/lib/post-list";
@@ -16,6 +17,7 @@ type PageProps = {
     page?: string;
     per_page?: string;
     type?: string;
+    read?: string;
     q?: string;
     tag?: string;
   }>;
@@ -33,6 +35,7 @@ function buildPostsNextPath(
     ["page", params.page],
     ["per_page", params.per_page],
     ["type", params.type],
+    ["read", params.read],
     ["q", params.q],
     ["tag", params.tag],
   ];
@@ -64,6 +67,13 @@ function parsePositiveInteger(
 
 function parsePostType(value: string | undefined): PostTypeFilter {
   if (value === "original" || value === "ai" || value === "all") {
+    return value;
+  }
+  return "all";
+}
+
+function parsePostRead(value: string | undefined): PostReadFilter {
+  if (value === "unread" || value === "all") {
     return value;
   }
   return "all";
@@ -109,6 +119,7 @@ function buildPageHref(options: {
   page: number;
   perPage: number;
   type: PostTypeFilter;
+  read: PostReadFilter;
   q: string | null;
   tag: string | null;
 }): string {
@@ -119,6 +130,9 @@ function buildPageHref(options: {
   }
   if (options.type !== "all") {
     search.set("type", options.type);
+  }
+  if (options.read !== "all") {
+    search.set("read", options.read);
   }
   if (options.q) {
     search.set("q", options.q);
@@ -151,6 +165,7 @@ export default async function PostsPage({ searchParams }: PageProps) {
   const statuses: readonly PostStatus[] = ["draft", "published"];
 
   const type = parsePostType(params.type);
+  const read = parsePostRead(params.read);
   const q = normalizeSearchQuery(params.q);
   const tag = normalizeOptionalDecodedString(params.tag);
   const ftsQuery = q;
@@ -167,6 +182,7 @@ export default async function PostsPage({ searchParams }: PageProps) {
     const result = listPostsWithTotalCount({
       statuses,
       type,
+      read,
       tag,
       ftsQuery,
       limit: perPage,
@@ -194,6 +210,7 @@ export default async function PostsPage({ searchParams }: PageProps) {
       posts = listPostsWithTotalCount({
         statuses,
         type,
+        read,
         tag,
         ftsQuery,
         limit: perPage,
@@ -265,7 +282,7 @@ export default async function PostsPage({ searchParams }: PageProps) {
               ? `${searchErrorMessage}.`
               : q
                 ? "검색 결과가 없습니다."
-                : tag || type !== "all"
+                : tag || type !== "all" || read !== "all"
                   ? "조건에 맞는 글이 없습니다."
                   : "아직 글이 없습니다."}
         </p>
@@ -286,6 +303,7 @@ export default async function PostsPage({ searchParams }: PageProps) {
                     page: 1,
                     perPage,
                     type: "all",
+                    read,
                     q,
                     tag,
                   })
@@ -293,6 +311,7 @@ export default async function PostsPage({ searchParams }: PageProps) {
                     page: 1,
                     perPage,
                     type: tab.value,
+                    read,
                     q,
                     tag,
                   });
@@ -312,9 +331,42 @@ export default async function PostsPage({ searchParams }: PageProps) {
           })}
         </nav>
 
+        <nav aria-label="읽음 상태" className="flex flex-wrap items-center gap-2">
+          {(
+            [
+              { value: "all", label: "전체" },
+              { value: "unread", label: "미읽음" },
+            ] as const
+          ).map((tab) => {
+            const href = buildPageHref({
+              page: 1,
+              perPage,
+              type,
+              read: tab.value,
+              q,
+              tag,
+            });
+            const isActive = read === tab.value;
+
+            return (
+              <a
+                key={tab.value}
+                href={href}
+                aria-current={isActive ? "page" : undefined}
+                className="rounded-full border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100 aria-[current=page]:border-slate-900 aria-[current=page]:bg-slate-900 aria-[current=page]:text-white"
+              >
+                {tab.label}
+              </a>
+            );
+          })}
+        </nav>
+
         <form method="get" action="/posts" className="grid gap-3">
           {type !== "all" ? (
             <input type="hidden" name="type" value={type} />
+          ) : null}
+          {read !== "all" ? (
+            <input type="hidden" name="read" value={read} />
           ) : null}
           {perPage !== 10 ? (
             <input type="hidden" name="per_page" value={String(perPage)} />
@@ -352,6 +404,7 @@ export default async function PostsPage({ searchParams }: PageProps) {
                 page: 1,
                 perPage,
                 type: "all",
+                read: "all",
                 q: null,
                 tag: null,
               })}
@@ -370,7 +423,7 @@ export default async function PostsPage({ searchParams }: PageProps) {
               ? searchErrorMessage
                 ? "검색어가 올바르지 않습니다"
                 : "검색 결과가 없습니다"
-              : tag || type !== "all"
+              : tag || type !== "all" || read !== "all"
                 ? "조건에 맞는 글이 없습니다"
                 : "아직 글이 없습니다"}
           </h2>
@@ -379,7 +432,7 @@ export default async function PostsPage({ searchParams }: PageProps) {
               ? searchErrorMessage
                 ? "따옴표 등 특수 문자가 포함되어 있지 않은지 확인해 주세요."
                 : "다른 키워드로 다시 검색해 보세요."
-              : tag || type !== "all"
+              : tag || type !== "all" || read !== "all"
                 ? "필터를 초기화해 보세요."
                 : "공개 상태로 저장된 글이 생기면 목록에 표시됩니다."}
           </p>
@@ -402,6 +455,7 @@ export default async function PostsPage({ searchParams }: PageProps) {
               page: Math.max(1, page - 1),
               perPage,
               type,
+              read,
               q,
               tag,
             })}
@@ -430,6 +484,7 @@ export default async function PostsPage({ searchParams }: PageProps) {
                   page: item.value,
                   perPage,
                   type,
+                  read,
                   q,
                   tag,
                 })}
@@ -445,6 +500,7 @@ export default async function PostsPage({ searchParams }: PageProps) {
               page: Math.min(totalPages, page + 1),
               perPage,
               type,
+              read,
               q,
               tag,
             })}

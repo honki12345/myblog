@@ -82,6 +82,7 @@ function testSchemaAndObjects(db) {
     "content",
     "status",
     "origin",
+    "is_read",
     "source_url",
     "created_at",
     "updated_at",
@@ -115,6 +116,7 @@ function testSchemaAndObjects(db) {
     "idx_posts_created_at",
     "idx_posts_status_published_at",
     "idx_posts_origin",
+    "idx_posts_is_read_sort",
     "idx_sources_url",
     "idx_post_comments_post_id_id",
     "idx_post_comments_visible_by_post",
@@ -379,6 +381,40 @@ function testOriginConstraints(db) {
   db.prepare("DELETE FROM posts WHERE id = ?").run(postId);
 }
 
+function testReadConstraints(db) {
+  const slug = `read-${Date.now()}`;
+  const created = db
+    .prepare(
+      "INSERT INTO posts (title, slug, content, status) VALUES (?, ?, ?, ?)",
+    )
+    .run("Read test", slug, "Read content", "draft");
+  const postId = Number(created.lastInsertRowid);
+  assert(postId > 0, "Read CREATE failed");
+
+  const row = db
+    .prepare("SELECT is_read FROM posts WHERE id = ?")
+    .get(postId);
+  assert(row?.is_read === 0, `Unexpected default is_read: ${row?.is_read}`);
+
+  let invalidIsReadThrow = false;
+  try {
+    db.prepare(
+      "INSERT INTO posts (title, slug, content, status, is_read) VALUES (?, ?, ?, ?, ?)",
+    ).run("Invalid read", `${slug}-invalid`, "content", "draft", 2);
+  } catch {
+    invalidIsReadThrow = true;
+  }
+  assert(invalidIsReadThrow, "is_read CHECK constraint did not throw");
+
+  db.prepare("UPDATE posts SET is_read = 1 WHERE id = ?").run(postId);
+  const updated = db
+    .prepare("SELECT is_read FROM posts WHERE id = ?")
+    .get(postId);
+  assert(updated?.is_read === 1, `Unexpected updated is_read: ${updated?.is_read}`);
+
+  db.prepare("DELETE FROM posts WHERE id = ?").run(postId);
+}
+
 function testOriginMigrationBackfill() {
   cleanupTestDb();
 
@@ -533,20 +569,24 @@ function testOriginMigrationBackfill() {
 
   const migrated = new Database(TEST_DB_PATH);
   try {
-    const originColumnRows = migrated.prepare("PRAGMA table_info(posts)").all();
+    const postsColumnRows = migrated.prepare("PRAGMA table_info(posts)").all();
     assert(
-      originColumnRows.some((row) => row.name === "origin"),
+      postsColumnRows.some((row) => row.name === "origin"),
       "origin column missing after migration",
+    );
+    assert(
+      postsColumnRows.some((row) => row.name === "is_read"),
+      "is_read column missing after migration",
     );
 
     const rowA = migrated
-      .prepare("SELECT origin FROM posts WHERE slug = ?")
+      .prepare("SELECT origin, is_read FROM posts WHERE slug = ?")
       .get(seedSlugA);
     const rowB = migrated
-      .prepare("SELECT origin FROM posts WHERE slug = ?")
+      .prepare("SELECT origin, is_read FROM posts WHERE slug = ?")
       .get(seedSlugB);
     const rowC = migrated
-      .prepare("SELECT origin FROM posts WHERE slug = ?")
+      .prepare("SELECT origin, is_read FROM posts WHERE slug = ?")
       .get(seedSlugC);
 
     assert(rowA?.origin === "ai", `unexpected origin for A: ${rowA?.origin}`);
@@ -555,12 +595,15 @@ function testOriginMigrationBackfill() {
       rowC?.origin === "original",
       `unexpected origin for C: ${rowC?.origin}`,
     );
+    assert(rowA?.is_read === 0, `unexpected is_read for A: ${rowA?.is_read}`);
+    assert(rowB?.is_read === 0, `unexpected is_read for B: ${rowB?.is_read}`);
+    assert(rowC?.is_read === 0, `unexpected is_read for C: ${rowC?.is_read}`);
 
     const schemaVersionRow = migrated
       .prepare("SELECT MAX(version) AS version FROM schema_versions")
       .get();
     assert(
-      schemaVersionRow?.version === 7,
+      schemaVersionRow?.version === 8,
       `unexpected schema version: ${schemaVersionRow?.version}`,
     );
   } finally {
@@ -590,6 +633,7 @@ function main() {
     testCommentTables(db);
     testStatusCheckConstraint(db);
     testOriginConstraints(db);
+    testReadConstraints(db);
 
     const walObserved = existsSync(TEST_DB_WAL_PATH);
     console.log(`[step2] wal_file_observed_during_session=${walObserved}`);

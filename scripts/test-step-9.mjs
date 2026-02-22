@@ -24,6 +24,7 @@ const ADMIN_PASSWORD_HASH =
 const ADMIN_TOTP_SECRET = process.env.ADMIN_TOTP_SECRET ?? "JBSWY3DPEHPK3PXP";
 const ADMIN_RECOVERY_CODES =
   process.env.ADMIN_RECOVERY_CODES ?? "RECOVERY-ONE,RECOVERY-TWO";
+const BLOG_API_KEY = process.env.BLOG_API_KEY ?? "step9-ai-api-key";
 
 const TINY_PNG = Uint8Array.from([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49,
@@ -215,7 +216,7 @@ async function startServer(logs) {
         ...process.env,
         DATABASE_PATH: TEST_DB_PATH,
         NEXT_PUBLIC_SITE_URL: apiBase,
-        BLOG_API_KEY: process.env.BLOG_API_KEY ?? "step9-ai-api-key",
+        BLOG_API_KEY,
         ADMIN_USERNAME,
         ADMIN_PASSWORD_HASH,
         ADMIN_SESSION_SECRET:
@@ -477,6 +478,91 @@ async function runScenario() {
   assert(
     csrfRejected.status === 403 || csrfRejected.status === 401,
     "missing csrf should return 403 or 401",
+  );
+
+  const readMetaPostTitle = `STEP9-READ-META-${Date.now()}`;
+  const readMetaPostCreate = await requestJson("/api/posts", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${BLOG_API_KEY}`,
+    },
+    body: {
+      title: readMetaPostTitle,
+      content: "읽음 메타데이터 검증 본문",
+      status: "published",
+    },
+  });
+  assert(
+    readMetaPostCreate.status === 201,
+    "seed post for read metadata should return 201",
+  );
+  const readMetaPostId = readMetaPostCreate.data?.id;
+  assert(
+    Number.isInteger(readMetaPostId),
+    "seed post id for read metadata should be integer",
+  );
+
+  const patchReadTrue = await requestJson(
+    `/api/admin/posts/${readMetaPostId}`,
+    {
+      method: "PATCH",
+      body: { isRead: true },
+      jar: adminJar,
+      headers: csrfHeaders(adminJar),
+    },
+  );
+  assert(
+    patchReadTrue.status === 200,
+    "PATCH /api/admin/posts/:id isRead=true should return 200",
+  );
+  assert(
+    patchReadTrue.data?.is_read === 1,
+    `expected is_read=1 after patch, got ${patchReadTrue.data?.is_read}`,
+  );
+
+  const patchReadInvalid = await requestJson(
+    `/api/admin/posts/${readMetaPostId}`,
+    {
+      method: "PATCH",
+      body: { isRead: "invalid" },
+      jar: adminJar,
+      headers: csrfHeaders(adminJar),
+    },
+  );
+  assert(
+    patchReadInvalid.status === 400,
+    "PATCH /api/admin/posts/:id invalid isRead should return 400",
+  );
+
+  const patchReadMissingCsrf = await requestJson(
+    `/api/admin/posts/${readMetaPostId}`,
+    {
+      method: "PATCH",
+      body: { isRead: false },
+      jar: adminJar,
+    },
+  );
+  assert(
+    patchReadMissingCsrf.status === 403 || patchReadMissingCsrf.status === 401,
+    "PATCH /api/admin/posts/:id without csrf should return 403 or 401",
+  );
+
+  const patchReadFalse = await requestJson(
+    `/api/admin/posts/${readMetaPostId}`,
+    {
+      method: "PATCH",
+      body: { isRead: false },
+      jar: adminJar,
+      headers: csrfHeaders(adminJar),
+    },
+  );
+  assert(
+    patchReadFalse.status === 200,
+    "PATCH /api/admin/posts/:id isRead=false should return 200",
+  );
+  assert(
+    patchReadFalse.data?.is_read === 0,
+    `expected is_read=0 after patch, got ${patchReadFalse.data?.is_read}`,
   );
 
   const todoCreate = await requestJson("/api/admin/todos", {

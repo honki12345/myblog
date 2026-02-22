@@ -5,6 +5,7 @@ import { extractThumbnailUrlFromMarkdownCached } from "@/lib/post-thumbnail";
 export type PostStatus = "draft" | "published";
 export type PostOrigin = "original" | "ai";
 export type PostTypeFilter = "all" | PostOrigin;
+export type PostReadFilter = "all" | "unread";
 
 export type PostListItem = {
   id: number;
@@ -14,6 +15,7 @@ export type PostListItem = {
   tags: string[];
   publishedAt: string | null;
   status: PostStatus;
+  isRead: boolean;
   thumbnailUrl: string | null;
   origin: PostOrigin;
   sourceUrl: string | null;
@@ -76,6 +78,7 @@ type ListPostsRow = {
   content: string;
   status: PostStatus;
   origin: PostOrigin;
+  is_read: 0 | 1;
   published_at: string | null;
   updated_at: string;
   tags_csv: string;
@@ -85,6 +88,7 @@ type ListPostsRow = {
 function buildListQueryParts(options: {
   statuses: readonly PostStatus[];
   type: PostTypeFilter;
+  read: PostReadFilter;
   tag: string | null;
   ftsQuery: string | null;
 }): {
@@ -101,6 +105,10 @@ function buildListQueryParts(options: {
   if (options.type !== "all") {
     whereClauses.push("p.origin = ?");
     params.push(options.type);
+  }
+
+  if (options.read === "unread") {
+    whereClauses.push("p.is_read = 0");
   }
 
   if (options.tag) {
@@ -127,7 +135,7 @@ function buildListQueryParts(options: {
       params,
       ftsJoinSql: "INNER JOIN posts_fts ON posts_fts.rowid = p.id",
       rankSelectSql: ", bm25(posts_fts) AS rank",
-      orderBySql: `rank ASC, ${sortDateSql} DESC, p.id DESC`,
+      orderBySql: `rank ASC, p.is_read ASC, ${sortDateSql} DESC, p.id DESC`,
     };
   }
 
@@ -136,13 +144,14 @@ function buildListQueryParts(options: {
     params,
     ftsJoinSql: "",
     rankSelectSql: "",
-    orderBySql: `${sortDateSql} DESC, p.id DESC`,
+    orderBySql: `p.is_read ASC, ${sortDateSql} DESC, p.id DESC`,
   };
 }
 
 export function listPostsWithTotalCount(options: {
   statuses: readonly PostStatus[];
   type?: PostTypeFilter;
+  read?: PostReadFilter;
   tag?: string | null;
   ftsQuery?: string | null;
   limit: number;
@@ -150,12 +159,14 @@ export function listPostsWithTotalCount(options: {
 }): { items: PostListItem[]; totalCount: number } {
   const db = getDb();
   const type = options.type ?? "all";
+  const read = options.read ?? "all";
   const tag = options.tag ?? null;
   const ftsQuery = options.ftsQuery ?? null;
 
   const queryParts = buildListQueryParts({
     statuses: options.statuses,
     type,
+    read,
     tag,
     ftsQuery,
   });
@@ -183,6 +194,7 @@ export function listPostsWithTotalCount(options: {
         p.content,
         p.status,
         p.origin,
+        p.is_read,
         p.published_at,
         p.updated_at,
         COALESCE(all_tags.tags_csv, '') AS tags_csv,
@@ -226,6 +238,7 @@ export function listPostsWithTotalCount(options: {
       tags: parseTagsCsv(row.tags_csv),
       publishedAt: row.published_at,
       status: row.status,
+      isRead: row.is_read === 1,
       thumbnailUrl: extractThumbnailUrlFromMarkdownCached(
         thumbnailKey,
         row.content,

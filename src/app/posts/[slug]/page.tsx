@@ -20,6 +20,7 @@ type PostDetailRow = {
   title: string;
   slug: string;
   content: string;
+  is_read: 0 | 1;
   published_at: string | null;
   updated_at: string;
   tags_csv: string;
@@ -39,6 +40,7 @@ function loadPublishedPostBySlug(slug: string): PostDetailRow | null {
         p.title,
         p.slug,
         p.content,
+        p.is_read,
         p.published_at,
         p.updated_at,
         COALESCE(GROUP_CONCAT(t.name, char(31)), '') AS tags_csv
@@ -136,7 +138,7 @@ export default async function PostDetailPage({ params }: PageProps) {
           >
             수정
           </Link>
-          <PostAdminActionsClient postId={post.id} />
+          <PostAdminActionsClient postId={post.id} isRead={post.is_read === 1} />
         </div>
       </header>
       <PostContent content={post.content} />

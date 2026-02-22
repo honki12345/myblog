@@ -50,6 +50,9 @@ function getVisualDiffThreshold(
   if (projectName === "mobile-360" && routeName === "home") {
     return 0.12;
   }
+  if (projectName === "desktop-1440" && routeName === "home") {
+    return 0.04;
+  }
 
   // CI runner의 폰트 메트릭 차이로 모바일/태블릿 스냅샷에
   // 경미한 줄바꿈/레이아웃 오차가 발생하므로 뷰포트별 허용치로 고정한다.

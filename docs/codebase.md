@@ -68,10 +68,9 @@ Sources: `AGENTS.md`, `src/app/layout.tsx`, `src/app/page.tsx`, `src/app/posts/p
 - 홈 진입 흐름: `/` 요청은 `308 Permanent Redirect`로 `/wiki`로 이동한다.
 - 포스트 경로 접근 흐름: `/posts`, `/posts/[slug]`, `/tags*` 진입 시 서버에서 admin 세션을 확인하고, 미인증이면 `/admin/login?next=...`로 리다이렉트한다.
 - 태그 호환 흐름: `/tags`는 admin 세션에서 `/wiki`로 즉시 이동하고, `/tags/[tag]`는 태그 문자열을 위키 경로 규칙으로 정규화해 `/wiki/[...path]`로 연결(변환 실패 시 404)한다.
-- 관리자 포스트 조회 흐름: 관리자 세션에서는 포스트 목록/자동완성에서 draft+published를 함께 조회하고, `/posts` 기본 정렬은 `미읽음 우선(is_read ASC) -> 최신순`으로 동작한다.
-- 관리자 읽음 메타데이터 흐름: `/posts/[slug]` 상세의 관리자 액션에서 `읽음/읽지 않음`을 토글하면 `/api/admin/posts/[id]` PATCH(`isRead`)로 `posts.is_read`를 갱신하고 목록/상세 경로를 재검증한다.
-- 관리자 인증 흐름: `/api/admin/auth/login`(1차) -> `admin_login_challenge` 쿠키 -> `/api/admin/auth/verify`(2차) -> `admin_session` + `admin_csrf` 쿠키 발급.
-- 관리자 콘텐츠 흐름: `/api/admin/posts*`와 `/api/admin/{notes,todos,schedules}*`가 세션+CSRF를 검증하고 DB를 갱신하며 관련 경로를 `revalidatePath` 한다.
+- 포스트 조회(관리자): 관리자 세션에서는 포스트 목록/자동완성에서 draft+published를 함께 조회하고, `/posts` 기본 정렬은 `미읽음 우선(is_read ASC) -> 최신순`으로 동작한다.
+- 읽음 메타데이터(관리자): `/posts/[slug]` 상세의 관리자 액션에서 `읽음/읽지 않음`을 토글하면 `/api/admin/posts/[id]` PATCH(`isRead`)로 `posts.is_read`를 갱신하고 목록/상세 경로를 재검증한다.
+- 인증 및 관리 API: `/api/admin/auth/login`(1차) -> `admin_login_challenge` 쿠키 -> `/api/admin/auth/verify`(2차) -> `admin_session` + `admin_csrf` 쿠키 발급 후, `/api/admin/posts*`와 `/api/admin/{notes,todos,schedules}*`는 세션+CSRF를 검증하고 DB를 갱신하며 관련 경로를 `revalidatePath` 한다.
 - 댓글/위키 흐름: 관리자가 `/api/admin/posts/[id]/comments*`로 댓글+태그경로를 관리하고, 공개 `/api/wiki*`/`/wiki*`는 `is_hidden=0 AND deleted_at IS NULL`만 트리/경로로 노출한다.
 - 위키 탐색 상태 동기화 흐름: 위키 탐색 셸은 클릭 탐색 시 `history.pushState`, 초기 동기화/동일 경로 재선택 시 `history.replaceState`를 사용해 URL(`/wiki/[...path]`)과 선택 경로를 동기화하며, `popstate`에서 경로/스크롤 컨텍스트를 복원한다. 트리에서 활성 경로 재클릭 시 선택 경로를 유지한 채 하위 트리만 접는다.
 - 헤더 타이틀 흐름: 타이틀 링크 목적지는 `/wiki`이며, 이미 `/wiki`에 있을 때 재클릭하면 스크롤을 최상단으로 복원한다.

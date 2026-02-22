@@ -56,7 +56,7 @@ STANDALONE_DIR=.next/standalone;
 if [ ! -f "$STANDALONE_DIR/server.js" ]; then
   SERVER_PATH="";
   if [ -d "$STANDALONE_DIR/.worktrees" ]; then
-    SERVER_PATH=$(find "$STANDALONE_DIR/.worktrees" -mindepth 2 -maxdepth 2 -type f -name server.js | head -n 1);
+    SERVER_PATH=$(find "$STANDALONE_DIR/.worktrees" -mindepth 2 -type f -name server.js -not -path "*/node_modules/*" | head -n 1);
   fi;
   if [ -z "$SERVER_PATH" ]; then
     echo "standalone server.js not found" >&2;

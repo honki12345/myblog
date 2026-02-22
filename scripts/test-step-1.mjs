@@ -106,6 +106,37 @@ async function findAvailablePort(startPort, maxAttempts = 50) {
   throw new Error(`unable to find available port from ${startPort}`);
 }
 
+async function findStandaloneServerDir(searchDir) {
+  let entries = [];
+  try {
+    entries = await readdir(searchDir, { withFileTypes: true });
+  } catch {
+    return null;
+  }
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
+
+    const directoryPath = path.join(searchDir, entry.name);
+    const directServerPath = path.join(directoryPath, "server.js");
+    try {
+      await access(directServerPath);
+      return directoryPath;
+    } catch {
+      // continue searching nested directories
+    }
+
+    const nestedDirectory = await findStandaloneServerDir(directoryPath);
+    if (nestedDirectory) {
+      return nestedDirectory;
+    }
+  }
+
+  return null;
+}
+
 async function resolveStandaloneServerDir() {
   const primaryServerPath = path.join(".next", "standalone", "server.js");
 
@@ -117,23 +148,9 @@ async function resolveStandaloneServerDir() {
   }
 
   const worktreesDir = path.join(".next", "standalone", ".worktrees");
-  try {
-    const entries = await readdir(worktreesDir, { withFileTypes: true });
-    for (const entry of entries) {
-      if (!entry.isDirectory()) {
-        continue;
-      }
-
-      const candidate = path.join(worktreesDir, entry.name, "server.js");
-      try {
-        await access(candidate);
-        return path.dirname(candidate);
-      } catch {
-        // continue searching
-      }
-    }
-  } catch {
-    // fall through to final error
+  const nestedServerDir = await findStandaloneServerDir(worktreesDir);
+  if (nestedServerDir) {
+    return nestedServerDir;
   }
 
   throw new Error("Missing expected standalone server entry: server.js");

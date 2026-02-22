@@ -1,5 +1,10 @@
 import { expect, test, type APIRequestContext } from "@playwright/test";
-import { insertPostDirect, resolveApiKey, runCleanupScript } from "./helpers";
+import {
+  authenticateAdminSession,
+  insertPostDirect,
+  resolveApiKey,
+  runCleanupScript,
+} from "./helpers";
 
 async function triggerRevalidation(
   request: APIRequestContext,
@@ -32,7 +37,7 @@ test.beforeEach(() => {
   runCleanupScript();
 });
 
-test("public: type filter matches posts.origin", async ({ page, request }) => {
+test("admin: type filter matches posts.origin", async ({ page, request }) => {
   const originalA = {
     title: `PLAYWRIGHT-ARCHIVE-ORIGINAL-A-${Date.now()}`,
     content: "archive original A",
@@ -74,9 +79,10 @@ test("public: type filter matches posts.origin", async ({ page, request }) => {
   await triggerRevalidation(request, { ...createdAiA, ...aiA });
   await triggerRevalidation(request, { ...createdAiB, ...aiB });
 
-  await page.goto("/posts?type=original&per_page=50", {
-    waitUntil: "networkidle",
+  await authenticateAdminSession(page, {
+    nextPath: "/posts?type=original&per_page=50",
   });
+  await page.waitForLoadState("networkidle");
   await expect(page.getByRole("link", { name: originalA.title })).toBeVisible();
   await expect(page.getByRole("link", { name: originalB.title })).toBeVisible();
   await expect(page.getByRole("link", { name: aiA.title })).toHaveCount(0);
@@ -93,7 +99,7 @@ test("public: type filter matches posts.origin", async ({ page, request }) => {
   );
 });
 
-test("public: pagination preserves type/q/tag/per_page (+ type invalid fallback)", async ({
+test("admin: pagination preserves type/q/tag/per_page (+ type invalid fallback)", async ({
   page,
   request,
 }) => {
@@ -122,12 +128,12 @@ test("public: pagination preserves type/q/tag/per_page (+ type invalid fallback)
     status: seeds[seeds.length - 1].status,
   });
 
-  await page.goto(
-    `/posts?type=ai&tag=${encodeURIComponent(tag)}&q=${encodeURIComponent(
+  await authenticateAdminSession(page, {
+    nextPath: `/posts?type=ai&tag=${encodeURIComponent(tag)}&q=${encodeURIComponent(
       keyword,
     )}&per_page=5`,
-    { waitUntil: "networkidle" },
-  );
+  });
+  await page.waitForLoadState("networkidle");
   const page2Link = page.getByRole("link", { name: "2", exact: true });
   await expect(page2Link).toBeVisible();
   await page2Link.click();
@@ -153,9 +159,13 @@ test("public: pagination preserves type/q/tag/per_page (+ type invalid fallback)
   await expect(page).toHaveURL(/\bpage=2\b/);
 });
 
-test("public: q with special characters does not crash (no 500)", async ({
+test("admin: q with special characters does not crash (no 500)", async ({
   page,
 }) => {
+  await authenticateAdminSession(page, {
+    nextPath: "/posts?q=%22%27%5B%5D%28%29%2A%2B",
+  });
+  await page.waitForLoadState("networkidle");
   const response = await page.goto(`/posts?q=%22%27%5B%5D%28%29%2A%2B`, {
     waitUntil: "networkidle",
   });
@@ -168,7 +178,7 @@ test("public: q with special characters does not crash (no 500)", async ({
   ).toBeVisible();
 });
 
-test("public: type/q/tag combination returns expected results", async ({
+test("admin: type/q/tag combination returns expected results", async ({
   page,
   request,
 }) => {
@@ -213,12 +223,12 @@ test("public: type/q/tag combination returns expected results", async ({
     ...originalMiss,
   });
 
-  await page.goto(
-    `/posts?type=original&tag=${encodeURIComponent(tag)}&q=${encodeURIComponent(
+  await authenticateAdminSession(page, {
+    nextPath: `/posts?type=original&tag=${encodeURIComponent(tag)}&q=${encodeURIComponent(
       keyword,
     )}&per_page=50`,
-    { waitUntil: "networkidle" },
-  );
+  });
+  await page.waitForLoadState("networkidle");
 
   await expect(
     page.getByRole("link", { name: originalMatch.title }),

@@ -6,6 +6,10 @@ import {
   requireAdminSession,
   requireAdminSessionWithCsrf,
 } from "@/lib/admin-api";
+import {
+  buildWikiPathHref,
+  normalizeWikiPathFromTagName,
+} from "@/lib/comment-tags";
 import { getDb } from "@/lib/db";
 import { createSlug, withSlugSuffix } from "@/lib/slug";
 
@@ -115,9 +119,12 @@ function loadTagsForPost(postId: number): string[] {
 }
 
 function revalidatePostRelatedPaths(slug: string, tags: string[]) {
-  const paths = new Set<string>(["/", "/posts", `/posts/${slug}`]);
+  const paths = new Set<string>(["/", "/wiki", "/posts", `/posts/${slug}`]);
   for (const tag of tags) {
-    paths.add(`/tags/${encodeURIComponent(tag)}`);
+    const wikiPath = normalizeWikiPathFromTagName(tag);
+    if (wikiPath) {
+      paths.add(buildWikiPathHref(wikiPath));
+    }
   }
 
   for (const path of paths) {

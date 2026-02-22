@@ -34,10 +34,10 @@ const routes: Route[] = [
     name: "admin-write",
     getPath: () => "/admin/write",
   },
-  { name: "tags", getPath: () => "/tags" },
+  { name: "tags", getPath: () => "/wiki" },
   {
     name: "tag-sample",
-    getPath: () => "/tags/sample",
+    getPath: () => "/wiki/sample",
   },
 ];
 
@@ -97,21 +97,13 @@ for (const route of routes) {
     const routePath = route.getPath(seeded);
 
     await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
-    if (route.name === "admin-write") {
-      await authenticateAdminSession(page, { nextPath: "/admin/write" });
-      await page.waitForLoadState("networkidle");
-    } else {
-      await page.goto(routePath, { waitUntil: "networkidle" });
-    }
+    await authenticateAdminSession(page, { nextPath: routePath });
+    await page.waitForLoadState("networkidle");
 
     await page.addStyleTag({ content: DISABLE_ANIMATION_STYLE });
     await expect(page.locator("main").first()).toBeVisible();
 
-    if (
-      route.name === "home" ||
-      route.name === "posts" ||
-      route.name === "tag-sample"
-    ) {
+    if (route.name === "posts") {
       const cardWithThumbnail = getPostCardByTitle(page, THUMBNAIL_SEED_TITLE);
       await expect(cardWithThumbnail).toBeVisible();
       await expect(
@@ -208,35 +200,20 @@ for (const route of routes) {
         page.getByRole("heading", { name: "홈", exact: true }),
       ).toBeVisible();
       await expect(
-        page.getByRole("heading", { name: "태그 허브" }),
+        page.getByRole("heading", { name: "빠른 이동" }),
       ).toBeVisible();
       await expect(
-        page.getByRole("heading", { name: "최신 직접 작성" }),
+        page.getByRole("heading", { name: "위키 루트 카테고리" }),
       ).toBeVisible();
       await expect(
-        page.getByRole("heading", { name: "최신 AI 수집" }),
+        page.locator("main").getByRole("link", { name: "글 목록" }),
       ).toBeVisible();
-      await expect(page.getByRole("link", { name: "글 목록" })).toBeVisible();
-
       await expect(
-        page.getByRole("link", { name: "전체 태그 보기" }),
-      ).toHaveAttribute("href", "/tags");
+        page.locator("main").getByRole("link", { name: "위키 루트" }),
+      ).toBeVisible();
       await expect(
-        page.getByRole("link", { name: "전체 직접 작성 보기" }),
-      ).toHaveAttribute("href", "/posts?type=original");
-      await expect(
-        page.getByRole("link", { name: "전체 AI 수집 보기" }),
-      ).toHaveAttribute("href", "/posts?type=ai");
-
-      await expect(
-        page.getByRole("link", { name: "전체 아카이브" }),
-      ).toHaveCount(0);
-      await expect(
-        page.getByRole("link", { name: "직접 작성만 보기" }),
-      ).toHaveCount(0);
-      await expect(
-        page.getByRole("link", { name: "AI 수집만 보기" }),
-      ).toHaveCount(0);
+        page.locator("main").getByRole("link", { name: "글 작성" }),
+      ).toBeVisible();
     }
 
     if (route.name === "posts") {
@@ -269,22 +246,20 @@ for (const route of routes) {
 
     if (route.name === "tag-sample") {
       await expect(
-        page.getByRole("heading", { name: "태그: sample" }),
+        page.getByRole("heading", { name: "위키 경로: /sample" }),
       ).toBeVisible();
-      await expect(page.locator("article").first()).toBeVisible();
+      await expect(
+        page.getByRole("heading", { name: "하위 카테고리" }),
+      ).toBeVisible();
     }
 
     if (route.name === "tags") {
       await expect(
-        page.getByRole("heading", { name: "태그", exact: true }),
+        page.getByRole("heading", { name: "댓글 위키", exact: true }),
       ).toBeVisible();
-      await expect(page.getByLabel("태그 검색")).toBeVisible();
-      await expect(page.locator("[data-tags-top]")).toBeVisible();
       await expect(
-        page.locator("[data-tags-top]").getByRole("link", { name: /#sample/ }),
+        page.getByRole("heading", { name: "카테고리 트리" }),
       ).toBeVisible();
-      await expect(page.locator("[data-tags-drawer] summary")).toBeVisible();
-      await expect(page.locator("[data-tags-drawer-preview]")).toBeVisible();
     }
 
     await assertNoHorizontalPageScroll(

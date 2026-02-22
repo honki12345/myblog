@@ -2,6 +2,10 @@ import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getBearerToken, verifyApiKey } from "@/lib/auth";
+import {
+  buildWikiPathHref,
+  normalizeWikiPathFromTagName,
+} from "@/lib/comment-tags";
 import { getDb } from "@/lib/db";
 
 type ApiErrorCode =
@@ -159,9 +163,12 @@ function validateApiKey(request: Request): NextResponse | null {
 }
 
 function revalidatePostRelatedPaths(slug: string, tags: string[]) {
-  const paths = new Set<string>(["/", "/posts", `/posts/${slug}`]);
+  const paths = new Set<string>(["/", "/wiki", "/posts", `/posts/${slug}`]);
   for (const tag of tags) {
-    paths.add(`/tags/${encodeURIComponent(tag)}`);
+    const wikiPath = normalizeWikiPathFromTagName(tag);
+    if (wikiPath) {
+      paths.add(buildWikiPathHref(wikiPath));
+    }
   }
 
   for (const path of paths) {

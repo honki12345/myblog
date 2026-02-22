@@ -3,6 +3,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { logApiRequest, summarizeApiPayload } from "@/lib/api-log";
 import { getBearerToken, verifyApiKey } from "@/lib/auth";
+import {
+  buildWikiPathHref,
+  normalizeWikiPathFromTagName,
+} from "@/lib/comment-tags";
 import { getDb } from "@/lib/db";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { createSlug, withSlugSuffix } from "@/lib/slug";
@@ -260,13 +264,16 @@ function findExistingSourceConflicts(
 function revalidateBulkPostPaths(
   created: Array<{ slug: string; tags: string[] }>,
 ): void {
-  const paths = new Set<string>(["/", "/posts"]);
+  const paths = new Set<string>(["/", "/wiki", "/posts"]);
 
   for (const item of created) {
     paths.add(`/posts/${item.slug}`);
 
     for (const tag of item.tags) {
-      paths.add(`/tags/${encodeURIComponent(tag)}`);
+      const wikiPath = normalizeWikiPathFromTagName(tag);
+      if (wikiPath) {
+        paths.add(buildWikiPathHref(wikiPath));
+      }
     }
   }
 

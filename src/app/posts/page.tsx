@@ -1,4 +1,5 @@
 import PostCard from "@/components/PostCard";
+import { redirect } from "next/navigation";
 import { getAdminSessionFromServerCookies } from "@/lib/admin-auth";
 import PostsSearchTypeahead from "@/components/PostsSearchTypeahead";
 import { isFtsQuerySyntaxError } from "@/lib/fts";
@@ -19,6 +20,31 @@ type PageProps = {
     tag?: string;
   }>;
 };
+
+function buildLoginHref(nextPath: string): string {
+  return `/admin/login?next=${encodeURIComponent(nextPath)}`;
+}
+
+function buildPostsNextPath(
+  params: Awaited<PageProps["searchParams"]>,
+): string {
+  const search = new URLSearchParams();
+  const entries: Array<[key: string, value: string | undefined]> = [
+    ["page", params.page],
+    ["per_page", params.per_page],
+    ["type", params.type],
+    ["q", params.q],
+    ["tag", params.tag],
+  ];
+
+  for (const [key, value] of entries) {
+    if (typeof value === "string" && value.length > 0) {
+      search.set(key, value);
+    }
+  }
+
+  return search.size > 0 ? `/posts?${search.toString()}` : "/posts";
+}
 
 function parsePositiveInteger(
   value: string | undefined,
@@ -119,9 +145,10 @@ function toPostCardData(item: PostListItem) {
 export default async function PostsPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const session = await getAdminSessionFromServerCookies();
-  const statuses: readonly PostStatus[] = session
-    ? ["draft", "published"]
-    : ["published"];
+  if (!session) {
+    redirect(buildLoginHref(buildPostsNextPath(params)));
+  }
+  const statuses: readonly PostStatus[] = ["draft", "published"];
 
   const type = parsePostType(params.type);
   const q = normalizeSearchQuery(params.q);

@@ -475,32 +475,6 @@ async function createPost(apiKey, body) {
 async function runChecks(apiKey) {
   const seed = Date.now();
 
-  const homeResponse = await requestText("/");
-  assert(homeResponse.status === 200, "home should return 200");
-  assert(
-    homeResponse.text.includes("아직 글이 없습니다"),
-    "home empty state missing",
-  );
-
-  const homeCreateTitles = [1, 2, 3].map((i) => `STEP5-HOME-${seed}-${i}`);
-  for (const title of homeCreateTitles) {
-    await createPost(apiKey, {
-      title,
-      content: `${title} content`,
-      status: "published",
-      sourceUrl: `https://step5.test/home/${encodeURIComponent(title)}`,
-    });
-  }
-
-  const homeWithPosts = await requestText("/");
-  assert(homeWithPosts.status === 200, "home should return 200 after create");
-  for (const title of homeCreateTitles) {
-    assert(homeWithPosts.text.includes(title), `home missing title: ${title}`);
-  }
-
-  const postsResponse = await requestText("/posts");
-  assert(postsResponse.status === 200, "posts should return 200");
-
   const markdownTitle = `STEP5-DETAIL-${seed}`;
   const markdownCreated = await createPost(apiKey, {
     title: markdownTitle,
@@ -510,10 +484,26 @@ async function runChecks(apiKey) {
     sourceUrl: `https://step5.test/detail/${seed}`,
   });
 
+  const homeResponse = await requestText("/");
+  assert(homeResponse.status === 200, "home should return 200");
+  assert(
+    homeResponse.text.includes("관리자 로그인"),
+    "home should redirect non-admin to login page",
+  );
+
+  const postsResponse = await requestText("/posts");
+  assert(postsResponse.status === 200, "posts should return 200");
+  assert(
+    postsResponse.text.includes("관리자 로그인"),
+    "posts should redirect non-admin to login page",
+  );
+
   const detailResponse = await requestText(`/posts/${markdownCreated.slug}`);
   assert(detailResponse.status === 200, "detail should return 200");
-  assert(detailResponse.text.includes(markdownTitle), "detail title missing");
-  assert(detailResponse.text.includes("<h2"), "detail markdown h2 missing");
+  assert(
+    detailResponse.text.includes("관리자 로그인"),
+    "detail should redirect non-admin to login page",
+  );
 
   const koreanTitle = `한글-상세-${seed}`;
   const koreanCreated = await createPost(apiKey, {
@@ -529,8 +519,8 @@ async function runChecks(apiKey) {
     "korean slug detail should return 200",
   );
   assert(
-    koreanDetailPlain.text.includes(koreanTitle),
-    "korean slug detail title missing",
+    koreanDetailPlain.text.includes("관리자 로그인"),
+    "korean slug detail should redirect to login page",
   );
 
   const koreanDetailEncoded = await requestText(
@@ -541,12 +531,16 @@ async function runChecks(apiKey) {
     "encoded korean slug detail should return 200",
   );
   assert(
-    koreanDetailEncoded.text.includes(koreanTitle),
-    "encoded korean slug detail title missing",
+    koreanDetailEncoded.text.includes("관리자 로그인"),
+    "encoded korean slug detail should redirect to login page",
   );
 
   const detail404 = await requestText("/posts/this-slug-does-not-exist-12345");
-  assert(detail404.status === 404, "missing slug should return 404");
+  assert(detail404.status === 200, "missing slug should return 200 (login)");
+  assert(
+    detail404.text.includes("관리자 로그인"),
+    "missing slug should redirect to login page",
+  );
 
   const malformedSlug = await requestText("/posts/%E0%A4%A");
   assert(
@@ -555,81 +549,26 @@ async function runChecks(apiKey) {
   );
 
   const tagResponse = await requestText("/tags/frontend");
-  assert(tagResponse.status === 200, "tag page should return 200");
+  assert(tagResponse.status === 200, "tag page should return 200 (login)");
   assert(
-    tagResponse.text.includes(markdownTitle),
-    "tag page missing filtered post",
+    tagResponse.text.includes("관리자 로그인"),
+    "tag page should redirect to login page",
   );
 
   const missingTagResponse = await requestText("/tags/nonexistent-tag-xyz");
-  assert(missingTagResponse.status === 200, "missing tag should return 200");
   assert(
-    missingTagResponse.text.includes("빈 목록"),
-    "missing tag empty state missing",
+    missingTagResponse.status === 200,
+    "missing tag should return 200 (login)",
+  );
+  assert(
+    missingTagResponse.text.includes("관리자 로그인"),
+    "missing tag should redirect to login page",
   );
 
-  const draftTitle = `STEP5-DRAFT-${seed}`;
-  const draftCreated = await createPost(apiKey, {
-    title: draftTitle,
-    content: "draft content",
-    status: "draft",
-    sourceUrl: `https://step5.test/draft/${seed}`,
-  });
-
-  const homeAfterDraft = await requestText("/");
+  const invalidTagPath = await requestText("/tags/invalid_tag");
   assert(
-    !homeAfterDraft.text.includes(draftTitle),
-    "draft should not be visible on home",
-  );
-
-  const postsAfterDraft = await requestText("/posts");
-  assert(
-    !postsAfterDraft.text.includes(draftTitle),
-    "draft should not be visible on posts list",
-  );
-
-  const draftDetail = await requestText(`/posts/${draftCreated.slug}`);
-  assert(draftDetail.status === 404, "draft detail should return 404");
-
-  const paginationPrefix = `STEP5-PAGINATION-${seed}-`;
-  const paginationTitles = [];
-  for (let index = 0; index < 15; index += 1) {
-    const title = `${paginationPrefix}${String(index).padStart(2, "0")}`;
-    paginationTitles.push(title);
-    await createPost(apiKey, {
-      title,
-      content: `pagination content ${index}`,
-      status: "published",
-      sourceUrl: `https://step5.test/pagination/${seed}/${index}`,
-    });
-  }
-
-  const page1 = await requestText("/posts?page=1");
-  const page2 = await requestText("/posts?page=2");
-
-  const page1Count = paginationTitles.filter((title) =>
-    page1.text.includes(title),
-  ).length;
-  const page2Count = paginationTitles.filter((title) =>
-    page2.text.includes(title),
-  ).length;
-  assert(page1Count > 0, "pagination page1 should contain seeded posts");
-  assert(page2Count > 0, "pagination page2 should contain seeded posts");
-  assert(
-    page1Count + page2Count === 15,
-    `pagination total mismatch: ${page1Count + page2Count}`,
-  );
-
-  assert(homeWithPosts.text.includes('href="/"'), "home nav link missing /");
-  assert(
-    homeWithPosts.text.includes('href="/posts"'),
-    "home nav link missing /posts",
-  );
-
-  const titleMatch = detailResponse.text.match(/<title>([^<]+)<\/title>/);
-  assert(
-    titleMatch && titleMatch[1].includes(markdownTitle),
-    "metadata title mismatch",
+    invalidTagPath.status === 404,
+    "invalid tag path conversion should return 404",
   );
 
   const writePage = await requestText("/write");
@@ -639,30 +578,8 @@ async function runChecks(apiKey) {
     "write compatibility redirect should land on admin login page",
   );
 
-  const cacheTitle = `STEP5-CACHE-${seed}`;
-  const cachePost = await createPost(apiKey, {
-    title: cacheTitle,
-    content: "cache content",
-    status: "published",
-    sourceUrl: `https://step5.test/cache/${seed}`,
-  });
-
-  const homeAfterCache = await requestText("/");
-  const postsAfterCache = await requestText("/posts");
-  const detailAfterCache = await requestText(`/posts/${cachePost.slug}`);
-
-  assert(
-    homeAfterCache.text.includes(cacheTitle),
-    "cache verify: home missing post",
-  );
-  assert(
-    postsAfterCache.text.includes(cacheTitle),
-    "cache verify: posts missing post",
-  );
-  assert(
-    detailAfterCache.text.includes(cacheTitle),
-    "cache verify: detail missing post",
-  );
+  const unauthorizedPostsList = await requestJson("/api/posts");
+  assertErrorResponse(unauthorizedPostsList, 401, "UNAUTHORIZED");
 
   const unauthorizedCreate = await requestJson("/api/posts", {
     method: "POST",

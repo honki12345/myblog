@@ -61,10 +61,7 @@ test.beforeEach(() => {
   runCleanupScript();
 });
 
-test("public post detail hides admin edit/delete actions", async ({
-  page,
-  request,
-}) => {
+test("non-admin post detail redirects to login", async ({ page, request }) => {
   const seed: SeededPost = {
     title: "PW-SEED-ADMIN-ACTIONS",
     content: "## 관리자 액션 테스트\n\n공개 글 상세 페이지 테스트",
@@ -77,9 +74,9 @@ test("public post detail hides admin edit/delete actions", async ({
   await triggerRevalidationForSeededPost(request, { ...seed, id: created.id });
 
   await page.goto(`/posts/${created.slug}`, { waitUntil: "networkidle" });
-  await expect(page.getByRole("heading", { name: seed.title })).toBeVisible();
-  await expect(page.getByRole("link", { name: "수정" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "삭제" })).toHaveCount(0);
+  await expect(page).toHaveURL(
+    new RegExp(`/admin/login\\?next=%2Fposts%2F${created.slug}$`),
+  );
 });
 
 test("admin can see edit/delete actions on public detail and delete post", async ({

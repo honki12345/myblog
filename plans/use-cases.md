@@ -27,7 +27,7 @@
 | `SEARCH` | 검색/자동완성/아카이브 필터 동작 |
 | `ADMIN` | 관리자 로그인(2FA), 세션, CSRF, 워크스페이스 |
 | `UPLOAD` | 이미지 업로드 인증/검증/저장 |
-| `VISIBILITY` | 공개/관리자 노출 정책(초안 포함 여부) |
+| `VISIBILITY` | 라우트 접근 제어/리다이렉트 정책(관리자 전용 경로 포함) |
 | `WIKI` | 댓글 태그 경로 기반 위키 조회/관리자 댓글 CRUD |
 
 ## 4. 유스케이스 명세
@@ -88,13 +88,13 @@
 - 수용기준: `failed` 전이 시 error 메시지 저장 가능
 - 연결 테스트: `scripts/test-step-3.mjs`
 
-### UC-SEARCH-001 검색 자동완성/이동 규칙
+### UC-SEARCH-001 관리자 전용 검색 자동완성/이동 규칙
 
-- 사전조건: 검색 대상 데이터 존재
-- 기본흐름: `/api/posts/suggest?q=...`로 최대 8개 추천 표시
-- 예외흐름: FTS 문법 오류성 입력은 200 + 빈 목록 폴백
-- 수용기준: 공개 사용자는 published만, admin은 draft 포함 결과 확인
-- 연결 테스트: `tests/ui/posts-search-autocomplete.spec.ts`, `tests/ui/posts-archive.spec.ts`
+- 사전조건: 검색 대상 데이터 존재 + 유효한 관리자 세션
+- 기본흐름: `/posts`에서 검색/필터를 적용하고 `/api/posts/suggest?q=...`로 최대 8개 추천 표시
+- 예외흐름: 비관리자 `/posts` 접근은 `/admin/login?next=...` 리다이렉트, 비관리자 `/api/posts/suggest`는 `401`, FTS 문법 오류성 입력은 관리자 화면에서 메시지 폴백
+- 수용기준: 관리자 세션에서 draft+published 검색이 가능하고, 비관리자 접근은 페이지/API 모두 차단 계약을 만족
+- 연결 테스트: `scripts/test-step-10.mjs`, `tests/ui/posts-search-autocomplete.spec.ts`, `tests/ui/posts-archive.spec.ts`
 
 ### UC-ADMIN-001 관리자 로그인(비밀번호 + TOTP)과 세션 발급
 
@@ -120,13 +120,13 @@
 - 수용기준: 실패 케이스는 파일 저장이 발생하지 않아야 함
 - 연결 테스트: `scripts/test-step-3.mjs`, `scripts/test-step-9.mjs`
 
-### UC-VISIBILITY-001 공개/관리자 노출 정책
+### UC-VISIBILITY-001 포스트 경로 관리자 전용 접근 정책
 
-- 사전조건: published와 draft 글이 함께 존재
-- 기본흐름: 공개 페이지는 published만 노출, admin은 draft 포함 조회
-- 예외흐름: 세션 만료/미인증 상태에서는 draft 비노출
-- 수용기준: draft 클릭 시 관리자 편집 경로(`/admin/write?id=...`)로 이동
-- 연결 테스트: `tests/ui/draft-visibility.spec.ts`, `tests/ui/write-link-auth.spec.ts`
+- 사전조건: published/draft 글 데이터 존재
+- 기본흐름: 비관리자 `/`, `/posts`, `/posts/[slug]`, `/tags`, `/tags/[tag]` 접근은 `/admin/login?next=...`로 이동하고, 관리자 세션에서는 `/`, `/posts`, `/posts/[slug]` 접근 허용
+- 예외흐름: `/tags/[tag]`가 위키 경로 규칙으로 변환되지 않으면 `404`; 비관리자 `GET /api/posts`, `GET /api/posts/suggest`는 `401`
+- 수용기준: 페이지는 로그인 리다이렉트 계약을 유지하고, `/tags`는 관리자 시 `/wiki`로, `/tags/[tag]`는 관리자 시 `/wiki/[...path]`로 통합된다
+- 연결 테스트: `scripts/test-step-5.mjs`, `scripts/test-step-10.mjs`, `tests/ui/draft-visibility.spec.ts`, `tests/ui/tags-index.spec.ts`, `tests/ui/write-link-auth.spec.ts`, `tests/ui/post-admin-actions.spec.ts`
 
 ### UC-WIKI-001 관리자 댓글 CRUD + 태그 경로 검증/CSRF
 
@@ -155,11 +155,11 @@
 | UC-BULK-001 | BULK | 벌크 생성 원자성/개수 제한 | `scripts/test-step-8.mjs` | Active |
 | UC-INBOX-001 | INBOX | URL 수집 큐 적재/중복 | `scripts/test-step-3.mjs` | Active |
 | UC-INBOX-002 | INBOX | 수집 큐 상태 전이 제한 | `scripts/test-step-3.mjs` | Active |
-| UC-SEARCH-001 | SEARCH | 자동완성/검색 이동 규칙 | `tests/ui/posts-search-autocomplete.spec.ts`, `tests/ui/posts-archive.spec.ts` | Active |
+| UC-SEARCH-001 | SEARCH | 관리자 전용 자동완성/검색 이동 규칙 | `scripts/test-step-10.mjs`, `tests/ui/posts-search-autocomplete.spec.ts`, `tests/ui/posts-archive.spec.ts` | Active |
 | UC-ADMIN-001 | ADMIN | 관리자 2FA 로그인/세션 | `scripts/test-step-9.mjs`, `tests/ui/admin-2fa-setup-lock.spec.ts` | Active |
 | UC-ADMIN-002 | ADMIN | 워크스페이스 CRUD + CSRF | `scripts/test-step-9.mjs`, `tests/ui/admin-workspace.spec.ts` | Active |
 | UC-UPLOAD-001 | UPLOAD | 업로드 인증/유효성 검증 | `scripts/test-step-3.mjs`, `scripts/test-step-9.mjs` | Active |
-| UC-VISIBILITY-001 | VISIBILITY | 공개/관리자 노출 정책 | `tests/ui/draft-visibility.spec.ts`, `tests/ui/write-link-auth.spec.ts` | Active |
+| UC-VISIBILITY-001 | VISIBILITY | 포스트 경로 관리자 전용 접근 정책 | `scripts/test-step-5.mjs`, `scripts/test-step-10.mjs`, `tests/ui/draft-visibility.spec.ts`, `tests/ui/tags-index.spec.ts`, `tests/ui/write-link-auth.spec.ts`, `tests/ui/post-admin-actions.spec.ts` | Active |
 | UC-WIKI-001 | WIKI | 관리자 댓글 CRUD + 태그 경로 검증 | `scripts/test-step-11.mjs`, `tests/ui/wiki-view.spec.ts` | Active |
 | UC-WIKI-002 | WIKI | 공개 위키 트리/경로 조회 + 숨김/삭제 비노출 | `scripts/test-step-11.mjs`, `tests/ui/accessibility.spec.ts`, `tests/ui/wiki-view.spec.ts` | Active |
 

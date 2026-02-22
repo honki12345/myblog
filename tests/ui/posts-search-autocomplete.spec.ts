@@ -65,7 +65,7 @@ test.beforeEach(() => {
   runCleanupScript();
 });
 
-test("public: typeahead shows suggestions and click navigates to post detail", async ({
+test("admin: typeahead shows suggestions and click navigates to post detail", async ({
   page,
   request,
 }) => {
@@ -81,7 +81,8 @@ test("public: typeahead shows suggestions and click navigates to post detail", a
   const created = await insertPostDirect(request, published);
   await triggerRevalidation(request, { ...created, ...published });
 
-  await page.goto("/posts", { waitUntil: "networkidle" });
+  await authenticateAdminSession(page, { nextPath: "/posts" });
+  await page.waitForLoadState("networkidle");
   const combobox = page.getByRole("combobox", { name: "검색" });
   await combobox.click();
   await combobox.fill(keyword);
@@ -97,7 +98,7 @@ test("public: typeahead shows suggestions and click navigates to post detail", a
   ).toBeVisible();
 });
 
-test("public: last token prefix matches partial input and FTS syntax-like input stays silent", async ({
+test("admin: last token prefix matches partial input and FTS syntax-like input stays silent", async ({
   page,
   request,
 }) => {
@@ -111,7 +112,8 @@ test("public: last token prefix matches partial input and FTS syntax-like input 
 
   await insertPostDirect(request, published);
 
-  await page.goto("/posts", { waitUntil: "networkidle" });
+  await authenticateAdminSession(page, { nextPath: "/posts" });
+  await page.waitForLoadState("networkidle");
   const combobox = page.getByRole("combobox", { name: "검색" });
   await combobox.click();
   await combobox.fill("kube");
@@ -126,7 +128,7 @@ test("public: last token prefix matches partial input and FTS syntax-like input 
   await expect(page.getByText("추천을 불러오지 못했습니다")).toHaveCount(0);
 });
 
-test("public: suggestions are capped at 8 items", async ({ page, request }) => {
+test("admin: suggestions are capped at 8 items", async ({ page, request }) => {
   const keyword = "manykey";
   const seeds = Array.from({ length: 9 }, (_, index) => ({
     title: `PW-SUGGEST-MANY-${index + 1}`,
@@ -140,7 +142,8 @@ test("public: suggestions are capped at 8 items", async ({ page, request }) => {
     await insertPostDirect(request, seed);
   }
 
-  await page.goto("/posts", { waitUntil: "networkidle" });
+  await authenticateAdminSession(page, { nextPath: "/posts" });
+  await page.waitForLoadState("networkidle");
   const combobox = page.getByRole("combobox", { name: "검색" });
   await combobox.click();
   await combobox.fill(keyword);
@@ -152,7 +155,7 @@ test("public: suggestions are capped at 8 items", async ({ page, request }) => {
   ).toHaveCount(8);
 });
 
-test("public: keyboard controls (down/enter/esc) work and blur closes dropdown", async ({
+test("admin: keyboard controls (down/enter/esc) work and blur closes dropdown", async ({
   page,
   request,
 }) => {
@@ -179,7 +182,8 @@ test("public: keyboard controls (down/enter/esc) work and blur closes dropdown",
     created.push(await insertPostDirect(request, seed));
   }
 
-  await page.goto("/posts", { waitUntil: "networkidle" });
+  await authenticateAdminSession(page, { nextPath: "/posts" });
+  await page.waitForLoadState("networkidle");
   const combobox = page.getByRole("combobox", { name: "검색" });
   await combobox.click();
   await combobox.fill(keyword);
@@ -275,30 +279,14 @@ test("admin: draft+published are suggested and draft selection goes to editor", 
 test.describe("JS OFF", () => {
   test.use({ javaScriptEnabled: false });
 
-  test("GET submit search still works without JS", async ({
+  test("non-admin GET /posts query redirects to login without JS", async ({
     page,
-    request,
   }) => {
     const keyword = "nojsneedle";
-    const published = {
-      title: "PW-SUGGEST-NOJS-PUBLISHED",
-      content: `this post contains ${keyword}`,
-      tags: ["pw", "suggest"],
-      status: "published" as const,
-      sourceUrl: "https://playwright.seed/suggest/nojs/published",
-    };
-
-    const created = await insertPostDirect(request, published);
-    await triggerRevalidation(request, { ...created, ...published });
-
-    await page.goto("/posts", { waitUntil: "networkidle" });
-    await page.getByRole("combobox", { name: "검색" }).fill(keyword);
-    await page.keyboard.press("Enter");
-
-    await expect(page).toHaveURL(new RegExp(`\\bq=${keyword}\\b`));
-    await expect(
-      page.getByRole("link", { name: published.title }),
-    ).toBeVisible();
+    await page.goto(`/posts?q=${keyword}`, { waitUntil: "networkidle" });
+    await expect(page).toHaveURL(
+      new RegExp(`/admin/login\\?next=%2Fposts%3Fq%3D${keyword}$`),
+    );
   });
 });
 
@@ -328,7 +316,8 @@ test("a11y+snapshot: posts suggest dropdown open state", async ({
     await insertPostDirect(request, seed);
   }
 
-  await page.goto("/posts", { waitUntil: "networkidle" });
+  await authenticateAdminSession(page, { nextPath: "/posts" });
+  await page.waitForLoadState("networkidle");
   await page.addStyleTag({ content: DISABLE_ANIMATION_STYLE });
 
   const combobox = page.getByRole("combobox", { name: "검색" });

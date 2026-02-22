@@ -8,7 +8,7 @@ import {
   POSTS_SUGGEST_MIN_QUERY_LENGTH,
 } from "@/lib/posts-search";
 
-type ApiErrorCode = "INTERNAL_ERROR";
+type ApiErrorCode = "UNAUTHORIZED" | "INTERNAL_ERROR";
 
 type PostStatus = "draft" | "published";
 
@@ -92,6 +92,11 @@ function buildSuggestFtsQuery(input: string): string | null {
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
+  const session = getAdminSessionFromRequest(request, { touch: false });
+  if (!session) {
+    return errorResponse(401, "UNAUTHORIZED", "Admin session is required.");
+  }
+
   const requestUrl = new URL(request.url);
   const rawQ = requestUrl.searchParams.get("q");
   const normalizedQ = normalizeQuery(rawQ);
@@ -115,10 +120,7 @@ export async function GET(request: Request) {
     });
   }
 
-  const session = getAdminSessionFromRequest(request, { touch: false });
-  const statuses: readonly PostStatus[] = session
-    ? ["draft", "published"]
-    : ["published"];
+  const statuses: readonly PostStatus[] = ["draft", "published"];
 
   const statusPlaceholders = statuses.map(() => "?").join(", ");
   const limit = POSTS_SUGGEST_LIMIT;

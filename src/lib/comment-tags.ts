@@ -62,6 +62,15 @@ export function buildWikiPathHref(tagPath: string): string {
   return `/wiki/${encodedPath}`;
 }
 
+export function normalizeWikiPathFromTagName(tag: string): string | null {
+  const validated = validateCommentTagPath(tag);
+  if (!validated.valid) {
+    return null;
+  }
+
+  return validated.normalizedPath;
+}
+
 export function normalizeWikiPathFromSegments(
   rawSegments: readonly string[],
 ): string | null {

@@ -47,7 +47,8 @@ test("logged out pages hide admin write entry links", async ({
   );
 
   const maxDiffPixelRatio = getVisualDiffThreshold(testInfo.project.name);
-  await expect(nav).toHaveScreenshot("write-link-auth-logged-out.png", {
+  await expect(page).toHaveScreenshot("write-link-auth-logged-out.png", {
+    fullPage: false,
     maxDiffPixelRatio,
   });
 
@@ -82,7 +83,8 @@ test("admin session shows write link in header navigation", async ({
   );
 
   const maxDiffPixelRatio = getVisualDiffThreshold(testInfo.project.name);
-  await expect(nav).toHaveScreenshot("write-link-auth-logged-in.png", {
+  await expect(page).toHaveScreenshot("write-link-auth-logged-in.png", {
+    fullPage: false,
     maxDiffPixelRatio,
   });
 

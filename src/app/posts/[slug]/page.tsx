@@ -105,7 +105,7 @@ export default async function PostDetailPage({ params }: PageProps) {
 
   const adminSession = await getAdminSessionFromServerCookies();
   if (!adminSession) {
-    redirect(buildLoginHref(`/posts/${encodeURIComponent(rawSlug)}`));
+    redirect(buildLoginHref(`/posts/${slug}`));
   }
 
   const post = loadPublishedPostBySlug(slug);

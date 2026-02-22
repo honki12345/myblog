@@ -535,7 +535,10 @@ async function main() {
       `expected unread older seed to return 201, got ${unreadOlder.status}`,
     );
     const unreadOlderId = unreadOlder.data?.id;
-    assert(Number.isInteger(unreadOlderId), "unread older id should be integer");
+    assert(
+      Number.isInteger(unreadOlderId),
+      "unread older id should be integer",
+    );
 
     await sleep(5);
 
@@ -553,7 +556,10 @@ async function main() {
       `expected unread newer seed to return 201, got ${unreadNewer.status}`,
     );
     const unreadNewerId = unreadNewer.data?.id;
-    assert(Number.isInteger(unreadNewerId), "unread newer id should be integer");
+    assert(
+      Number.isInteger(unreadNewerId),
+      "unread newer id should be integer",
+    );
 
     await sleep(5);
 
@@ -589,7 +595,9 @@ async function main() {
       `expected readNewest is_read=1, got ${markRead.data?.is_read}`,
     );
 
-    const archiveAll = await requestText("/posts?per_page=50", { jar: adminJar });
+    const archiveAll = await requestText("/posts?per_page=50", {
+      jar: adminJar,
+    });
     assert(
       archiveAll.status === 200,
       `expected authenticated GET /posts to return 200, got ${archiveAll.status}`,

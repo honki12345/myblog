@@ -138,7 +138,10 @@ export default async function PostDetailPage({ params }: PageProps) {
           >
             수정
           </Link>
-          <PostAdminActionsClient postId={post.id} isRead={post.is_read === 1} />
+          <PostAdminActionsClient
+            postId={post.id}
+            isRead={post.is_read === 1}
+          />
         </div>
       </header>
       <PostContent content={post.content} />

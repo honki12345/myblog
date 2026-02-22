@@ -44,7 +44,10 @@ async function updateReadStateAsAdmin(
   isRead: boolean,
 ): Promise<void> {
   const cookieMap = new Map(
-    (await page.context().cookies()).map((cookie) => [cookie.name, cookie.value]),
+    (await page.context().cookies()).map((cookie) => [
+      cookie.name,
+      cookie.value,
+    ]),
   );
   const csrfToken = cookieMap.get("admin_csrf") ?? "";
   const cookieHeader = [
@@ -177,7 +180,9 @@ test("admin: unread filter tab + default unread-first sorting", async ({
   await updateReadStateAsAdmin(page, createdReadNewest.id, true);
   await page.goto("/posts?per_page=50", { waitUntil: "networkidle" });
 
-  const cardTitles = await page.locator("article[data-post-card] h2 a").allTextContents();
+  const cardTitles = await page
+    .locator("article[data-post-card] h2 a")
+    .allTextContents();
   const unreadNewerIndex = cardTitles.findIndex((title) =>
     title.includes(unreadNewer.title),
   );
@@ -197,9 +202,15 @@ test("admin: unread filter tab + default unread-first sorting", async ({
   await page.getByRole("link", { name: "미읽음" }).click();
   await page.waitForLoadState("networkidle");
   await expect(page).toHaveURL(/\bread=unread\b/);
-  await expect(page.getByRole("link", { name: unreadOlder.title })).toBeVisible();
-  await expect(page.getByRole("link", { name: unreadNewer.title })).toBeVisible();
-  await expect(page.getByRole("link", { name: readNewest.title })).toHaveCount(0);
+  await expect(
+    page.getByRole("link", { name: unreadOlder.title }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: unreadNewer.title }),
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: readNewest.title })).toHaveCount(
+    0,
+  );
 });
 
 test("admin: pagination preserves type/q/tag/per_page (+ type invalid fallback)", async ({

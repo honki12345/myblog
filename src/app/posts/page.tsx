@@ -331,7 +331,10 @@ export default async function PostsPage({ searchParams }: PageProps) {
           })}
         </nav>
 
-        <nav aria-label="읽음 상태" className="flex flex-wrap items-center gap-2">
+        <nav
+          aria-label="읽음 상태"
+          className="flex flex-wrap items-center gap-2"
+        >
           {(
             [
               { value: "all", label: "전체" },

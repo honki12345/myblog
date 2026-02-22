@@ -391,9 +391,7 @@ function testReadConstraints(db) {
   const postId = Number(created.lastInsertRowid);
   assert(postId > 0, "Read CREATE failed");
 
-  const row = db
-    .prepare("SELECT is_read FROM posts WHERE id = ?")
-    .get(postId);
+  const row = db.prepare("SELECT is_read FROM posts WHERE id = ?").get(postId);
   assert(row?.is_read === 0, `Unexpected default is_read: ${row?.is_read}`);
 
   let invalidIsReadThrow = false;
@@ -410,7 +408,10 @@ function testReadConstraints(db) {
   const updated = db
     .prepare("SELECT is_read FROM posts WHERE id = ?")
     .get(postId);
-  assert(updated?.is_read === 1, `Unexpected updated is_read: ${updated?.is_read}`);
+  assert(
+    updated?.is_read === 1,
+    `Unexpected updated is_read: ${updated?.is_read}`,
+  );
 
   db.prepare("DELETE FROM posts WHERE id = ?").run(postId);
 }

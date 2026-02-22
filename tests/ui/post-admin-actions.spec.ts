@@ -105,7 +105,9 @@ test("admin can see edit/delete actions on public detail and delete post", async
     new RegExp(`/admin/write\\?id=${created.id}$`),
   );
   await expect(page.getByRole("button", { name: "삭제" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "읽음으로 표시" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "읽음으로 표시" }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "읽음으로 표시" }).click();
   await expect(
     page.getByRole("button", { name: "읽지 않음으로 표시" }),

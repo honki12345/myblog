@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { access, readFile, rm, unlink } from "node:fs/promises";
+import { access, readFile, readdir, rm, unlink } from "node:fs/promises";
 import { createRequire } from "node:module";
 import net from "node:net";
 import path from "node:path";
@@ -18,6 +18,9 @@ const TEST_DB_WAL_PATH = `${TEST_DB_PATH}-wal`;
 const TEST_DB_SHM_PATH = `${TEST_DB_PATH}-shm`;
 const TEST_DB_FILES = [TEST_DB_PATH, TEST_DB_WAL_PATH, TEST_DB_SHM_PATH];
 const MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024;
+const STEP3_SERVER_MODE = (process.env.STEP3_SERVER_MODE ?? "auto")
+  .trim()
+  .toLowerCase();
 
 function assert(condition, message) {
   if (!condition) {
@@ -80,7 +83,7 @@ function canBindPort(port) {
     server.unref();
 
     server.once("error", () => resolve(false));
-    server.listen({ port, host: DEV_SERVER_HOST }, () => {
+    server.listen({ port, exclusive: true }, () => {
       server.close(() => resolve(true));
     });
   });
@@ -164,6 +167,53 @@ async function waitForServer(url, retries = 60, delayMs = 500) {
   throw new Error(`Timed out waiting for server: ${url}`);
 }
 
+function resolveServerMode() {
+  if (
+    STEP3_SERVER_MODE === "standalone" ||
+    STEP3_SERVER_MODE === "dev" ||
+    STEP3_SERVER_MODE === "auto"
+  ) {
+    return STEP3_SERVER_MODE;
+  }
+
+  throw new Error(
+    `Unsupported STEP3_SERVER_MODE="${STEP3_SERVER_MODE}". Expected one of: auto, standalone, dev`,
+  );
+}
+
+async function resolveStandaloneServerDir() {
+  const primaryServerPath = path.join(ROOT, ".next", "standalone", "server.js");
+
+  try {
+    await access(primaryServerPath);
+    return path.dirname(primaryServerPath);
+  } catch {
+    // fallback to worktree-nested standalone layout
+  }
+
+  const worktreesDir = path.join(ROOT, ".next", "standalone", ".worktrees");
+  try {
+    const entries = await readdir(worktreesDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) {
+        continue;
+      }
+
+      const candidate = path.join(worktreesDir, entry.name, "server.js");
+      try {
+        await access(candidate);
+        return path.dirname(candidate);
+      } catch {
+        // continue searching
+      }
+    }
+  } catch {
+    // fall through to final error
+  }
+
+  throw new Error("standalone server.js not found");
+}
+
 async function startServer(apiKey, options = {}) {
   const { env = {} } = options;
   const startPort = Number.parseInt(process.env.STEP3_PORT_BASE ?? "", 10);
@@ -171,33 +221,69 @@ async function startServer(apiKey, options = {}) {
     Number.isFinite(startPort) && startPort > 0 ? startPort : DEFAULT_PORT;
   const port = await findAvailablePort(portBase);
   apiBase = `http://${DEV_SERVER_HOST}:${port}`;
+  const mode = resolveServerMode();
 
   const output = { stdout: "", stderr: "" };
-  const child = spawn(
-    process.execPath,
-    [
-      NEXT_BIN,
-      "dev",
-      "--webpack",
-      "--hostname",
-      DEV_SERVER_HOST,
-      "--port",
-      String(port),
-    ],
-    {
-      cwd: ROOT,
-      env: {
-        ...process.env,
-        BLOG_API_KEY: apiKey,
-        DATABASE_PATH: TEST_DB_PATH,
-        NEXT_PUBLIC_SITE_URL: apiBase,
-        NEXT_TELEMETRY_DISABLED: "1",
-        ...env,
+  let child;
+
+  const sharedEnv = {
+    ...process.env,
+    BLOG_API_KEY: apiKey,
+    DATABASE_PATH: TEST_DB_PATH,
+    NEXT_PUBLIC_SITE_URL: apiBase,
+    NEXT_TELEMETRY_DISABLED: "1",
+    ...env,
+  };
+
+  if (mode === "standalone" || mode === "auto") {
+    try {
+      const standaloneServerDir = await resolveStandaloneServerDir();
+      child = spawn(process.execPath, ["server.js"], {
+        cwd: standaloneServerDir,
+        env: {
+          ...sharedEnv,
+          PORT: String(port),
+          HOSTNAME: DEV_SERVER_HOST,
+        },
+        detached: true,
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+      child.__serverMode = "standalone";
+      child.__runtimeRoot = standaloneServerDir;
+    } catch (error) {
+      if (mode === "standalone") {
+        throw error;
+      }
+
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(
+        `[step3] standalone unavailable (${message}); falling back to next dev`,
+      );
+    }
+  }
+
+  if (!child) {
+    child = spawn(
+      process.execPath,
+      [
+        NEXT_BIN,
+        "dev",
+        "--webpack",
+        "--hostname",
+        DEV_SERVER_HOST,
+        "--port",
+        String(port),
+      ],
+      {
+        cwd: ROOT,
+        env: sharedEnv,
+        detached: true,
+        stdio: ["ignore", "pipe", "pipe"],
       },
-      detached: true,
-      stdio: ["ignore", "pipe", "pipe"],
-    },
-  );
+    );
+    child.__serverMode = "dev";
+    child.__runtimeRoot = ROOT;
+  }
   child.__step3Port = port;
 
   child.__output = output;
@@ -212,6 +298,9 @@ async function startServer(apiKey, options = {}) {
     process.stderr.write(text);
   });
 
+  console.log(
+    `[step3] server mode=${child.__serverMode} port=${port} base=${apiBase}`,
+  );
   await waitForServer(`${apiBase}/api/health`);
   return child;
 }
@@ -646,7 +735,7 @@ async function runInboxUrlUnitTests() {
   console.log("[unit] inbox url normalization passed");
 }
 
-async function runSessionOne(apiKey, uploadedFiles) {
+async function runSessionOne(apiKey, uploadedFiles, runtimeRoot = ROOT) {
   const seed = Date.now();
   console.log(
     "\n[session-1] health/auth/create/validate/duplicate/patch/upload checks",
@@ -943,13 +1032,21 @@ async function runSessionOne(apiKey, uploadedFiles) {
     "upload response should include url",
   );
 
-  const absoluteUploadPath = path.join(
-    ROOT,
-    uploadResponse.data.url.replace(/^\//, ""),
-  );
-  const uploadedPathExists = await pathExists(absoluteUploadPath);
-  assert(uploadedPathExists, "uploaded file should exist on disk");
-  uploadedFiles.push(absoluteUploadPath);
+  const uploadRelativePath = uploadResponse.data.url.replace(/^\//, "");
+  const candidatePaths = [
+    path.join(ROOT, uploadRelativePath),
+    path.join(runtimeRoot, uploadRelativePath),
+  ];
+  let existingUploadPath = null;
+  for (const candidate of candidatePaths) {
+    if (await pathExists(candidate)) {
+      existingUploadPath = candidate;
+      break;
+    }
+  }
+
+  assert(existingUploadPath !== null, "uploaded file should exist on disk");
+  uploadedFiles.push(existingUploadPath);
 }
 
 async function runSessionTwo(apiKey) {
@@ -1543,24 +1640,14 @@ async function main() {
     await runInboxUrlUnitTests();
     await cleanupTestDb();
 
-    server = await startServer(apiKey);
-    await runSessionOne(apiKey, uploadedFiles);
-
-    await stopServer(server);
-    server = await startServer(apiKey);
-    await runSessionTwo(apiKey);
-
-    await stopServer(server);
-    server = await startServer(apiKey);
-    await runRateLimitSession(apiKey);
-
-    await stopServer(server);
     server = await startServer(apiKey, {
       env: {
-        INBOX_DOC_TEST_STUB_NETWORK: "1",
+        RATE_LIMIT_MAX_REQUESTS: "200",
+        INBOX_RATE_LIMIT_MAX_REQUESTS: "20",
       },
     });
-    await runInboxSession(apiKey, server);
+    await runSessionOne(apiKey, uploadedFiles, server?.__runtimeRoot ?? ROOT);
+    await runSessionTwo(apiKey);
 
     await stopServer(server);
     server = await startServer(apiKey, {
@@ -1569,7 +1656,17 @@ async function main() {
         INBOX_RATE_LIMIT_WINDOW_MS: "60000",
       },
     });
+    await runRateLimitSession(apiKey);
     await runInboxRateLimitSession(apiKey, server);
+
+    await stopServer(server);
+    server = await startServer(apiKey, {
+      env: {
+        INBOX_DOC_TEST_STUB_NETWORK: "1",
+        INBOX_RATE_LIMIT_MAX_REQUESTS: "20",
+      },
+    });
+    await runInboxSession(apiKey, server);
 
     console.log("\nStep 3 checks passed.");
   } finally {

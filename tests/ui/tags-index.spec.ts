@@ -19,7 +19,9 @@ test("admin /tags redirects to /wiki", async ({ page }) => {
   await authenticateAdminSession(page, { nextPath: "/wiki" });
   await page.goto("/tags", { waitUntil: "networkidle" });
   await expect(page).toHaveURL(/\/wiki$/);
-  await expect(page.getByRole("heading", { name: "댓글 위키" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "위키", level: 1, exact: true }),
+  ).toBeVisible();
 });
 
 test("logged out /tags/[tag] redirects to login with next", async ({

@@ -15,15 +15,15 @@
 
 ### Purpose
 
-- 개인 블로그 서비스로, 공개 영역은 댓글 태그 기반 위키 조회(`/wiki`, `/wiki/[...path]`)를 중심으로 제공한다.
-- 포스트 관련 레거시 웹 경로(`/`, `/posts`, `/posts/[slug]`, `/tags`, `/tags/[tag]`)는 관리자 세션 전용으로 운영한다.
+- 개인 블로그 서비스로, 공개 영역은 홈(`/`)과 댓글 태그 기반 위키 조회(`/wiki`, `/wiki/[...path]`)를 중심으로 제공한다.
+- 포스트 관련 레거시 웹 경로(`/posts`, `/posts/[slug]`, `/tags`, `/tags/[tag]`)는 관리자 세션 전용으로 운영한다.
 - 운영자 전용 워크스페이스(2FA 세션 기반)에서 글/메모/할일/일정을 관리한다.
 - 프라이빗 방명록(게스트별 스레드/세션)과 AI 수집 인입 큐를 함께 운영한다.
 
 ### Core capabilities
 
-- 공개 웹: `/wiki`, `/wiki/[...path]`
-- 관리자 전용 웹(로그인 필요): `/`, `/posts`, `/posts/[slug]`, `/tags`, `/tags/[tag]`, `/admin/write`, `/admin/notes`, `/admin/todos`, `/admin/schedules`, `/admin/guestbook`, `/admin/guestbook/[id]`
+- 공개 웹: `/`, `/wiki`, `/wiki/[...path]`
+- 관리자 전용 웹(로그인 필요): `/posts`, `/posts/[slug]`, `/tags`, `/tags/[tag]`, `/admin/write`, `/admin/notes`, `/admin/todos`, `/admin/schedules`, `/admin/guestbook`, `/admin/guestbook/[id]`
 - 인증 웹: `/admin/login`
 - 호환 라우트: `/write`는 `/admin/write`로 리다이렉트(쿼리 유지)
 - AI/API Key 경로: `/api/posts`, `/api/posts/bulk`, `/api/posts/[id]`, `/api/posts/check`, `/api/posts/suggest`, `/api/uploads`
@@ -42,34 +42,37 @@
 - 분산 세션 저장소(예: Redis)와 중앙 감사 로그 저장소는 구현되어 있지 않다.
 - 업로드 URL(`/uploads/...`)의 HTTP 서빙은 런타임/리버스 프록시 설정에 의존한다.
 
-Sources: `AGENTS.md`, `src/app/layout.tsx`, `src/app/page.tsx`, `src/app/posts/page.tsx`, `src/app/posts/[slug]/page.tsx`, `src/app/tags/page.tsx`, `src/app/tags/[tag]/page.tsx`, `src/app/write/page.tsx`, `src/app/guestbook/page.tsx`, `src/app/admin/login/page.tsx`, `src/app/admin/write/page.tsx`, `src/lib/db.ts`, `src/lib/markdown.ts`
+Sources: `AGENTS.md`, `src/app/layout.tsx`, `src/app/page.tsx`, `src/app/posts/page.tsx`, `src/app/posts/[slug]/page.tsx`, `src/app/tags/page.tsx`, `src/app/tags/[tag]/page.tsx`, `src/app/wiki/page.tsx`, `src/app/wiki/[...path]/page.tsx`, `src/components/wiki/WikiExplorerClient.tsx`, `src/app/write/page.tsx`, `src/app/guestbook/page.tsx`, `src/app/admin/login/page.tsx`, `src/app/admin/write/page.tsx`, `src/lib/db.ts`, `src/lib/markdown.ts`
 
 ## 2. Architecture
 
 ### Component map
 
-| Layer                    | Responsibility                                                                  | Key files                                                                                                                             |
-| ------------------------ | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Post surface pages (RSC) | 홈/목록/상세/태그 레거시 경로 접근 제어(비관리자 로그인 리다이렉트)             | `src/app/page.tsx`, `src/app/posts/page.tsx`, `src/app/tags/page.tsx`, `src/app/tags/[tag]/page.tsx`, `src/app/posts/[slug]/page.tsx` |
-| Wiki pages               | 댓글 태그 경로 기반 카테고리/브레드크럼/원문 링크 조회                          | `src/app/wiki/page.tsx`, `src/app/wiki/[...path]/page.tsx`                                                                            |
-| Admin pages              | 로그인/글쓰기/메모/할일/일정/방명록 인박스 UI                                   | `src/app/admin/**`                                                                                                                    |
-| Guestbook pages          | 게스트 스레드 생성/로그인/대화 UI, noindex 페이지                               | `src/app/guestbook/page.tsx`, `src/app/guestbook/GuestbookClient.tsx`                                                                 |
-| Public/API key routes    | 포스트 생성/수정(API key) + 포스트 목록/추천(admin 세션) + 위키/인입큐/헬스체크 | `src/app/api/posts/**`, `src/app/api/uploads/route.ts`, `src/app/api/inbox/**`, `src/app/api/health/route.ts`, `src/app/api/wiki/**`  |
-| Admin API routes         | 2FA 인증, CSRF 보호 CRUD, 관리자 업로드, 관리자 방명록/댓글 응답                | `src/app/api/admin/**`                                                                                                                |
-| Guestbook API routes     | 게스트 스레드/로그인/메시지/로그아웃                                            | `src/app/api/guestbook/**`                                                                                                            |
-| Auth/session utilities   | admin 세션/챌린지/TOTP, CSRF 서명 검증, guestbook 세션                          | `src/lib/admin-auth.ts`, `src/lib/admin-csrf.ts`, `src/lib/guestbook.ts`, `src/lib/admin-api.ts`, `src/lib/guestbook-api.ts`          |
-| Data layer               | SQLite 연결, 스키마 버전 마이그레이션, FTS/트리거/인덱스                        | `src/lib/db.ts`                                                                                                                       |
-| Content pipeline         | markdown -> safe HTML + Mermaid client rendering                                | `src/lib/markdown.ts`, `src/components/PostContent.tsx`, `src/components/MermaidDiagram.tsx`                                          |
-| Tests                    | 단계별 계약 테스트 + Playwright 시각/기능/a11y 테스트                           | `scripts/test-step-*.mjs`, `scripts/test-all.mjs`, `tests/ui/*.spec.ts`                                                               |
+| Layer                    | Responsibility                                                                       | Key files                                                                                                                            |
+| ------------------------ | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Home page (RSC)          | 공개 위키 진입점 렌더링 + 관리자 세션일 때 빠른 이동 링크 노출                       | `src/app/page.tsx`, `src/components/wiki/WikiExplorerClient.tsx`                                                                     |
+| Post surface pages (RSC) | 목록/상세/태그 레거시 경로 접근 제어(비관리자 로그인 리다이렉트)                     | `src/app/posts/page.tsx`, `src/app/tags/page.tsx`, `src/app/tags/[tag]/page.tsx`, `src/app/posts/[slug]/page.tsx`                    |
+| Wiki pages               | 댓글 태그 경로 기반 카테고리/브레드크럼/원문 링크 조회 + 인플레이스 탐색 상태 동기화 | `src/app/wiki/page.tsx`, `src/app/wiki/[...path]/page.tsx`, `src/components/wiki/WikiExplorerClient.tsx`                             |
+| Admin pages              | 로그인/글쓰기/메모/할일/일정/방명록 인박스 UI                                        | `src/app/admin/**`                                                                                                                   |
+| Guestbook pages          | 게스트 스레드 생성/로그인/대화 UI, noindex 페이지                                    | `src/app/guestbook/page.tsx`, `src/app/guestbook/GuestbookClient.tsx`                                                                |
+| Public/API key routes    | 포스트 생성/수정(API key) + 포스트 목록/추천(admin 세션) + 위키/인입큐/헬스체크      | `src/app/api/posts/**`, `src/app/api/uploads/route.ts`, `src/app/api/inbox/**`, `src/app/api/health/route.ts`, `src/app/api/wiki/**` |
+| Admin API routes         | 2FA 인증, CSRF 보호 CRUD, 관리자 업로드, 관리자 방명록/댓글 응답                     | `src/app/api/admin/**`                                                                                                               |
+| Guestbook API routes     | 게스트 스레드/로그인/메시지/로그아웃                                                 | `src/app/api/guestbook/**`                                                                                                           |
+| Auth/session utilities   | admin 세션/챌린지/TOTP, CSRF 서명 검증, guestbook 세션                               | `src/lib/admin-auth.ts`, `src/lib/admin-csrf.ts`, `src/lib/guestbook.ts`, `src/lib/admin-api.ts`, `src/lib/guestbook-api.ts`         |
+| Data layer               | SQLite 연결, 스키마 버전 마이그레이션, FTS/트리거/인덱스                             | `src/lib/db.ts`                                                                                                                      |
+| Content pipeline         | markdown -> safe HTML + Mermaid client rendering                                     | `src/lib/markdown.ts`, `src/components/PostContent.tsx`, `src/components/MermaidDiagram.tsx`                                         |
+| Tests                    | 단계별 계약 테스트 + Playwright 시각/기능/a11y 테스트                                | `scripts/test-step-*.mjs`, `scripts/test-all.mjs`, `tests/ui/*.spec.ts`                                                              |
 
 ### Data/control flow
 
-- 포스트 경로 접근 흐름: `/`, `/posts`, `/posts/[slug]`, `/tags*` 진입 시 서버에서 admin 세션을 확인하고, 미인증이면 `/admin/login?next=...`로 리다이렉트한다.
+- 홈 진입 흐름: `/`는 공개 위키 탐색 셸을 렌더링하고, 관리자 세션일 때만 빠른 이동(글 목록/글 작성) 링크를 추가 노출한다.
+- 포스트 경로 접근 흐름: `/posts`, `/posts/[slug]`, `/tags*` 진입 시 서버에서 admin 세션을 확인하고, 미인증이면 `/admin/login?next=...`로 리다이렉트한다.
 - 태그 호환 흐름: `/tags`는 admin 세션에서 `/wiki`로 즉시 이동하고, `/tags/[tag]`는 태그 문자열을 위키 경로 규칙으로 정규화해 `/wiki/[...path]`로 연결(변환 실패 시 404)한다.
 - 관리자 포스트 조회 흐름: 관리자 세션에서는 포스트 목록/자동완성에서 draft+published를 함께 조회한다.
 - 관리자 인증 흐름: `/api/admin/auth/login`(1차) -> `admin_login_challenge` 쿠키 -> `/api/admin/auth/verify`(2차) -> `admin_session` + `admin_csrf` 쿠키 발급.
 - 관리자 콘텐츠 흐름: `/api/admin/posts*`와 `/api/admin/{notes,todos,schedules}*`가 세션+CSRF를 검증하고 DB를 갱신하며 관련 경로를 `revalidatePath` 한다.
-- 댓글/위키 흐름: 관리자가 `/api/admin/posts/[id]/comments*`로 댓글+태그경로를 관리하고, 공개 `/api/wiki*`/`/wiki*`는 `is_hidden=0 AND deleted_at IS NULL`만 트리/경로로 노출한다.
+- 댓글/위키 흐름: 관리자가 `/api/admin/posts/[id]/comments*`로 댓글+태그경로를 관리하고, 공개 `/api/wiki*`/`/wiki*`/`/`는 `is_hidden=0 AND deleted_at IS NULL`만 트리/경로로 노출한다.
+- 위키 탐색 상태 동기화 흐름: 위키 탐색 셸은 클릭 탐색 시 `history.pushState`, 초기 동기화/동일 경로 재선택 시 `history.replaceState`를 사용해 URL(`/wiki/[...path]`)과 선택 경로를 동기화하며, `popstate`에서 경로/스크롤 컨텍스트를 복원한다.
 - 방명록 흐름: 게스트가 스레드 생성/로그인 시 `guestbook_session` 쿠키 발급 -> 스레드 단위 메시지 작성 -> 관리자가 `/api/admin/guestbook/*`에서 조회/답장.
 - Inbox 흐름: `/api/inbox` POST가 URL host 기반으로 `x`/`doc` source를 자동 판별하고 정규화 후 큐 적재(중복은 duplicate 응답).
 - 관측 흐름: `POST /api/posts`, `POST /api/posts/bulk`는 요청 요약 구조화 로그를 출력한다.
@@ -179,7 +182,8 @@ Sources: `src/app/api/admin/auth/login/route.ts`, `src/app/api/admin/auth/verify
 
 ### Auth / permissions and cache behavior
 
-- 포스트 관련 웹 경로(`/`, `/posts`, `/posts/[slug]`, `/tags`, `/tags/[tag]`)는 admin 세션 필수이며, 비관리자는 `/admin/login?next=...`로 리다이렉트된다.
+- 홈(`/`)은 공개 위키 진입점이며 비관리자도 `200`으로 접근 가능하다. 관리자 세션에서는 홈에 빠른 이동 링크가 추가 표시된다.
+- 포스트 관련 웹 경로(`/posts`, `/posts/[slug]`, `/tags`, `/tags/[tag]`)는 admin 세션 필수이며, 비관리자는 `/admin/login?next=...`로 리다이렉트된다.
 - `/tags`는 관리자 접근 시 `/wiki`로 리다이렉트되고, `/tags/[tag]`는 위키 경로로 정규화된 뒤 `/wiki/[...path]`로 연결된다(변환 실패 시 404).
 - 포스트 상세(`/posts/[slug]`)는 관리자에게만 렌더링되며 수정/삭제/댓글 관리 액션이 항상 노출된다.
 - `/write`는 항상 `/admin/write`로 리다이렉트하며 쿼리스트링을 유지한다.
@@ -191,6 +195,7 @@ Sources: `src/app/api/admin/auth/login/route.ts`, `src/app/api/admin/auth/verify
 - 포스트 생성/수정/삭제 시 홈/목록/상세/위키 루트와 태그 기반 위키 경로를 `revalidatePath` 한다.
 - 댓글 생성/수정/삭제 시 `/posts/[slug]`, `/wiki`, `/wiki/[...path]`를 `revalidatePath` 한다.
 - 공개 위키/댓글 조회는 `post_comments.is_hidden=0 AND post_comments.deleted_at IS NULL`만 노출한다.
+- 위키 탐색 UI는 모바일(360)에서 `트리`/`상세` 탭 전환 패턴을 사용한다.
 - `posts.origin`은 immutable 트리거로 보호된다(`ai`/`original`).
 - 레이트리밋 기본값:
   - `POST /api/posts`: 10회/60초
@@ -294,7 +299,7 @@ Sources: `.env.example`, `package.json`, `next.config.ts`, `src/lib/db.ts`, `src
   - `npm run test:step2`: DB 스키마/FTS/PRAGMA/제약조건 검증
   - `npm run test:step3`: API key 경로(posts/uploads/inbox) 계약 검증 (`STEP3_SERVER_MODE=auto` 기본, standalone 우선)
   - `npm run test:step4`: markdown 렌더링/XSS/Mermaid 검증
-  - `npm run test:step5`: 포스트 경로 접근 제어(비관리자 로그인 리다이렉트)/업로드 통합 검증 (`STEP5_SERVER_MODE=dev` 기본, standalone는 opt-in)
+  - `npm run test:step5`: 홈 공개 위키 + 포스트 경로 접근 제어(비관리자 로그인 리다이렉트)/업로드 통합 검증 (`STEP5_SERVER_MODE=dev` 기본, standalone는 opt-in)
   - `npm run test:step6`: CI/CD 게이트 및 standalone 무결성 검증
   - `npm run test:step7-local`, `npm run test:step7-remote`: 로컬/원격 배포 검증
   - `npm run test:step8`: bulk API + 구조화 로그 검증 (`STEP8_SERVER_MODE=auto` 기본, standalone 우선)
@@ -325,7 +330,7 @@ Sources: `package.json`, `scripts/test-step-1.mjs`, `scripts/test-step-2.mjs`, `
 
 - 신규 공개 API: `src/app/api/<feature>/route.ts` + 공통 에러 포맷 유지
 - 신규 관리자 API: `src/app/api/admin/<feature>/route.ts` + `requireAdminSessionWithCsrf` 적용
-- 신규 위키/댓글 기능: `src/lib/comment-tags.ts`, `src/lib/wiki.ts`, `src/app/api/wiki/**`, `src/app/api/admin/posts/[id]/comments/**`, `src/app/wiki/**`
+- 신규 위키/댓글 기능: `src/lib/comment-tags.ts`, `src/lib/wiki.ts`, `src/app/api/wiki/**`, `src/app/api/admin/posts/[id]/comments/**`, `src/app/wiki/**`, `src/components/wiki/WikiExplorerClient.tsx`
 - 신규 방명록 기능: `src/app/api/guestbook/**`, `src/app/api/admin/guestbook/**`, `src/lib/guestbook.ts`
 - DB 확장: `src/lib/db.ts`에서 스키마 SQL + `schema_versions` 마이그레이션 단계 추가
 - 검색/목록 확장: `src/lib/post-list.ts`, `src/lib/fts.ts`, `src/app/api/posts/suggest/route.ts`
@@ -340,6 +345,7 @@ Sources: `package.json`, `scripts/test-step-1.mjs`, `scripts/test-step-2.mjs`, `
 - 관리자 상태 변경 API는 반드시 CSRF 헤더를 요구한다(`admin_csrf` 쿠키와 동일 값).
 - `DELETE /api/admin/posts/[id]` 시 `sources.post_id`를 NULL 처리해 출처 URL 유니크 이력을 보존한다.
 - 댓글 태그 경로는 `^[a-z0-9-]+(?:/[a-z0-9-]+)*$` + depth 4/segment 32/total 120 제한을 유지해야 한다.
+- `/`는 공개 위키 진입점이다(비관리자 로그인 리다이렉트로 회귀하면 안 된다).
 - `/tags`는 레거시 호환 진입점이며 admin이면 `/wiki`로, 비관리자면 로그인으로 연결된다.
 - 공개 위키는 `hidden/deleted` 댓글을 절대 노출하지 않는다.
 - `/write`는 호환용 리다이렉트 라우트이며 실 편집 경로는 `/admin/write`다.

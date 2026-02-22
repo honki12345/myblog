@@ -15,7 +15,7 @@ test("home title link scrolls to top when already on /", async ({
   await page.waitForLoadState("networkidle");
   await waitForDocumentTitle(page);
   await expect(
-    page.getByRole("heading", { name: "홈", exact: true }),
+    page.getByRole("heading", { name: "위키", level: 1, exact: true }),
   ).toBeVisible();
 
   const homeLinks = page.locator('header a[href="/"]');

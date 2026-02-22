@@ -12,6 +12,7 @@ test("critical pages have no serious axe violations", async ({
 }) => {
   const seeded = await seedVisualPosts(request);
   const loggedOutTargets = [
+    "/",
     "/wiki",
     `/wiki/${seeded.wikiPath}`,
     "/posts",

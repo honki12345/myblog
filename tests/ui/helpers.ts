@@ -5,14 +5,12 @@ import path from "node:path";
 import Database from "better-sqlite3";
 import { expect, type APIRequestContext, type Page } from "@playwright/test";
 
-const ROOT = process.cwd();
+const ROOT = path.resolve(__dirname, "../..");
 const ENV_PATH = path.join(ROOT, ".env.local");
 
-export const PLAYWRIGHT_DATABASE_PATH = path.join(
-  ROOT,
-  "data",
-  "playwright-ui.db",
-);
+export const PLAYWRIGHT_DATABASE_PATH =
+  process.env.DATABASE_PATH?.trim() ||
+  path.join(ROOT, "data", "playwright-ui.db");
 
 const DEFAULT_ADMIN_USERNAME = "admin";
 const DEFAULT_ADMIN_PASSWORD = "admin-password-1234";

@@ -71,6 +71,37 @@ async function findAvailablePort(startPort = DEFAULT_PORT, maxAttempts = 100) {
   throw new Error(`unable to find available port from ${startPort}`);
 }
 
+async function findServerDirInWorktrees(rootDir, maxDepth = 4) {
+  const queue = [{ dir: rootDir, depth: 0 }];
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current) {
+      continue;
+    }
+
+    let entries;
+    try {
+      entries = await readdir(current.dir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+
+    for (const entry of entries) {
+      const candidatePath = path.join(current.dir, entry.name);
+      if (entry.isFile() && entry.name === "server.js") {
+        return path.dirname(candidatePath);
+      }
+
+      if (entry.isDirectory() && current.depth < maxDepth) {
+        queue.push({ dir: candidatePath, depth: current.depth + 1 });
+      }
+    }
+  }
+
+  return null;
+}
+
 function attachOutput(stream, logs, output) {
   let buffer = "";
 
@@ -211,19 +242,9 @@ async function resolveStandaloneServerDir() {
 
   const worktreesDir = path.join(ROOT, ".next", "standalone", ".worktrees");
   try {
-    const entries = await readdir(worktreesDir, { withFileTypes: true });
-    for (const entry of entries) {
-      if (!entry.isDirectory()) {
-        continue;
-      }
-
-      const candidate = path.join(worktreesDir, entry.name, "server.js");
-      try {
-        await access(candidate);
-        return path.dirname(candidate);
-      } catch {
-        // continue searching
-      }
+    const nestedServerDir = await findServerDirInWorktrees(worktreesDir, 4);
+    if (nestedServerDir) {
+      return nestedServerDir;
     }
   } catch {
     // fall through to final error

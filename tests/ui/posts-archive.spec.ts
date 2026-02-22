@@ -1,4 +1,9 @@
-import { expect, test, type APIRequestContext } from "@playwright/test";
+import {
+  expect,
+  test,
+  type APIRequestContext,
+  type Page,
+} from "@playwright/test";
 import {
   authenticateAdminSession,
   insertPostDirect,
@@ -30,6 +35,41 @@ async function triggerRevalidation(
     },
   });
 
+  expect(response.ok()).toBeTruthy();
+}
+
+async function updateReadStateAsAdmin(
+  page: Page,
+  postId: number,
+  isRead: boolean,
+): Promise<void> {
+  const cookieMap = new Map(
+    (await page.context().cookies()).map((cookie) => [
+      cookie.name,
+      cookie.value,
+    ]),
+  );
+  const csrfToken = cookieMap.get("admin_csrf") ?? "";
+  const cookieHeader = [
+    ["admin_session", cookieMap.get("admin_session")],
+    ["admin_csrf", cookieMap.get("admin_csrf")],
+  ]
+    .filter((pair): pair is [string, string] => Boolean(pair[1]))
+    .map(([name, value]) => `${name}=${value}`)
+    .join("; ");
+
+  expect(csrfToken).toBeTruthy();
+  expect(cookieHeader).toContain("admin_session=");
+  expect(cookieHeader).toContain("admin_csrf=");
+
+  const response = await page.request.patch(`/api/admin/posts/${postId}`, {
+    headers: {
+      Cookie: cookieHeader,
+      "x-csrf-token": csrfToken,
+      "Content-Type": "application/json",
+    },
+    data: { isRead },
+  });
   expect(response.ok()).toBeTruthy();
 }
 
@@ -95,6 +135,80 @@ test("admin: type filter matches posts.origin", async ({ page, request }) => {
     0,
   );
   await expect(page.getByRole("link", { name: originalB.title })).toHaveCount(
+    0,
+  );
+});
+
+test("admin: unread filter tab + default unread-first sorting", async ({
+  page,
+  request,
+}) => {
+  const timestamp = Date.now();
+  const unreadOlder = {
+    title: `PLAYWRIGHT-ARCHIVE-UNREAD-OLDER-${timestamp}`,
+    content: "archive unread older",
+    tags: ["archive-read"],
+    status: "published" as const,
+    sourceUrl: `https://playwright.seed/archive/read/older/${timestamp}`,
+  };
+  const unreadNewer = {
+    title: `PLAYWRIGHT-ARCHIVE-UNREAD-NEWER-${timestamp}`,
+    content: "archive unread newer",
+    tags: ["archive-read"],
+    status: "published" as const,
+    sourceUrl: `https://playwright.seed/archive/read/newer/${timestamp}`,
+  };
+  const readNewest = {
+    title: `PLAYWRIGHT-ARCHIVE-READ-NEWEST-${timestamp}`,
+    content: "archive read newest",
+    tags: ["archive-read"],
+    status: "published" as const,
+    sourceUrl: `https://playwright.seed/archive/read/readest/${timestamp}`,
+  };
+
+  const createdUnreadOlder = await insertPostDirect(request, unreadOlder);
+  const createdUnreadNewer = await insertPostDirect(request, unreadNewer);
+  const createdReadNewest = await insertPostDirect(request, readNewest);
+
+  await triggerRevalidation(request, { ...createdUnreadOlder, ...unreadOlder });
+  await triggerRevalidation(request, { ...createdUnreadNewer, ...unreadNewer });
+  await triggerRevalidation(request, { ...createdReadNewest, ...readNewest });
+
+  await authenticateAdminSession(page, { nextPath: "/posts?per_page=50" });
+  await page.waitForLoadState("networkidle");
+
+  await updateReadStateAsAdmin(page, createdReadNewest.id, true);
+  await page.goto("/posts?per_page=50", { waitUntil: "networkidle" });
+
+  const cardTitles = await page
+    .locator("article[data-post-card] h2 a")
+    .allTextContents();
+  const unreadNewerIndex = cardTitles.findIndex((title) =>
+    title.includes(unreadNewer.title),
+  );
+  const unreadOlderIndex = cardTitles.findIndex((title) =>
+    title.includes(unreadOlder.title),
+  );
+  const readNewestIndex = cardTitles.findIndex((title) =>
+    title.includes(readNewest.title),
+  );
+
+  expect(unreadNewerIndex).toBeGreaterThanOrEqual(0);
+  expect(unreadOlderIndex).toBeGreaterThanOrEqual(0);
+  expect(readNewestIndex).toBeGreaterThanOrEqual(0);
+  expect(unreadNewerIndex).toBeLessThan(unreadOlderIndex);
+  expect(unreadOlderIndex).toBeLessThan(readNewestIndex);
+
+  await page.getByRole("link", { name: "미읽음" }).click();
+  await page.waitForLoadState("networkidle");
+  await expect(page).toHaveURL(/\bread=unread\b/);
+  await expect(
+    page.getByRole("link", { name: unreadOlder.title }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: unreadNewer.title }),
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: readNewest.title })).toHaveCount(
     0,
   );
 });

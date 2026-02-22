@@ -1,4 +1,5 @@
 import { defineConfig } from "@playwright/test";
+import path from "node:path";
 
 // UI tests require a stable API key for route revalidation. Relying on a local
 // `.env.local` is brittle in git-worktree setups (multiple `.env.local` files).
@@ -8,7 +9,12 @@ if (!process.env.BLOG_API_KEY && !process.env.API_KEY) {
   process.env.BLOG_API_KEY = DEFAULT_PLAYWRIGHT_BLOG_API_KEY;
 }
 
-const PLAYWRIGHT_DB_PATH = `${process.cwd()}/data/playwright-ui.db`;
+const PROJECT_ROOT = __dirname;
+const PROJECT_ROOT_SHELL = PROJECT_ROOT.replace(/'/g, "'\"'\"'");
+const PLAYWRIGHT_DB_PATH = path.join(PROJECT_ROOT, "data", "playwright-ui.db");
+if (!process.env.DATABASE_PATH) {
+  process.env.DATABASE_PATH = PLAYWRIGHT_DB_PATH;
+}
 const DEFAULT_PLAYWRIGHT_PORT = process.env.CI ? 3000 : 3400;
 const PLAYWRIGHT_PORT_RAW = process.env.PLAYWRIGHT_PORT?.trim();
 const PLAYWRIGHT_PORT = PLAYWRIGHT_PORT_RAW
@@ -20,6 +26,7 @@ const PLAYWRIGHT_PORT_NORMALIZED =
     : DEFAULT_PLAYWRIGHT_PORT;
 const PLAYWRIGHT_BASE_URL = `http://127.0.0.1:${PLAYWRIGHT_PORT_NORMALIZED}`;
 const PLAYWRIGHT_WEB_SERVER_COMMAND = `set -eu;
+cd '${PROJECT_ROOT_SHELL}';
 set -a;
 [ -z "\${BLOG_API_KEY:-}" ] && [ -f ./.env.local ] && . ./.env.local;
 set +a;
@@ -56,7 +63,7 @@ STANDALONE_DIR=.next/standalone;
 if [ ! -f "$STANDALONE_DIR/server.js" ]; then
   SERVER_PATH="";
   if [ -d "$STANDALONE_DIR/.worktrees" ]; then
-    SERVER_PATH=$(find "$STANDALONE_DIR/.worktrees" -mindepth 2 -maxdepth 2 -type f -name server.js | head -n 1);
+    SERVER_PATH=$(find "$STANDALONE_DIR/.worktrees" -mindepth 2 -maxdepth 4 -type f -name server.js | head -n 1);
   fi;
   if [ -z "$SERVER_PATH" ]; then
     echo "standalone server.js not found" >&2;

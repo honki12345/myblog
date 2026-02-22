@@ -23,6 +23,7 @@ type PostRow = {
   slug: string;
   content: string;
   status: "draft" | "published";
+  is_read: 0 | 1;
   source_url: string | null;
   created_at: string;
   updated_at: string;
@@ -52,6 +53,7 @@ const patchPostSchema = z
       })
       .optional(),
     status: z.enum(["draft", "published"]).optional(),
+    isRead: z.boolean().optional(),
     tags: z
       .array(
         z
@@ -69,6 +71,7 @@ const patchPostSchema = z
       input.title !== undefined ||
       input.content !== undefined ||
       input.status !== undefined ||
+      input.isRead !== undefined ||
       input.tags !== undefined,
     { message: "At least one field is required." },
   );
@@ -93,7 +96,7 @@ function loadPostById(postId: number): PostRow | null {
   const row = db
     .prepare(
       `
-      SELECT id, title, slug, content, status, source_url, created_at, updated_at, published_at
+      SELECT id, title, slug, content, status, is_read, source_url, created_at, updated_at, published_at
       FROM posts
       WHERE id = ?
       LIMIT 1
@@ -217,6 +220,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const nextTitle = parsed.data.title?.trim() ?? current.title;
     const nextContent = parsed.data.content ?? current.content;
     const nextStatus = parsed.data.status ?? current.status;
+    const nextIsRead =
+      parsed.data.isRead === undefined
+        ? current.is_read
+        : parsed.data.isRead
+          ? 1
+          : 0;
     const nextTags = normalizeTags(parsed.data.tags);
 
     db.transaction(() => {
@@ -227,6 +236,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           title = ?,
           content = ?,
           status = ?,
+          is_read = ?,
           published_at = CASE
             WHEN ? = 'published' AND published_at IS NULL THEN datetime('now')
             ELSE published_at
@@ -234,7 +244,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           updated_at = datetime('now')
         WHERE id = ?
         `,
-      ).run(nextTitle, nextContent, nextStatus, nextStatus, postId);
+      ).run(nextTitle, nextContent, nextStatus, nextIsRead, nextStatus, postId);
 
       if (nextTags !== undefined) {
         db.prepare("DELETE FROM post_tags WHERE post_id = ?").run(postId);

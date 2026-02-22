@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { createHmac } from "node:crypto";
 import { rm } from "node:fs/promises";
 import { createRequire } from "node:module";
 import net from "node:net";
@@ -17,6 +18,14 @@ const TEST_DB_SHM_PATH = `${TEST_DB_PATH}-shm`;
 const TEST_DB_FILES = [TEST_DB_PATH, TEST_DB_WAL_PATH, TEST_DB_SHM_PATH];
 
 const BLOG_API_KEY = process.env.BLOG_API_KEY ?? "step10-ai-api-key";
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME ?? "admin";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "admin-password-1234";
+const ADMIN_PASSWORD_HASH =
+  process.env.ADMIN_PASSWORD_HASH ??
+  "$argon2id$v=19$m=19456,t=2,p=1$IKB9DtSF0qPG5/YP8Iv25A$Ia5kZtdBS0EpKzo9eFpjq2zBlBWSayktEzMrUI81WHM";
+const ADMIN_TOTP_SECRET = process.env.ADMIN_TOTP_SECRET ?? "JBSWY3DPEHPK3PXP";
+const ADMIN_RECOVERY_CODES =
+  process.env.ADMIN_RECOVERY_CODES ?? "RECOVERY-ONE,RECOVERY-TWO";
 
 let apiBase = `http://${DEV_SERVER_HOST}:${DEFAULT_PORT}`;
 
@@ -28,6 +37,100 @@ function assert(condition, message) {
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function decodeBase32(value) {
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  const normalized = value
+    .toUpperCase()
+    .replace(/=+$/g, "")
+    .replace(/[\s-]/g, "");
+  let bits = 0;
+  let current = 0;
+  const out = [];
+
+  for (const char of normalized) {
+    const index = alphabet.indexOf(char);
+    if (index < 0) {
+      throw new Error("Invalid base32 TOTP secret");
+    }
+    current = (current << 5) | index;
+    bits += 5;
+    if (bits >= 8) {
+      out.push((current >>> (bits - 8)) & 0xff);
+      bits -= 8;
+    }
+  }
+
+  return Buffer.from(out);
+}
+
+function generateTotpCode(secret, now = Date.now()) {
+  const key = decodeBase32(secret);
+  const counter = Math.floor(now / 1000 / 30);
+  const counterBuffer = Buffer.alloc(8);
+  counterBuffer.writeBigUInt64BE(BigInt(counter));
+
+  const hmac = createHmac("sha1", key).update(counterBuffer).digest();
+
+  const offset = hmac[hmac.length - 1] & 0x0f;
+  const binary =
+    ((hmac[offset] & 0x7f) << 24) |
+    ((hmac[offset + 1] & 0xff) << 16) |
+    ((hmac[offset + 2] & 0xff) << 8) |
+    (hmac[offset + 3] & 0xff);
+  return String(binary % 1_000_000).padStart(6, "0");
+}
+
+class CookieJar {
+  constructor() {
+    this.map = new Map();
+  }
+
+  updateFromResponse(response) {
+    const setCookies =
+      typeof response.headers.getSetCookie === "function"
+        ? response.headers.getSetCookie()
+        : [];
+
+    for (const cookie of setCookies) {
+      const [pair, ...attrs] = cookie.split(";");
+      const [name, ...rest] = pair.trim().split("=");
+      if (!name) {
+        continue;
+      }
+
+      const value = rest.join("=");
+      const lowerAttrs = attrs.map((item) => item.trim().toLowerCase());
+      const hasExpiredAttr = lowerAttrs.some((attr) =>
+        attr.startsWith("max-age=0"),
+      );
+      const expiresAttr = lowerAttrs.find((attr) =>
+        attr.startsWith("expires="),
+      );
+      const expiresPast =
+        typeof expiresAttr === "string"
+          ? Number.isFinite(Date.parse(expiresAttr.slice("expires=".length))) &&
+            Date.parse(expiresAttr.slice("expires=".length)) <= Date.now()
+          : false;
+
+      if (hasExpiredAttr || expiresPast || value.length === 0) {
+        this.map.delete(name);
+      } else {
+        this.map.set(name, value);
+      }
+    }
+  }
+
+  toHeader() {
+    return Array.from(this.map.entries())
+      .map(([key, value]) => `${key}=${value}`)
+      .join("; ");
+  }
+
+  get(name) {
+    return this.map.get(name) ?? null;
+  }
 }
 
 function canBindPort(port) {
@@ -125,6 +228,18 @@ async function startServer(logs) {
         BLOG_API_KEY,
         DATABASE_PATH: TEST_DB_PATH,
         NEXT_PUBLIC_SITE_URL: apiBase,
+        ADMIN_USERNAME,
+        ADMIN_PASSWORD_HASH,
+        ADMIN_SESSION_SECRET:
+          process.env.ADMIN_SESSION_SECRET ??
+          "step10-session-secret-0123456789",
+        ADMIN_TOTP_SECRET_ENCRYPTION_KEY:
+          process.env.ADMIN_TOTP_SECRET_ENCRYPTION_KEY ??
+          "step10-totp-encryption-key-0123456789",
+        ADMIN_CSRF_SECRET:
+          process.env.ADMIN_CSRF_SECRET ?? "step10-csrf-secret-0123456789",
+        ADMIN_TOTP_SECRET,
+        ADMIN_RECOVERY_CODES,
         NEXT_TELEMETRY_DISABLED: "1",
       },
       detached: true,
@@ -204,11 +319,18 @@ async function stopServer(child) {
 }
 
 async function requestJson(pathname, options = {}) {
-  const { method = "GET", apiKey, body, headers = {} } = options;
+  const { method = "GET", apiKey, body, headers = {}, jar } = options;
   const requestHeaders = { ...headers };
 
   if (apiKey) {
     requestHeaders.Authorization = `Bearer ${apiKey}`;
+  }
+
+  if (jar) {
+    const cookieHeader = jar.toHeader();
+    if (cookieHeader) {
+      requestHeaders.Cookie = cookieHeader;
+    }
   }
 
   let payload;
@@ -222,6 +344,10 @@ async function requestJson(pathname, options = {}) {
     headers: requestHeaders,
     body: payload,
   });
+
+  if (jar) {
+    jar.updateFromResponse(response);
+  }
 
   const text = await response.text();
   let data = null;
@@ -240,8 +366,22 @@ async function requestJson(pathname, options = {}) {
   };
 }
 
-async function requestText(pathname) {
-  const response = await fetch(`${apiBase}${pathname}`);
+async function requestText(pathname, options = {}) {
+  const { headers = {}, jar } = options;
+  const requestHeaders = { ...headers };
+  if (jar) {
+    const cookieHeader = jar.toHeader();
+    if (cookieHeader) {
+      requestHeaders.Cookie = cookieHeader;
+    }
+  }
+
+  const response = await fetch(`${apiBase}${pathname}`, {
+    headers: requestHeaders,
+  });
+  if (jar) {
+    jar.updateFromResponse(response);
+  }
   const text = await response.text();
   return {
     status: response.status,
@@ -249,6 +389,56 @@ async function requestText(pathname) {
     url: response.url,
     redirected: response.redirected,
   };
+}
+
+function csrfHeaders(jar) {
+  const token = jar.get("admin_csrf");
+  if (!token) {
+    throw new Error("admin_csrf cookie is missing");
+  }
+
+  return {
+    "x-csrf-token": token,
+  };
+}
+
+async function authenticateAdminSession() {
+  const jar = new CookieJar();
+
+  const loginStart = await requestJson("/api/admin/auth/login", {
+    method: "POST",
+    body: {
+      username: ADMIN_USERNAME,
+      password: ADMIN_PASSWORD,
+    },
+    jar,
+  });
+  assert(
+    loginStart.status === 200,
+    `expected admin primary login to return 200, got ${loginStart.status}`,
+  );
+
+  const verify = await requestJson("/api/admin/auth/verify", {
+    method: "POST",
+    body: {
+      code: generateTotpCode(ADMIN_TOTP_SECRET),
+    },
+    jar,
+  });
+  assert(
+    verify.status === 200,
+    `expected admin verify to return 200, got ${verify.status}`,
+  );
+  assert(jar.get("admin_session"), "admin_session cookie should exist");
+  assert(jar.get("admin_csrf"), "admin_csrf cookie should exist");
+
+  return jar;
+}
+
+function indexOfTitle(html, title) {
+  const index = html.indexOf(title);
+  assert(index >= 0, `expected html to include title: ${title}`);
+  return index;
 }
 
 async function main() {
@@ -325,6 +515,128 @@ async function main() {
     assert(
       suggestApi.status === 401,
       `expected GET /api/posts/suggest to return 401 without admin session, got ${suggestApi.status}`,
+    );
+
+    const unreadOlderTitle = `STEP10-UNREAD-OLDER-${Date.now()}`;
+    const unreadNewerTitle = `STEP10-UNREAD-NEWER-${Date.now()}`;
+    const readNewestTitle = `STEP10-READ-NEWEST-${Date.now()}`;
+
+    const unreadOlder = await requestJson("/api/posts", {
+      method: "POST",
+      apiKey: BLOG_API_KEY,
+      body: {
+        title: unreadOlderTitle,
+        content: "미읽음 오래된 글",
+        status: "published",
+      },
+    });
+    assert(
+      unreadOlder.status === 201,
+      `expected unread older seed to return 201, got ${unreadOlder.status}`,
+    );
+    const unreadOlderId = unreadOlder.data?.id;
+    assert(
+      Number.isInteger(unreadOlderId),
+      "unread older id should be integer",
+    );
+
+    await sleep(5);
+
+    const unreadNewer = await requestJson("/api/posts", {
+      method: "POST",
+      apiKey: BLOG_API_KEY,
+      body: {
+        title: unreadNewerTitle,
+        content: "미읽음 최신 글",
+        status: "published",
+      },
+    });
+    assert(
+      unreadNewer.status === 201,
+      `expected unread newer seed to return 201, got ${unreadNewer.status}`,
+    );
+    const unreadNewerId = unreadNewer.data?.id;
+    assert(
+      Number.isInteger(unreadNewerId),
+      "unread newer id should be integer",
+    );
+
+    await sleep(5);
+
+    const readNewest = await requestJson("/api/posts", {
+      method: "POST",
+      apiKey: BLOG_API_KEY,
+      body: {
+        title: readNewestTitle,
+        content: "읽음으로 바꿀 최신 글",
+        status: "published",
+      },
+    });
+    assert(
+      readNewest.status === 201,
+      `expected read newest seed to return 201, got ${readNewest.status}`,
+    );
+    const readNewestId = readNewest.data?.id;
+    assert(Number.isInteger(readNewestId), "read newest id should be integer");
+
+    const adminJar = await authenticateAdminSession();
+    const markRead = await requestJson(`/api/admin/posts/${readNewestId}`, {
+      method: "PATCH",
+      jar: adminJar,
+      headers: csrfHeaders(adminJar),
+      body: { isRead: true },
+    });
+    assert(
+      markRead.status === 200,
+      `expected PATCH /api/admin/posts/${readNewestId} to return 200, got ${markRead.status}`,
+    );
+    assert(
+      markRead.data?.is_read === 1,
+      `expected readNewest is_read=1, got ${markRead.data?.is_read}`,
+    );
+
+    const archiveAll = await requestText("/posts?per_page=50", {
+      jar: adminJar,
+    });
+    assert(
+      archiveAll.status === 200,
+      `expected authenticated GET /posts to return 200, got ${archiveAll.status}`,
+    );
+    assert(
+      !archiveAll.redirected,
+      "expected authenticated GET /posts to avoid redirect",
+    );
+
+    const unreadNewerIndex = indexOfTitle(archiveAll.text, unreadNewerTitle);
+    const unreadOlderIndex = indexOfTitle(archiveAll.text, unreadOlderTitle);
+    const readNewestIndex = indexOfTitle(archiveAll.text, readNewestTitle);
+    assert(
+      unreadNewerIndex < unreadOlderIndex,
+      "expected unread newer post to appear before unread older post",
+    );
+    assert(
+      unreadOlderIndex < readNewestIndex,
+      "expected default sort to place unread posts before read posts",
+    );
+
+    const archiveUnread = await requestText("/posts?read=unread&per_page=50", {
+      jar: adminJar,
+    });
+    assert(
+      archiveUnread.status === 200,
+      `expected authenticated GET /posts?read=unread to return 200, got ${archiveUnread.status}`,
+    );
+    assert(
+      archiveUnread.text.includes(unreadOlderTitle),
+      "expected unread filter results to include unread older post",
+    );
+    assert(
+      archiveUnread.text.includes(unreadNewerTitle),
+      "expected unread filter results to include unread newer post",
+    );
+    assert(
+      !archiveUnread.text.includes(readNewestTitle),
+      "expected unread filter results to exclude read posts",
     );
   } finally {
     await stopServer(server);

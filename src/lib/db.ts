@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS posts (
   content      TEXT NOT NULL,
   status       TEXT NOT NULL DEFAULT 'draft'
     CHECK(status IN ('draft', 'published')),
+  is_read      INTEGER NOT NULL DEFAULT 0
+    CHECK (is_read IN (0, 1)),
   source_url   TEXT,
   created_at   TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at   TEXT NOT NULL DEFAULT (datetime('now')),
@@ -276,6 +278,22 @@ SET totp_enabled_at = datetime('now')
 WHERE id = 1 AND totp_enabled_at IS NULL;
 `;
 
+const ISSUE99_ADD_IS_READ_COLUMN_SQL = `
+ALTER TABLE posts
+  ADD COLUMN is_read INTEGER NOT NULL DEFAULT 0 CHECK (is_read IN (0, 1));
+`;
+
+const ISSUE99_BACKFILL_SQL = `
+UPDATE posts
+SET is_read = 0
+WHERE is_read IS NULL;
+`;
+
+const ISSUE99_INDEX_SQL = `
+CREATE INDEX IF NOT EXISTS idx_posts_is_read_sort
+  ON posts(is_read, COALESCE(published_at, created_at) DESC, id DESC);
+`;
+
 type DbGlobals = {
   __blogDb?: Database.Database;
   __blogDbPath?: string;
@@ -428,6 +446,27 @@ export function runMigrations(database: Database.Database): void {
         )
         .run(7, "Comments tag wiki schema for Issue #102");
       currentVersion = 7;
+    }
+
+    const hasIsReadColumn = hasTableColumn(database, "posts", "is_read");
+    if (currentVersion < 8) {
+      if (!hasIsReadColumn) {
+        database.exec(ISSUE99_ADD_IS_READ_COLUMN_SQL);
+      }
+      database.exec(ISSUE99_BACKFILL_SQL);
+      database.exec(ISSUE99_INDEX_SQL);
+      database
+        .prepare(
+          "INSERT INTO schema_versions (version, description) VALUES (?, ?)",
+        )
+        .run(8, "Admin read metadata schema for Issue #99");
+      currentVersion = 8;
+    } else if (!hasIsReadColumn) {
+      // Legacy compatibility: ensure Issue #99 column/index exists even when
+      // a pre-bumped local schema version skipped the migration SQL.
+      database.exec(ISSUE99_ADD_IS_READ_COLUMN_SQL);
+      database.exec(ISSUE99_BACKFILL_SQL);
+      database.exec(ISSUE99_INDEX_SQL);
     }
   });
 

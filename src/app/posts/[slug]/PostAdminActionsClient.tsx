@@ -1,22 +1,69 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { adminFetch } from "@/lib/admin-client";
 
 type PostAdminActionsClientProps = {
   postId: number;
+  isRead: boolean;
 };
 
 export default function PostAdminActionsClient({
   postId,
+  isRead: initialIsRead,
 }: PostAdminActionsClientProps) {
   const router = useRouter();
+  const [isRead, setIsRead] = useState(initialIsRead);
   const [error, setError] = useState<string | null>(null);
+  const [isUpdatingRead, setIsUpdatingRead] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  useEffect(() => {
+    setIsRead(initialIsRead);
+  }, [initialIsRead]);
+
+  const handleToggleRead = async () => {
+    if (isUpdatingRead || isDeleting) {
+      return;
+    }
+
+    setError(null);
+    setIsUpdatingRead(true);
+    const nextIsRead = !isRead;
+
+    try {
+      const response = await adminFetch(`/api/admin/posts/${postId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ isRead: nextIsRead }),
+      });
+
+      if (!response.ok) {
+        const data = (await response.json().catch(() => null)) as
+          | { error?: { message?: string } }
+          | null
+          | undefined;
+        setError(data?.error?.message ?? "읽음 상태 변경에 실패했습니다.");
+        return;
+      }
+
+      setIsRead(nextIsRead);
+      router.refresh();
+    } catch (cause) {
+      if (process.env.NODE_ENV !== "production") {
+        console.error("Failed to toggle post read state.", { cause, postId });
+      }
+      setError("네트워크 오류로 읽음 상태 변경에 실패했습니다.");
+    } finally {
+      setIsUpdatingRead(false);
+    }
+  };
+
   const handleDelete = async () => {
-    if (isDeleting) {
+    if (isDeleting || isUpdatingRead) {
       return;
     }
 
@@ -70,9 +117,21 @@ export default function PostAdminActionsClient({
       ) : null}
       <button
         type="button"
+        onClick={handleToggleRead}
+        className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+        disabled={isDeleting || isUpdatingRead}
+      >
+        {isUpdatingRead
+          ? "변경 중…"
+          : isRead
+            ? "읽지 않음으로 표시"
+            : "읽음으로 표시"}
+      </button>
+      <button
+        type="button"
         onClick={handleDelete}
         className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-60"
-        disabled={isDeleting}
+        disabled={isDeleting || isUpdatingRead}
       >
         {isDeleting ? "삭제 중…" : "삭제"}
       </button>

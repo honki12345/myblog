@@ -68,7 +68,8 @@ Sources: `AGENTS.md`, `src/app/layout.tsx`, `src/app/page.tsx`, `src/app/posts/p
 - 홈 진입 흐름: `/` 요청은 `308 Permanent Redirect`로 `/wiki`로 이동한다.
 - 포스트 경로 접근 흐름: `/posts`, `/posts/[slug]`, `/tags*` 진입 시 서버에서 admin 세션을 확인하고, 미인증이면 `/admin/login?next=...`로 리다이렉트한다.
 - 태그 호환 흐름: `/tags`는 admin 세션에서 `/wiki`로 즉시 이동하고, `/tags/[tag]`는 태그 문자열을 위키 경로 규칙으로 정규화해 `/wiki/[...path]`로 연결(변환 실패 시 404)한다.
-- 관리자 포스트 조회 흐름: 관리자 세션에서는 포스트 목록/자동완성에서 draft+published를 함께 조회한다.
+- 관리자 포스트 조회 흐름: 관리자 세션에서는 포스트 목록/자동완성에서 draft+published를 함께 조회하고, `/posts` 기본 정렬은 `미읽음 우선(is_read ASC) -> 최신순`으로 동작한다.
+- 관리자 읽음 메타데이터 흐름: `/posts/[slug]` 상세의 관리자 액션에서 `읽음/읽지 않음`을 토글하면 `/api/admin/posts/[id]` PATCH(`isRead`)로 `posts.is_read`를 갱신하고 목록/상세 경로를 재검증한다.
 - 관리자 인증 흐름: `/api/admin/auth/login`(1차) -> `admin_login_challenge` 쿠키 -> `/api/admin/auth/verify`(2차) -> `admin_session` + `admin_csrf` 쿠키 발급.
 - 관리자 콘텐츠 흐름: `/api/admin/posts*`와 `/api/admin/{notes,todos,schedules}*`가 세션+CSRF를 검증하고 DB를 갱신하며 관련 경로를 `revalidatePath` 한다.
 - 댓글/위키 흐름: 관리자가 `/api/admin/posts/[id]/comments*`로 댓글+태그경로를 관리하고, 공개 `/api/wiki*`/`/wiki*`는 `is_hidden=0 AND deleted_at IS NULL`만 트리/경로로 노출한다.
@@ -113,41 +114,41 @@ Sources: `src/app/api/admin/auth/login/route.ts`, `src/app/api/admin/auth/verify
 
 ### Endpoints (selected)
 
-| Method             | Path                                                                          | Auth              | Behavior                                                                  | 주요 오류 코드                                                                          |
-| ------------------ | ----------------------------------------------------------------------------- | ----------------- | ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| `GET`              | `/api/health`                                                                 | 선택적 Bearer     | DB 연결 확인, 인증 헤더가 유효하면 `auth: valid` 포함                     | `UNAUTHORIZED`, `INTERNAL_ERROR`                                                        |
-| `GET`              | `/api/posts`                                                                  | admin 세션        | 관리자용 최신 100개 목록(draft+published) 반환                            | `UNAUTHORIZED`                                                                          |
-| `POST`             | `/api/posts`                                                                  | Bearer            | 단건 AI 포스트 생성(origin=`ai`), 태그/출처 저장, revalidate, 구조화 로그 | `UNAUTHORIZED`, `INVALID_INPUT`, `DUPLICATE_SOURCE`, `RATE_LIMITED`, `INTERNAL_ERROR`   |
-| `POST`             | `/api/posts/bulk`                                                             | Bearer            | 벌크 생성(최대 10), all-or-nothing, 구조화 로그                           | `UNAUTHORIZED`, `INVALID_INPUT`, `DUPLICATE_SOURCE`, `RATE_LIMITED`, `INTERNAL_ERROR`   |
-| `GET`              | `/api/posts/[id]`                                                             | Bearer            | 글+태그 조회                                                              | `UNAUTHORIZED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`                          |
-| `PATCH`            | `/api/posts/[id]`                                                             | Bearer            | 제목/본문/상태/태그 부분 수정, `published_at` 전이 처리                   | `UNAUTHORIZED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`                          |
-| `GET`              | `/api/posts/check?url=`                                                       | Bearer            | `source_url` 중복 여부 검사                                               | `UNAUTHORIZED`, `INVALID_INPUT`, `INTERNAL_ERROR`                                       |
-| `GET`              | `/api/posts/suggest?q=`                                                       | admin 세션        | 관리자용 typeahead 추천(max 8, draft+published)                           | `UNAUTHORIZED`, `INTERNAL_ERROR`                                                        |
-| `POST`             | `/api/uploads`                                                                | Bearer            | 이미지 업로드(5MB, png/jpeg/webp/gif, 매직바이트 검사)                    | `UNAUTHORIZED`, `INVALID_INPUT`, `FILE_TOO_LARGE`, `UNSUPPORTED_TYPE`, `INTERNAL_ERROR` |
-| `GET`              | `/api/inbox`                                                                  | Bearer            | 인입 큐 조회(status/limit)                                                | `UNAUTHORIZED`, `INVALID_INPUT`, `INTERNAL_ERROR`                                       |
-| `POST`             | `/api/inbox`                                                                  | Bearer            | URL host로 `x/doc` 자동 판별 후 정규화/적재(중복은 duplicate)             | `UNAUTHORIZED`, `INVALID_INPUT`, `RATE_LIMITED`, `INTERNAL_ERROR`                       |
-| `PATCH`            | `/api/inbox/[id]`                                                             | Bearer            | `queued -> processed                                                      | failed` 상태 전이                                                                       | `UNAUTHORIZED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR` |
-| `POST`             | `/api/admin/auth/login`                                                       | 없음              | admin 1차 인증, 챌린지 쿠키 발급                                          | `INVALID_INPUT`, `UNAUTHORIZED`, `RATE_LIMITED`, `INTERNAL_ERROR`                       |
-| `GET`              | `/api/admin/auth/totp-setup`                                                  | 챌린지 쿠키       | TOTP 등록 QR 데이터 제공(이미 활성화면 차단)                              | `UNAUTHORIZED`, `TOTP_ALREADY_ENABLED`, `INTERNAL_ERROR`                                |
-| `POST`             | `/api/admin/auth/verify`                                                      | 챌린지 쿠키       | TOTP/Recovery 2차 인증, `admin_session`/`admin_csrf` 발급                 | `INVALID_INPUT`, `UNAUTHORIZED`, `RATE_LIMITED`, `INTERNAL_ERROR`                       |
-| `POST`             | `/api/admin/auth/logout`                                                      | admin 세션 + CSRF | 세션/CSRF 쿠키 무효화                                                     | `UNAUTHORIZED`, `CSRF_FAILED`                                                           |
-| `GET/POST`         | `/api/admin/posts`                                                            | 세션 / 세션+CSRF  | 관리자 글 목록/생성(origin=`original`)                                    | `UNAUTHORIZED`, `CSRF_FAILED`, `INVALID_INPUT`, `INTERNAL_ERROR`                        |
-| `GET/PATCH/DELETE` | `/api/admin/posts/[id]`                                                       | 세션 / 세션+CSRF  | 관리자 글 조회/수정/삭제(삭제 시 `sources.post_id` NULL 처리 후 삭제)     | `UNAUTHORIZED`, `CSRF_FAILED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`           |
-| `GET/POST`         | `/api/admin/posts/[id]/comments`                                              | 세션 / 세션+CSRF  | 관리자 댓글 목록/생성(태그 경로 1개 필수, 소문자 정규화)                  | `UNAUTHORIZED`, `CSRF_FAILED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`           |
-| `PATCH/DELETE`     | `/api/admin/posts/[id]/comments/[commentId]`                                  | 세션+CSRF         | 관리자 댓글 수정/soft delete(`deleted_at`)                                | `UNAUTHORIZED`, `CSRF_FAILED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`           |
-| `GET`              | `/api/wiki`                                                                   | 없음              | 공개 위키 루트 카테고리/집계 조회                                         | `INTERNAL_ERROR`                                                                        |
-| `GET`              | `/api/wiki/[...path]?limit=`                                                  | 없음              | 경로별 하위 카테고리/댓글 조회(숨김·삭제 제외, 하위 경로 포함)            | `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`                                          |
-| `GET/POST`         | `/api/admin/notes`, `/api/admin/todos`, `/api/admin/schedules`                | 세션 / 세션+CSRF  | 관리자 워크스페이스 리소스 목록/생성                                      | `UNAUTHORIZED`, `CSRF_FAILED`, `INVALID_INPUT`, `INTERNAL_ERROR`                        |
-| `GET/PATCH/DELETE` | `/api/admin/notes/[id]`, `/api/admin/todos/[id]`, `/api/admin/schedules/[id]` | 세션 / 세션+CSRF  | 워크스페이스 리소스 단건 조회/수정/삭제                                   | `UNAUTHORIZED`, `CSRF_FAILED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`           |
-| `POST`             | `/api/admin/uploads`                                                          | 세션+CSRF         | 관리자 업로드(검증 규칙은 `/api/uploads`와 동일)                          | `UNAUTHORIZED`, `CSRF_FAILED`, `INVALID_INPUT`, `INTERNAL_ERROR`                        |
-| `GET`              | `/api/admin/guestbook/threads`                                                | 세션              | 방명록 스레드 목록(최근 메시지 미리보기 포함)                             | `UNAUTHORIZED`                                                                          |
-| `GET`              | `/api/admin/guestbook/threads/[id]`                                           | 세션              | 스레드+메시지 전체 조회                                                   | `UNAUTHORIZED`, `INVALID_INPUT`, `NOT_FOUND`                                            |
-| `POST`             | `/api/admin/guestbook/threads/[id]/messages`                                  | 세션+CSRF         | 관리자 답장 메시지 작성                                                   | `UNAUTHORIZED`, `CSRF_FAILED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`           |
-| `POST`             | `/api/guestbook/threads`                                                      | 없음              | 게스트 스레드 생성 + 첫 메시지 + 세션 쿠키 발급                           | `INVALID_INPUT`, `CONFLICT`, `RATE_LIMITED`, `INTERNAL_ERROR`                           |
-| `POST`             | `/api/guestbook/login`                                                        | 없음              | 게스트 스레드 로그인 + 세션 쿠키 발급                                     | `INVALID_INPUT`, `UNAUTHORIZED`, `RATE_LIMITED`                                         |
-| `GET`              | `/api/guestbook/thread`                                                       | guestbook 세션    | 현재 세션 스레드/메시지 조회                                              | `UNAUTHORIZED`, `NOT_FOUND`                                                             |
-| `POST`             | `/api/guestbook/messages`                                                     | guestbook 세션    | 게스트 메시지 추가                                                        | `UNAUTHORIZED`, `INVALID_INPUT`, `RATE_LIMITED`, `INTERNAL_ERROR`                       |
-| `POST`             | `/api/guestbook/logout`                                                       | 선택              | 게스트 세션 삭제 + 쿠키 만료                                              | -                                                                                       |
+| Method             | Path                                                                          | Auth              | Behavior                                                                                                  | 주요 오류 코드                                                                          |
+| ------------------ | ----------------------------------------------------------------------------- | ----------------- | --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `GET`              | `/api/health`                                                                 | 선택적 Bearer     | DB 연결 확인, 인증 헤더가 유효하면 `auth: valid` 포함                                                     | `UNAUTHORIZED`, `INTERNAL_ERROR`                                                        |
+| `GET`              | `/api/posts`                                                                  | admin 세션        | 관리자용 최신 100개 목록(draft+published) 반환                                                            | `UNAUTHORIZED`                                                                          |
+| `POST`             | `/api/posts`                                                                  | Bearer            | 단건 AI 포스트 생성(origin=`ai`), 태그/출처 저장, revalidate, 구조화 로그                                 | `UNAUTHORIZED`, `INVALID_INPUT`, `DUPLICATE_SOURCE`, `RATE_LIMITED`, `INTERNAL_ERROR`   |
+| `POST`             | `/api/posts/bulk`                                                             | Bearer            | 벌크 생성(최대 10), all-or-nothing, 구조화 로그                                                           | `UNAUTHORIZED`, `INVALID_INPUT`, `DUPLICATE_SOURCE`, `RATE_LIMITED`, `INTERNAL_ERROR`   |
+| `GET`              | `/api/posts/[id]`                                                             | Bearer            | 글+태그 조회                                                                                              | `UNAUTHORIZED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`                          |
+| `PATCH`            | `/api/posts/[id]`                                                             | Bearer            | 제목/본문/상태/태그 부분 수정, `published_at` 전이 처리                                                   | `UNAUTHORIZED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`                          |
+| `GET`              | `/api/posts/check?url=`                                                       | Bearer            | `source_url` 중복 여부 검사                                                                               | `UNAUTHORIZED`, `INVALID_INPUT`, `INTERNAL_ERROR`                                       |
+| `GET`              | `/api/posts/suggest?q=`                                                       | admin 세션        | 관리자용 typeahead 추천(max 8, draft+published)                                                           | `UNAUTHORIZED`, `INTERNAL_ERROR`                                                        |
+| `POST`             | `/api/uploads`                                                                | Bearer            | 이미지 업로드(5MB, png/jpeg/webp/gif, 매직바이트 검사)                                                    | `UNAUTHORIZED`, `INVALID_INPUT`, `FILE_TOO_LARGE`, `UNSUPPORTED_TYPE`, `INTERNAL_ERROR` |
+| `GET`              | `/api/inbox`                                                                  | Bearer            | 인입 큐 조회(status/limit)                                                                                | `UNAUTHORIZED`, `INVALID_INPUT`, `INTERNAL_ERROR`                                       |
+| `POST`             | `/api/inbox`                                                                  | Bearer            | URL host로 `x/doc` 자동 판별 후 정규화/적재(중복은 duplicate)                                             | `UNAUTHORIZED`, `INVALID_INPUT`, `RATE_LIMITED`, `INTERNAL_ERROR`                       |
+| `PATCH`            | `/api/inbox/[id]`                                                             | Bearer            | `queued -> processed                                                                                      | failed` 상태 전이                                                                       | `UNAUTHORIZED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR` |
+| `POST`             | `/api/admin/auth/login`                                                       | 없음              | admin 1차 인증, 챌린지 쿠키 발급                                                                          | `INVALID_INPUT`, `UNAUTHORIZED`, `RATE_LIMITED`, `INTERNAL_ERROR`                       |
+| `GET`              | `/api/admin/auth/totp-setup`                                                  | 챌린지 쿠키       | TOTP 등록 QR 데이터 제공(이미 활성화면 차단)                                                              | `UNAUTHORIZED`, `TOTP_ALREADY_ENABLED`, `INTERNAL_ERROR`                                |
+| `POST`             | `/api/admin/auth/verify`                                                      | 챌린지 쿠키       | TOTP/Recovery 2차 인증, `admin_session`/`admin_csrf` 발급                                                 | `INVALID_INPUT`, `UNAUTHORIZED`, `RATE_LIMITED`, `INTERNAL_ERROR`                       |
+| `POST`             | `/api/admin/auth/logout`                                                      | admin 세션 + CSRF | 세션/CSRF 쿠키 무효화                                                                                     | `UNAUTHORIZED`, `CSRF_FAILED`                                                           |
+| `GET/POST`         | `/api/admin/posts`                                                            | 세션 / 세션+CSRF  | 관리자 글 목록/생성(origin=`original`)                                                                    | `UNAUTHORIZED`, `CSRF_FAILED`, `INVALID_INPUT`, `INTERNAL_ERROR`                        |
+| `GET/PATCH/DELETE` | `/api/admin/posts/[id]`                                                       | 세션 / 세션+CSRF  | 관리자 글 조회/수정/삭제(`isRead` 기반 읽음 메타데이터 포함, 삭제 시 `sources.post_id` NULL 처리 후 삭제) | `UNAUTHORIZED`, `CSRF_FAILED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`           |
+| `GET/POST`         | `/api/admin/posts/[id]/comments`                                              | 세션 / 세션+CSRF  | 관리자 댓글 목록/생성(태그 경로 1개 필수, 소문자 정규화)                                                  | `UNAUTHORIZED`, `CSRF_FAILED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`           |
+| `PATCH/DELETE`     | `/api/admin/posts/[id]/comments/[commentId]`                                  | 세션+CSRF         | 관리자 댓글 수정/soft delete(`deleted_at`)                                                                | `UNAUTHORIZED`, `CSRF_FAILED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`           |
+| `GET`              | `/api/wiki`                                                                   | 없음              | 공개 위키 루트 카테고리/집계 조회                                                                         | `INTERNAL_ERROR`                                                                        |
+| `GET`              | `/api/wiki/[...path]?limit=`                                                  | 없음              | 경로별 하위 카테고리/댓글 조회(숨김·삭제 제외, 하위 경로 포함)                                            | `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`                                          |
+| `GET/POST`         | `/api/admin/notes`, `/api/admin/todos`, `/api/admin/schedules`                | 세션 / 세션+CSRF  | 관리자 워크스페이스 리소스 목록/생성                                                                      | `UNAUTHORIZED`, `CSRF_FAILED`, `INVALID_INPUT`, `INTERNAL_ERROR`                        |
+| `GET/PATCH/DELETE` | `/api/admin/notes/[id]`, `/api/admin/todos/[id]`, `/api/admin/schedules/[id]` | 세션 / 세션+CSRF  | 워크스페이스 리소스 단건 조회/수정/삭제                                                                   | `UNAUTHORIZED`, `CSRF_FAILED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`           |
+| `POST`             | `/api/admin/uploads`                                                          | 세션+CSRF         | 관리자 업로드(검증 규칙은 `/api/uploads`와 동일)                                                          | `UNAUTHORIZED`, `CSRF_FAILED`, `INVALID_INPUT`, `INTERNAL_ERROR`                        |
+| `GET`              | `/api/admin/guestbook/threads`                                                | 세션              | 방명록 스레드 목록(최근 메시지 미리보기 포함)                                                             | `UNAUTHORIZED`                                                                          |
+| `GET`              | `/api/admin/guestbook/threads/[id]`                                           | 세션              | 스레드+메시지 전체 조회                                                                                   | `UNAUTHORIZED`, `INVALID_INPUT`, `NOT_FOUND`                                            |
+| `POST`             | `/api/admin/guestbook/threads/[id]/messages`                                  | 세션+CSRF         | 관리자 답장 메시지 작성                                                                                   | `UNAUTHORIZED`, `CSRF_FAILED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL_ERROR`           |
+| `POST`             | `/api/guestbook/threads`                                                      | 없음              | 게스트 스레드 생성 + 첫 메시지 + 세션 쿠키 발급                                                           | `INVALID_INPUT`, `CONFLICT`, `RATE_LIMITED`, `INTERNAL_ERROR`                           |
+| `POST`             | `/api/guestbook/login`                                                        | 없음              | 게스트 스레드 로그인 + 세션 쿠키 발급                                                                     | `INVALID_INPUT`, `UNAUTHORIZED`, `RATE_LIMITED`                                         |
+| `GET`              | `/api/guestbook/thread`                                                       | guestbook 세션    | 현재 세션 스레드/메시지 조회                                                                              | `UNAUTHORIZED`, `NOT_FOUND`                                                             |
+| `POST`             | `/api/guestbook/messages`                                                     | guestbook 세션    | 게스트 메시지 추가                                                                                        | `UNAUTHORIZED`, `INVALID_INPUT`, `RATE_LIMITED`, `INTERNAL_ERROR`                       |
+| `POST`             | `/api/guestbook/logout`                                                       | 선택              | 게스트 세션 삭제 + 쿠키 만료                                                                              | -                                                                                       |
 
 ### Doc URL normalization (inbox `doc` path)
 
@@ -186,7 +187,8 @@ Sources: `src/app/api/admin/auth/login/route.ts`, `src/app/api/admin/auth/verify
 - 홈(`/`)은 콘텐츠 렌더링 대신 `/wiki`로 `308` 리다이렉트한다.
 - 포스트 관련 웹 경로(`/posts`, `/posts/[slug]`, `/tags`, `/tags/[tag]`)는 admin 세션 필수이며, 비관리자는 `/admin/login?next=...`로 리다이렉트된다.
 - `/tags`는 관리자 접근 시 `/wiki`로 리다이렉트되고, `/tags/[tag]`는 위키 경로로 정규화된 뒤 `/wiki/[...path]`로 연결된다(변환 실패 시 404).
-- 포스트 상세(`/posts/[slug]`)는 관리자에게만 렌더링되며 수정/삭제/댓글 관리 액션이 항상 노출된다.
+- 포스트 상세(`/posts/[slug]`)는 관리자에게만 렌더링되며 수정/읽음 토글/삭제/댓글 관리 액션이 항상 노출된다.
+- `/posts`는 `read=all|unread` 필터를 지원하고, 기본 정렬은 `is_read ASC -> datetime(COALESCE(published_at, created_at)) DESC -> id DESC`를 따른다.
 - `/write`는 항상 `/admin/write`로 리다이렉트하며 쿼리스트링을 유지한다.
 - 헤더 내비게이션에서 `글 목록`은 관리자 세션일 때만 표시되고 `위키`는 항상 노출된다.
 - 헤더 타이틀 링크는 `/wiki`를 가리키며 `/wiki`에서 `aria-current="page"`를 가진다.
@@ -254,7 +256,7 @@ Sources: `src/app/api/posts/route.ts`, `src/app/api/posts/bulk/route.ts`, `src/a
 
 ### Operational notes
 
-- DB 최초 연결 시 마이그레이션 실행, 현재 스키마 버전은 `7`(admin/inbox/guestbook/comments/wiki 포함).
+- DB 최초 연결 시 마이그레이션 실행, 현재 스키마 버전은 `8`(`posts.is_read` 읽음 메타데이터/정렬 인덱스 포함).
 - SQLite PRAGMA: `journal_mode=WAL`, `foreign_keys=ON`, `busy_timeout=5000`, `synchronous=NORMAL`, `cache_size=-2000`
 - 배포 워크플로우는 `/var/lib/blog/{data,uploads}` 영속 경로를 사용하고 릴리즈 디렉토리에 심볼릭 링크를 건다.
 - 운영 DB 백업은 `cp` 대신 `sqlite3 .backup` 전략을 사용한다.
@@ -306,8 +308,8 @@ Sources: `.env.example`, `package.json`, `next.config.ts`, `src/lib/db.ts`, `src
   - `npm run test:step6`: CI/CD 게이트 및 standalone 무결성 검증
   - `npm run test:step7-local`, `npm run test:step7-remote`: 로컬/원격 배포 검증
   - `npm run test:step8`: bulk API + 구조화 로그 검증 (`STEP8_SERVER_MODE=auto` 기본, standalone 우선)
-  - `npm run test:step9`: 관리자 인증/워크스페이스/CSRF 계약 검증
-  - `npm run test:step10`: 관리자 검색 UI + 비관리자 검색/API 차단 계약 검증
+  - `npm run test:step9`: 관리자 인증/워크스페이스/CSRF + admin post `isRead` PATCH 계약 검증
+  - `npm run test:step10`: 관리자 검색 UI + `/posts` 미읽음 필터/정렬 + 비관리자 검색/API 차단 계약 검증
   - `npm run test:step11`: 관리자 댓글 CRUD + 공개 wiki 경로/집계 + p95 성능 기준 검증
   - `npm run test:ui:functional`: Playwright 기능 assertion + 접근성(기본 전 파일, `@visual` 제외)
   - `npm run test:ui:visual`: Playwright 시각 회귀(`@visual`) 전용
@@ -342,11 +344,13 @@ Sources: `package.json`, `scripts/test-step-1.mjs`, `scripts/test-step-2.mjs`, `
 ### Common pitfalls and invariants
 
 - `posts.origin`은 immutable이다(`ai`는 API key 생성, `original`은 admin 생성).
+- `posts.is_read`는 관리자 메타데이터이며 기본값 `0`, 허용값은 `0|1`로 제한된다(CHECK 제약).
 - `source_url`/`sources.url` 중복은 409로 처리하며 경합 상황에서도 단일 성공만 허용한다.
 - `POST /api/inbox`는 `source` 입력을 받지 않는다(서버 자동 판별).
 - `GET /api/posts`, `GET /api/posts/suggest`는 admin 세션이 없으면 `401`이어야 한다.
 - 관리자 상태 변경 API는 반드시 CSRF 헤더를 요구한다(`admin_csrf` 쿠키와 동일 값).
 - `DELETE /api/admin/posts/[id]` 시 `sources.post_id`를 NULL 처리해 출처 URL 유니크 이력을 보존한다.
+- `/posts` 기본 정렬은 `미읽음 우선 -> 최신순`이며 `read=unread` 필터는 `is_read=0`만 노출해야 한다.
 - 댓글 태그 경로는 `^[a-z0-9-]+(?:/[a-z0-9-]+)*$` + depth 4/segment 32/total 120 제한을 유지해야 한다.
 - `/`는 항상 `/wiki`로 `308 Permanent Redirect`를 반환해야 한다.
 - 헤더 타이틀 링크(`/wiki`) 재클릭은 `/wiki`에서만 스크롤 최상단 복원을 수행해야 한다.

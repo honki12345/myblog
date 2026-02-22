@@ -96,6 +96,14 @@
 - 수용기준: 관리자 세션에서 draft+published 검색이 가능하고, 비관리자 접근은 페이지/API 모두 차단 계약을 만족
 - 연결 테스트: `scripts/test-step-10.mjs`, `tests/ui/posts-search-autocomplete.spec.ts`, `tests/ui/posts-archive.spec.ts`
 
+### UC-SEARCH-002 관리자 `/posts` 미읽음 필터 및 기본 정렬
+
+- 사전조건: 관리자 세션 + 읽음/미읽음 상태가 섞인 게시글 데이터 존재
+- 기본흐름: `/posts` 기본 진입 시 `미읽음 우선(is_read ASC) -> 최신순(datetime(COALESCE(published_at, created_at)) DESC) -> id DESC` 정렬이 적용되고, `read=unread`(미읽음 탭)에서 미읽음만 노출된다.
+- 예외흐름: 잘못된 `read` 쿼리값은 `all`로 폴백하고 페이지는 정상 렌더링된다.
+- 수용기준: 읽은 최신 글보다 미읽음 글이 먼저 노출되고, 미읽음 탭 전환/페이지네이션/검색 쿼리에서도 `read` 파라미터가 보존된다.
+- 연결 테스트: `scripts/test-step-10.mjs`, `tests/ui/posts-archive.spec.ts`, `tests/ui/visual-regression.spec.ts`
+
 ### UC-ADMIN-001 관리자 로그인(비밀번호 + TOTP)과 세션 발급
 
 - 사전조건: admin 계정과 TOTP 시크릿 준비
@@ -111,6 +119,14 @@
 - 예외흐름: CSRF 헤더 누락 또는 익명 요청은 `401/403`
 - 수용기준: 데이터 CRUD와 보안 제약이 동시에 충족
 - 연결 테스트: `scripts/test-step-9.mjs`, `tests/ui/admin-workspace.spec.ts`
+
+### UC-ADMIN-003 관리자 글 읽음 메타데이터 토글(`isRead`)
+
+- 사전조건: 유효한 관리자 세션 + `admin_csrf` 쿠키 보유, 대상 글 존재
+- 기본흐름: `/posts/[slug]` 관리자 액션 또는 `PATCH /api/admin/posts/:id`에서 `isRead` 값을 변경하면 DB `posts.is_read`가 갱신된다.
+- 예외흐름: CSRF 누락은 `401/403`, 잘못된 `isRead` 타입은 `400`, 없는 글 ID는 `404`
+- 수용기준: API 응답에 변경된 `is_read`가 반영되고 상세 화면 버튼 라벨(`읽음으로 표시`/`읽지 않음으로 표시`)이 상태와 일치한다.
+- 연결 테스트: `scripts/test-step-9.mjs`, `scripts/test-step-10.mjs`, `tests/ui/post-admin-actions.spec.ts`
 
 ### UC-UPLOAD-001 업로드 인증/타입/크기 검증
 
@@ -156,8 +172,10 @@
 | UC-INBOX-001 | INBOX | URL 수집 큐 적재/중복 | `scripts/test-step-3.mjs` | Active |
 | UC-INBOX-002 | INBOX | 수집 큐 상태 전이 제한 | `scripts/test-step-3.mjs` | Active |
 | UC-SEARCH-001 | SEARCH | 관리자 전용 자동완성/검색 이동 규칙 | `scripts/test-step-10.mjs`, `tests/ui/posts-search-autocomplete.spec.ts`, `tests/ui/posts-archive.spec.ts` | Active |
+| UC-SEARCH-002 | SEARCH | 관리자 `/posts` 미읽음 필터 및 기본 정렬 | `scripts/test-step-10.mjs`, `tests/ui/posts-archive.spec.ts`, `tests/ui/visual-regression.spec.ts` | Active |
 | UC-ADMIN-001 | ADMIN | 관리자 2FA 로그인/세션 | `scripts/test-step-9.mjs`, `tests/ui/admin-2fa-setup-lock.spec.ts` | Active |
 | UC-ADMIN-002 | ADMIN | 워크스페이스 CRUD + CSRF | `scripts/test-step-9.mjs`, `tests/ui/admin-workspace.spec.ts` | Active |
+| UC-ADMIN-003 | ADMIN | 관리자 글 읽음 메타데이터 토글(`isRead`) | `scripts/test-step-9.mjs`, `scripts/test-step-10.mjs`, `tests/ui/post-admin-actions.spec.ts` | Active |
 | UC-UPLOAD-001 | UPLOAD | 업로드 인증/유효성 검증 | `scripts/test-step-3.mjs`, `scripts/test-step-9.mjs` | Active |
 | UC-VISIBILITY-001 | VISIBILITY | 홈 canonical redirect + 포스트 경로 관리자 전용 접근 정책 | `scripts/test-step-5.mjs`, `scripts/test-step-10.mjs`, `tests/ui/draft-visibility.spec.ts`, `tests/ui/home-empty-state.spec.ts`, `tests/ui/home-scroll-top.spec.ts`, `tests/ui/tags-index.spec.ts`, `tests/ui/write-link-auth.spec.ts`, `tests/ui/post-admin-actions.spec.ts` | Active |
 | UC-WIKI-001 | WIKI | 관리자 댓글 CRUD + 태그 경로 검증 | `scripts/test-step-11.mjs`, `tests/ui/wiki-view.spec.ts` | Active |

@@ -113,3 +113,9 @@
 - [ ] 배포 직후 확인 URL: `/`, `/wiki`, `/admin/login`, `/api/health`
 - [ ] 관리자 로그인 후 핵심 동선(`/admin/write`, 관리자 전용 포스트 접근) 수동 스모크 점검
 - [ ] 롤백 트리거: 비관리자/관리자 모두에서 리다이렉트 루프 발생, 또는 정상 API가 광범위하게 401로 오동작
+
+## PR 리뷰 반영 내역 (2026-02-22)
+- 코멘트 ID: `2836324865` (post detail 로그인 `next` 이중 인코딩 가능성)
+  - 실제 변경: `src/app/posts/[slug]/page.tsx`의 비관리자 리다이렉트 경로를 `encodeURIComponent(rawSlug)` 기반에서 정규화된 `slug` 기반 단일 인코딩 경로로 수정 (`buildLoginHref(`/posts/${slug}`)`).
+  - 검증: `npm run test:all` 통과 (총 11m 28s).
+  - 후속 작업: 없음.

@@ -41,7 +41,7 @@ test.beforeEach(() => {
   runCleanupScript();
 });
 
-test("non-admin routes redirect to login and protected APIs return 401", async ({
+test("non-admin wiki home is public and protected routes redirect to login", async ({
   page,
   request,
 }) => {
@@ -70,8 +70,16 @@ test("non-admin routes redirect to login and protected APIs return 401", async (
   await triggerRevalidation(request, { ...publishedPost, ...published });
   await triggerRevalidation(request, { ...draftPost, ...draft });
 
+  await page.goto("/", { waitUntil: "networkidle" });
+  await expect(page).toHaveURL(/\/$/);
+  await expect(
+    page.getByRole("heading", { name: "위키", level: 1, exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "관리자 빠른 이동" }),
+  ).toHaveCount(0);
+
   const protectedPaths = [
-    "/",
     "/posts?per_page=50",
     `/posts/${publishedPost.slug}`,
     "/tags",
@@ -139,14 +147,18 @@ test("admin can access protected pages and draft data", async ({
   ).toBeVisible();
 
   await page.goto("/", { waitUntil: "networkidle" });
-  await expect(page.getByRole("heading", { name: "홈" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "위키", level: 1, exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "관리자 빠른 이동" }),
+  ).toBeVisible();
 
   await page.goto("/tags", { waitUntil: "networkidle" });
   await expect(page).toHaveURL(/\/wiki$/);
 
-  const tagResponse = await page.goto("/tags/draft-vis", {
+  await page.goto("/tags/draft-vis", {
     waitUntil: "domcontentloaded",
   });
-  expect(tagResponse?.status()).toBe(404);
   await expect(page).toHaveURL(/\/wiki\/draft-vis$/);
 });

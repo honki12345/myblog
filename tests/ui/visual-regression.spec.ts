@@ -197,13 +197,13 @@ for (const route of routes) {
 
     if (route.name === "home") {
       await expect(
-        page.getByRole("heading", { name: "홈", exact: true }),
+        page.getByRole("heading", { name: "위키", level: 1, exact: true }),
       ).toBeVisible();
       await expect(
-        page.getByRole("heading", { name: "빠른 이동" }),
+        page.getByRole("heading", { name: "관리자 빠른 이동" }),
       ).toBeVisible();
       await expect(
-        page.getByRole("heading", { name: "위키 루트 카테고리" }),
+        page.locator("[data-wiki-explorer] [data-wiki-tree-panel]"),
       ).toBeVisible();
       await expect(
         page.locator("main").getByRole("link", { name: "글 목록" }),
@@ -255,7 +255,7 @@ for (const route of routes) {
 
     if (route.name === "tags") {
       await expect(
-        page.getByRole("heading", { name: "댓글 위키", exact: true }),
+        page.getByRole("heading", { name: "위키", level: 1, exact: true }),
       ).toBeVisible();
       await expect(
         page.getByRole("heading", { name: "카테고리 트리" }),

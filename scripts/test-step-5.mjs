@@ -487,8 +487,8 @@ async function runChecks(apiKey) {
   const homeResponse = await requestText("/");
   assert(homeResponse.status === 200, "home should return 200");
   assert(
-    homeResponse.text.includes("관리자 로그인"),
-    "home should redirect non-admin to login page",
+    homeResponse.text.includes("data-wiki-explorer"),
+    "home should render public wiki explorer for non-admin users",
   );
 
   const postsResponse = await requestText("/posts");

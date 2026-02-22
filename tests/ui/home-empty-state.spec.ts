@@ -1,10 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
-import {
-  authenticateAdminSession,
-  runCleanupScript,
-  waitForDocumentTitle,
-} from "./helpers";
+import { runCleanupScript, waitForDocumentTitle } from "./helpers";
 
 const DISABLE_ANIMATION_STYLE = `
   *,
@@ -50,16 +46,20 @@ test("home: 위키 루트 빈 상태 안내문이 노출된다", async ({
 
   const maxDiffPixelRatio = getEmptyStateDiffThreshold(testInfo.project.name);
   await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
-  await authenticateAdminSession(page, { nextPath: "/" });
+  await page.goto("/", { waitUntil: "networkidle" });
   await page.waitForLoadState("networkidle");
   await page.addStyleTag({ content: DISABLE_ANIMATION_STYLE });
 
+  await expect(page).toHaveURL(/\/$/);
   await expect(
-    page.getByRole("heading", { name: "홈", exact: true }),
+    page.getByRole("heading", { name: "위키", level: 1, exact: true }),
   ).toBeVisible();
   await expect(
     page.getByText("아직 공개된 위키 데이터가 없습니다."),
   ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "관리자 빠른 이동" }),
+  ).toHaveCount(0);
 
   await assertNoSeriousA11yViolations(page);
 

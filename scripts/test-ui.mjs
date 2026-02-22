@@ -6,6 +6,7 @@ const ROOT = process.cwd();
 const NPX_COMMAND = process.platform === "win32" ? "npx.cmd" : "npx";
 
 const PROJECTS = ["mobile-360", "tablet-768", "desktop-1440"];
+const SUPPORTED_SUITES = new Set(["all", "functional", "visual"]);
 
 function formatDuration(ms) {
   const totalSeconds = Math.round(ms / 1000);
@@ -40,7 +41,7 @@ function canBindPort(port) {
     server.unref();
 
     server.once("error", () => resolve(false));
-    server.listen({ port, host: "127.0.0.1", exclusive: true }, () => {
+    server.listen({ port, exclusive: true }, () => {
       server.close(() => resolve(true));
     });
   });
@@ -112,6 +113,54 @@ function hasProjectArg(args) {
   });
 }
 
+function parseSuiteArgs(rawArgs) {
+  let suite = "all";
+  const args = [];
+
+  for (let index = 0; index < rawArgs.length; index += 1) {
+    const arg = rawArgs[index];
+
+    if (arg.startsWith("--suite=")) {
+      suite = arg.slice("--suite=".length).trim();
+      continue;
+    }
+
+    if (arg === "--suite") {
+      const nextValue = rawArgs[index + 1]?.trim();
+      if (!nextValue) {
+        throw new Error("--suite requires a value");
+      }
+
+      suite = nextValue;
+      index += 1;
+      continue;
+    }
+
+    args.push(arg);
+  }
+
+  const normalizedSuite = suite.toLowerCase();
+  if (!SUPPORTED_SUITES.has(normalizedSuite)) {
+    throw new Error(
+      `unsupported suite "${suite}". expected one of: ${Array.from(SUPPORTED_SUITES).join(", ")}`,
+    );
+  }
+
+  return { suite: normalizedSuite, args };
+}
+
+function getSuitePlaywrightArgs(suite) {
+  if (suite === "functional") {
+    return ["--grep-invert", "@visual"];
+  }
+
+  if (suite === "visual") {
+    return ["--grep", "@visual"];
+  }
+
+  return [];
+}
+
 function runPlaywright(args, envOverrides = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(NPX_COMMAND, ["playwright", "test", ...args], {
@@ -140,13 +189,15 @@ function runPlaywright(args, envOverrides = {}) {
 }
 
 async function main() {
-  const args = process.argv.slice(2);
+  const { suite, args } = parseSuiteArgs(process.argv.slice(2));
+  const playwrightArgs = [...getSuitePlaywrightArgs(suite), ...args];
   const portBase = resolvePortBase();
   const port = await resolvePlaywrightPort(portBase);
   const skipBuild = isTruthyEnv(process.env.PLAYWRIGHT_SKIP_BUILD);
 
-  if (hasProjectArg(args)) {
-    await runPlaywright(args, { PLAYWRIGHT_PORT: String(port) });
+  if (hasProjectArg(playwrightArgs)) {
+    console.log(`[test:ui] suite=${suite}`);
+    await runPlaywright(playwrightArgs, { PLAYWRIGHT_PORT: String(port) });
     return;
   }
 
@@ -167,12 +218,15 @@ async function main() {
 
     const startedAt = Date.now();
     console.log(
-      `[test:ui] running project=${project} (PORT=${envOverrides.PLAYWRIGHT_PORT})`,
+      `[test:ui] suite=${suite} project=${project} (PORT=${envOverrides.PLAYWRIGHT_PORT})`,
     );
-    await runPlaywright([`--project=${project}`, ...args], envOverrides);
+    await runPlaywright(
+      [`--project=${project}`, ...playwrightArgs],
+      envOverrides,
+    );
     const durationMs = Date.now() - startedAt;
     console.log(
-      `[test:ui] project=${project} done in ${formatDuration(durationMs)}`,
+      `[test:ui] suite=${suite} project=${project} done in ${formatDuration(durationMs)}`,
     );
   }
 }

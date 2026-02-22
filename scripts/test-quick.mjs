@@ -136,7 +136,7 @@ async function runSingle(scriptName, options = {}) {
   const { done, label } = startScript(scriptName, options);
   await done;
   const durationMs = Date.now() - startedAt;
-  console.log(`[test:all] ${label} done in ${formatDuration(durationMs)}`);
+  console.log(`[test:quick] ${label} done in ${formatDuration(durationMs)}`);
   return durationMs;
 }
 
@@ -168,14 +168,16 @@ async function runParallelGroup(groupName, entries) {
   }
 
   const durationMs = Date.now() - startedAt;
-  console.log(`[test:all] ${groupName} done in ${formatDuration(durationMs)}`);
+  console.log(
+    `[test:quick] ${groupName} done in ${formatDuration(durationMs)}`,
+  );
   return durationMs;
 }
 
 async function main() {
   const totalStartedAt = Date.now();
 
-  console.log("[test:all] start");
+  console.log("[test:quick] start");
   await runSingle("test:step1");
   await runParallelGroup("group-a(step2+step4)", [
     { script: "test:step2", label: "step2" },
@@ -190,49 +192,25 @@ async function main() {
   await runSingle("test:step8", {
     env: { STEP8_PORT_BASE: "3200" },
   });
-  await runSingle("test:step9");
-  await runSingle("test:step10");
-  await runSingle("test:step11");
 
-  const functionalPort = await findAvailablePort(
+  const uiPort = await findAvailablePort(
     Number.parseInt(process.env.PLAYWRIGHT_PORT_BASE ?? "", 10) || 3400,
   );
-  await runSingle("test:ui:functional", {
-    label: "test:ui:functional:desktop-1440",
+  await runSingle("test:ui:fast", {
     env: {
-      PLAYWRIGHT_PORT: String(functionalPort),
+      PLAYWRIGHT_PORT: String(uiPort),
       PLAYWRIGHT_SKIP_BUILD: "1",
     },
-    args: ["--", "--project=desktop-1440"],
   });
-
-  // Run visual regression as separate viewport invocations so a single run
-  // doesn't outlive its webServer process or leave the port occupied.
-  const playwrightPortBase =
-    Number.parseInt(process.env.PLAYWRIGHT_PORT_BASE ?? "", 10) ||
-    (await findAvailablePort(3500));
-  const uiProjects = ["mobile-360", "tablet-768", "desktop-1440"];
-  for (let index = 0; index < uiProjects.length; index += 1) {
-    const project = uiProjects[index];
-    const port = await findAvailablePort(playwrightPortBase + index);
-    await runSingle("test:ui:visual", {
-      label: `test:ui:visual:${project}`,
-      env: {
-        PLAYWRIGHT_PORT: String(port),
-        PLAYWRIGHT_SKIP_BUILD: "1",
-      },
-      args: ["--", `--project=${project}`],
-    });
-  }
 
   const totalDurationMs = Date.now() - totalStartedAt;
   console.log(
-    `[test:all] total done in ${formatDuration(totalDurationMs)} (${totalDurationMs}ms)`,
+    `[test:quick] total done in ${formatDuration(totalDurationMs)} (${totalDurationMs}ms)`,
   );
 }
 
 main().catch((error) => {
   const message = error instanceof Error ? error.message : String(error);
-  console.error(`[test:all] failed: ${message}`);
+  console.error(`[test:quick] failed: ${message}`);
   process.exitCode = 1;
 });

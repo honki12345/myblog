@@ -254,11 +254,12 @@ Sources: `src/app/api/posts/route.ts`, `src/app/api/posts/bulk/route.ts`, `src/a
 
 ### CI summary
 
-- `verify` job: `npm ci` -> `lint` -> `format:check` -> `build` -> standalone artifact upload -> `test:step3`
-- `ui-visual` job: standalone artifact 복원 -> Playwright Chromium 설치 -> viewport matrix(`360/768/1440`) 실행
+- `ci.yml` `verify` job(PR): `npm ci` -> `lint` -> `format:check` -> `test:quick`
+- `ci.yml` `full` job(main push): `npm ci` -> `lint` -> `format:check` -> `test:all`
+- `nightly.yml` `full-nightly` job(매일 18:00 UTC + 수동 실행): `npm ci` -> `lint` -> `format:check` -> `test:all`
 - `deploy` workflow: `main` push/수동 실행 -> standalone 패키징 -> VM 배포 -> `/api/health` 다중 재시도 -> 실패 시 자동 롤백
 
-Sources: `.env.example`, `package.json`, `next.config.ts`, `src/lib/db.ts`, `src/app/api/inbox/route.ts`, `.github/workflows/ci.yml`, `.github/workflows/deploy.yml`, `AGENTS.md`, `docs/runbooks/deploy-log.md`
+Sources: `.env.example`, `package.json`, `next.config.ts`, `src/lib/db.ts`, `src/app/api/inbox/route.ts`, `.github/workflows/ci.yml`, `.github/workflows/nightly.yml`, `.github/workflows/deploy.yml`, `AGENTS.md`, `docs/runbooks/deploy-log.md`
 
 ## 5. Development and Testing
 
@@ -291,27 +292,32 @@ Sources: `.env.example`, `package.json`, `next.config.ts`, `src/lib/db.ts`, `src
 - 단계별 스크립트:
   - `npm run test:step1`: build/standalone/dev/env 기본 검증
   - `npm run test:step2`: DB 스키마/FTS/PRAGMA/제약조건 검증
-  - `npm run test:step3`: API key 경로(posts/uploads/inbox) 계약 검증
+  - `npm run test:step3`: API key 경로(posts/uploads/inbox) 계약 검증 (`STEP3_SERVER_MODE=auto` 기본, standalone 우선)
   - `npm run test:step4`: markdown 렌더링/XSS/Mermaid 검증
-  - `npm run test:step5`: 포스트 경로 접근 제어(비관리자 로그인 리다이렉트)/업로드 통합 검증
+  - `npm run test:step5`: 포스트 경로 접근 제어(비관리자 로그인 리다이렉트)/업로드 통합 검증 (`STEP5_SERVER_MODE=dev` 기본, standalone는 opt-in)
   - `npm run test:step6`: CI/CD 게이트 및 standalone 무결성 검증
   - `npm run test:step7-local`, `npm run test:step7-remote`: 로컬/원격 배포 검증
-  - `npm run test:step8`: bulk API + 구조화 로그 검증
+  - `npm run test:step8`: bulk API + 구조화 로그 검증 (`STEP8_SERVER_MODE=auto` 기본, standalone 우선)
   - `npm run test:step9`: 관리자 인증/워크스페이스/CSRF 계약 검증
   - `npm run test:step10`: 관리자 검색 UI + 비관리자 검색/API 차단 계약 검증
   - `npm run test:step11`: 관리자 댓글 CRUD + 공개 wiki 경로/집계 + p95 성능 기준 검증
-  - `npm run test:ui`: Playwright 시각 회귀 + 기능 assertion + 접근성
+  - `npm run test:ui:functional`: Playwright 기능 assertion + 접근성(기본 전 파일, `@visual` 제외)
+  - `npm run test:ui:visual`: Playwright 시각 회귀(`@visual`) 전용
+  - `npm run test:ui:fast`: 빠른 UI 게이트(`functional + desktop-1440`)
+- 빠른 회귀: `npm run test:quick`
+  - 실행 순서: `step1 -> (step2+step4 병렬) -> step3 -> step5 -> step8 -> ui:fast`
 - 전체 회귀: `npm run test:all`
-  - 실행 순서: `step1 -> (step2+step4 병렬) -> step3 -> step5 -> step8 -> step9 -> step10 -> step11 -> ui(360/768/1440)`
+  - 실행 순서: `step1 -> (step2+step4 병렬) -> step3 -> step5 -> step8 -> step9 -> step10 -> step11 -> ui:functional(desktop-1440) -> ui:visual(360/768/1440)`
   - `PLAYWRIGHT_SKIP_BUILD=1` 재사용 전략으로 build 중복을 줄인다.
 
 ### CI/CD workflow summary
 
-- `ci.yml`: PR/지정 브랜치 push에서 `verify` + `ui-visual`을 실행한다.
+- `ci.yml`: PR에서는 `verify(test:quick)`, `main` push에서는 `full(test:all)`을 실행한다.
+- `nightly.yml`: 기본 브랜치 기준으로 매일 1회 UTC 고정 시각(18:00)에 `test:all`을 실행하며 수동 재실행을 지원한다.
 - `deploy.yml`: `main` push(path filter) 또는 수동 실행에서만 배포를 수행한다.
 - 배포 실패 시 이전 릴리즈 symlink로 롤백하고 서비스 상태를 재검증한다.
 
-Sources: `package.json`, `scripts/test-step-1.mjs`, `scripts/test-step-2.mjs`, `scripts/test-step-3.mjs`, `scripts/test-step-4.mjs`, `scripts/test-step-5.mjs`, `scripts/test-step-6.mjs`, `scripts/test-step-7-remote.mjs`, `scripts/test-step-8.mjs`, `scripts/test-step-9.mjs`, `scripts/test-step-10.mjs`, `scripts/test-step-11.mjs`, `scripts/test-all.mjs`, `scripts/test-ui.mjs`, `playwright.config.ts`, `tests/ui/*.spec.ts`, `.github/workflows/ci.yml`, `.github/workflows/deploy.yml`, `plans/use-cases.md`
+Sources: `package.json`, `scripts/test-step-1.mjs`, `scripts/test-step-2.mjs`, `scripts/test-step-3.mjs`, `scripts/test-step-4.mjs`, `scripts/test-step-5.mjs`, `scripts/test-step-6.mjs`, `scripts/test-step-7-remote.mjs`, `scripts/test-step-8.mjs`, `scripts/test-step-9.mjs`, `scripts/test-step-10.mjs`, `scripts/test-step-11.mjs`, `scripts/test-quick.mjs`, `scripts/test-all.mjs`, `scripts/test-ui.mjs`, `playwright.config.ts`, `tests/ui/*.spec.ts`, `.github/workflows/ci.yml`, `.github/workflows/nightly.yml`, `.github/workflows/deploy.yml`, `plans/use-cases.md`
 
 ## 6. Extension Points
 

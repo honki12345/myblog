@@ -1,0 +1,38 @@
+name: Nightly Full Gate
+
+on:
+  schedule:
+    - cron: "0 18 * * *"
+  workflow_dispatch:
+
+jobs:
+  full-nightly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 80
+    env:
+      BLOG_API_KEY: ci-nightly-test-key
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Full gate tests
+        run: npm run test:all

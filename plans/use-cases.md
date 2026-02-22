@@ -162,3 +162,16 @@
 | UC-VISIBILITY-001 | VISIBILITY | 포스트 경로 관리자 전용 접근 정책 | `scripts/test-step-5.mjs`, `scripts/test-step-10.mjs`, `tests/ui/draft-visibility.spec.ts`, `tests/ui/tags-index.spec.ts`, `tests/ui/write-link-auth.spec.ts`, `tests/ui/post-admin-actions.spec.ts` | Active |
 | UC-WIKI-001 | WIKI | 관리자 댓글 CRUD + 태그 경로 검증 | `scripts/test-step-11.mjs`, `tests/ui/wiki-view.spec.ts` | Active |
 | UC-WIKI-002 | WIKI | 공개 위키 트리/경로 조회 + 숨김/삭제 비노출 | `scripts/test-step-11.mjs`, `tests/ui/accessibility.spec.ts`, `tests/ui/wiki-view.spec.ts` | Active |
+
+## 6. 테스트 게이트 정책
+
+- PR 빠른 게이트(`npm run test:quick`)
+  - 목적: 피드백 속도 우선, 핵심 계약 회귀 조기 탐지
+  - 구성: `step1`, `step2`, `step4`, `step3`, `step5`, `step8`, `test:ui:fast(functional + desktop-1440)`
+- Main/Nightly 전체 게이트(`npm run test:all`)
+  - 목적: 회귀 누락 방지, 릴리즈 품질 최종 보증
+  - 구성: `step1~step11` + `test:ui:functional(desktop-1440)` + `test:ui:visual(360/768/1440)`
+- 승격 규칙(quick -> full)
+  - 최근 `test:quick` 통과 후 `test:all`에서만 발견되는 회귀는 원인 확정 후 다음 사이클에 quick 세트로 승격 후보 등록
+  - 승격 기준: 최근 N회(기본 5회)에서 재현 가능한 deterministic 실패이며 flaky(재시도 의존) 성격이 아닐 것
+  - 적용 시점: 이슈/PR에서 테스트 변경과 함께 `plans/use-cases.md` Traceability Matrix를 동시 갱신

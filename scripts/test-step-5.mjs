@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { access, readFile, rm, stat } from "node:fs/promises";
+import { access, readFile, readdir, rm, stat } from "node:fs/promises";
 import { createRequire } from "node:module";
 import net from "node:net";
 import path from "node:path";
@@ -16,6 +16,9 @@ const TEST_DB_WAL_PATH = `${TEST_DB_PATH}-wal`;
 const TEST_DB_SHM_PATH = `${TEST_DB_PATH}-shm`;
 const TEST_DB_FILES = [TEST_DB_PATH, TEST_DB_WAL_PATH, TEST_DB_SHM_PATH];
 const MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024;
+const STEP5_SERVER_MODE = (process.env.STEP5_SERVER_MODE ?? "dev")
+  .trim()
+  .toLowerCase();
 
 function assert(condition, message) {
   if (!condition) {
@@ -84,7 +87,7 @@ function canBindPort(port) {
       resolve(false);
     });
 
-    server.listen({ port, host: "127.0.0.1" }, () => {
+    server.listen({ port, exclusive: true }, () => {
       server.close(() => resolve(true));
     });
   });
@@ -171,6 +174,53 @@ async function waitForServer(url, retries = 60, delayMs = 500) {
   throw new Error(`Timed out waiting for server: ${url}`);
 }
 
+function resolveServerMode() {
+  if (
+    STEP5_SERVER_MODE === "standalone" ||
+    STEP5_SERVER_MODE === "dev" ||
+    STEP5_SERVER_MODE === "auto"
+  ) {
+    return STEP5_SERVER_MODE;
+  }
+
+  throw new Error(
+    `Unsupported STEP5_SERVER_MODE="${STEP5_SERVER_MODE}". Expected one of: auto, standalone, dev`,
+  );
+}
+
+async function resolveStandaloneServerDir() {
+  const primaryServerPath = path.join(ROOT, ".next", "standalone", "server.js");
+
+  try {
+    await access(primaryServerPath);
+    return path.dirname(primaryServerPath);
+  } catch {
+    // fallback to worktree-nested standalone layout
+  }
+
+  const worktreesDir = path.join(ROOT, ".next", "standalone", ".worktrees");
+  try {
+    const entries = await readdir(worktreesDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) {
+        continue;
+      }
+
+      const candidate = path.join(worktreesDir, entry.name, "server.js");
+      try {
+        await access(candidate);
+        return path.dirname(candidate);
+      } catch {
+        // continue searching
+      }
+    }
+  } catch {
+    // fall through to final error
+  }
+
+  throw new Error("standalone server.js not found");
+}
+
 async function startServer(apiKey) {
   const startPort = parsePositiveIntegerEnv(
     process.env.STEP5_PORT_BASE,
@@ -178,30 +228,74 @@ async function startServer(apiKey) {
   );
   const port = await findAvailablePort(startPort);
   apiBase = `http://127.0.0.1:${port}`;
+  const mode = resolveServerMode();
 
-  const child = spawn(
-    process.execPath,
-    [NEXT_BIN, "dev", "--webpack", "--port", String(port)],
-    {
-      cwd: ROOT,
-      env: {
-        ...process.env,
-        BLOG_API_KEY: apiKey,
-        DATABASE_PATH: TEST_DB_PATH,
-        NEXT_PUBLIC_SITE_URL: apiBase,
-        RATE_LIMIT_MAX_REQUESTS:
-          process.env.STEP5_RATE_LIMIT_MAX_REQUESTS ??
-          process.env.RATE_LIMIT_MAX_REQUESTS ??
-          "100",
-        RATE_LIMIT_WINDOW_MS:
-          process.env.STEP5_RATE_LIMIT_WINDOW_MS ??
-          process.env.RATE_LIMIT_WINDOW_MS ??
-          "1000",
-        NEXT_TELEMETRY_DISABLED: "1",
+  const sharedEnv = {
+    ...process.env,
+    BLOG_API_KEY: apiKey,
+    DATABASE_PATH: TEST_DB_PATH,
+    NEXT_PUBLIC_SITE_URL: apiBase,
+    RATE_LIMIT_MAX_REQUESTS:
+      process.env.STEP5_RATE_LIMIT_MAX_REQUESTS ??
+      process.env.RATE_LIMIT_MAX_REQUESTS ??
+      "100",
+    RATE_LIMIT_WINDOW_MS:
+      process.env.STEP5_RATE_LIMIT_WINDOW_MS ??
+      process.env.RATE_LIMIT_WINDOW_MS ??
+      "1000",
+    NEXT_TELEMETRY_DISABLED: "1",
+  };
+
+  let child;
+  if (mode === "standalone" || mode === "auto") {
+    try {
+      const standaloneServerDir = await resolveStandaloneServerDir();
+      child = spawn(process.execPath, ["server.js"], {
+        cwd: standaloneServerDir,
+        env: {
+          ...sharedEnv,
+          PORT: String(port),
+          HOSTNAME: "127.0.0.1",
+        },
+        detached: true,
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+      child.__serverMode = "standalone";
+    } catch (error) {
+      if (mode === "standalone") {
+        throw error;
+      }
+
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(
+        `[step5] standalone unavailable (${message}); falling back to next dev`,
+      );
+    }
+  }
+
+  if (!child) {
+    child = spawn(
+      process.execPath,
+      [
+        NEXT_BIN,
+        "dev",
+        "--webpack",
+        "--hostname",
+        "127.0.0.1",
+        "--port",
+        String(port),
+      ],
+      {
+        cwd: ROOT,
+        env: sharedEnv,
+        detached: true,
+        stdio: ["ignore", "pipe", "pipe"],
       },
-      detached: true,
-      stdio: ["ignore", "pipe", "pipe"],
-    },
+    );
+    child.__serverMode = "dev";
+  }
+  console.log(
+    `[step5] server mode=${child.__serverMode} port=${port} base=${apiBase}`,
   );
 
   child.stdout.on("data", (chunk) => process.stdout.write(chunk.toString()));

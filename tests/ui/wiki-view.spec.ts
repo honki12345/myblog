@@ -135,6 +135,9 @@ test("admin manages post comments and wiki pages expose only visible comments", 
   await expect(
     page.getByRole("link", { name: "/ai/platform/nextjs", exact: true }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "블로그 글 보기", exact: true }),
+  ).toHaveAttribute("href", `/posts/${created.slug}`);
   await expect(page.getByRole("link", { name: "원문 링크" })).toHaveAttribute(
     "href",
     seed.sourceUrl ?? "",
@@ -157,7 +160,7 @@ test("admin manages post comments and wiki pages expose only visible comments", 
 test("wiki explorer keeps context with in-place navigation, history, and refresh", async ({
   page,
   request,
-}) => {
+}, testInfo) => {
   const seed = Date.now();
   const post = await insertPostDirect(request, {
     title: `PW-WIKI-INPLACE-${seed}`,
@@ -188,7 +191,17 @@ test("wiki explorer keeps context with in-place navigation, history, and refresh
   await waitForDocumentTitle(page);
   await expect(page).toHaveURL(/\/wiki$/);
 
+  const isMobile = testInfo.project.name === "mobile-360";
   const treePanel = page.locator("[data-wiki-tree-panel]");
+
+  const openTreePanel = async () => {
+    if (isMobile) {
+      await page.getByRole("button", { name: "트리", exact: true }).click();
+    }
+    await expect(treePanel).toBeVisible();
+  };
+
+  await openTreePanel();
   await treePanel.getByRole("link", { name: "ai", exact: true }).click();
   await expect(page).toHaveURL(/\/wiki\/ai$/);
   await expect(
@@ -196,18 +209,58 @@ test("wiki explorer keeps context with in-place navigation, history, and refresh
   ).toBeVisible();
 
   const historyAfterAi = await page.evaluate(() => window.history.length);
+  await openTreePanel();
   await treePanel.getByRole("link", { name: "ai", exact: true }).click();
   await expect
     .poll(async () => {
       return await page.evaluate(() => window.history.length);
     })
     .toBe(historyAfterAi);
+  await expect(page).toHaveURL(/\/wiki\/ai$/);
+  await expect(
+    treePanel.getByRole("link", { name: "platform", exact: true }),
+  ).toHaveCount(0);
+
+  await treePanel
+    .getByRole("button", { name: "ai 펼치기", exact: true })
+    .click();
+  await expect(
+    treePanel.getByRole("link", { name: "platform", exact: true }),
+  ).toBeVisible();
 
   await treePanel.getByRole("link", { name: "platform", exact: true }).click();
   await expect(page).toHaveURL(/\/wiki\/ai\/platform$/);
   await expect(
     page.getByRole("heading", { name: "위키 경로: /ai/platform", exact: true }),
   ).toBeVisible();
+
+  await openTreePanel();
+  await expect(
+    treePanel.getByRole("link", { name: "nextjs", exact: true }),
+  ).toBeVisible();
+  const historyAfterPlatform = await page.evaluate(() => window.history.length);
+  await treePanel.getByRole("link", { name: "platform", exact: true }).click();
+  await expect
+    .poll(async () => {
+      return await page.evaluate(() => window.history.length);
+    })
+    .toBe(historyAfterPlatform);
+  await expect(page).toHaveURL(/\/wiki\/ai\/platform$/);
+  await expect(
+    page.getByRole("heading", { name: "위키 경로: /ai/platform", exact: true }),
+  ).toBeVisible();
+  await expect(
+    treePanel.getByRole("link", { name: "nextjs", exact: true }),
+  ).toHaveCount(0);
+
+  await treePanel
+    .getByRole("button", { name: "platform 펼치기", exact: true })
+    .click();
+  const nextjsTreeLink = treePanel.getByRole("link", {
+    name: "nextjs",
+    exact: true,
+  });
+  await expect(nextjsTreeLink).toBeVisible();
 
   await page.evaluate(() => {
     document.body.style.minHeight = "5000px";
@@ -236,6 +289,9 @@ test("wiki explorer keeps context with in-place navigation, history, and refresh
     }),
   ).toBeVisible();
   await expect(page.getByText("nextjs 하위 경로 댓글")).toBeVisible();
+  await expect(page.getByRole("link", { name: "블로그 글 보기" })).toHaveCount(
+    0,
+  );
 
   await page.goBack();
   await expect(page).toHaveURL(/\/wiki\/ai\/platform$/);

@@ -5,23 +5,23 @@ import {
   waitForDocumentTitle,
 } from "./helpers";
 
-test("home title link scrolls to top when already on /", async ({
+test("home title link scrolls to top when already on /wiki", async ({
   page,
   request,
 }) => {
   await seedVisualPosts(request);
 
-  await authenticateAdminSession(page, { nextPath: "/" });
+  await authenticateAdminSession(page, { nextPath: "/wiki" });
   await page.waitForLoadState("networkidle");
   await waitForDocumentTitle(page);
   await expect(
     page.getByRole("heading", { name: "위키", level: 1, exact: true }),
   ).toBeVisible();
 
-  const homeLinks = page.locator('header a[href="/"]');
-  await expect(homeLinks).toHaveCount(1);
-
-  const titleLink = homeLinks.first();
+  const titleLink = page.locator(
+    'header a[aria-label="홈 (honki12345 블로그)"]',
+  );
+  await expect(titleLink).toHaveCount(1);
   await expect(titleLink).toHaveAttribute(
     "aria-label",
     "홈 (honki12345 블로그)",

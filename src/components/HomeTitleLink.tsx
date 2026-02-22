@@ -49,11 +49,11 @@ export default function HomeTitleLink({
   children,
 }: HomeTitleLinkProps) {
   const pathname = usePathname();
-  const isHome = pathname === "/";
+  const isWikiIndex = pathname === "/wiki";
 
   const handleClick = useCallback(
     (event: React.MouseEvent<HTMLAnchorElement>) => {
-      if (!isHome) {
+      if (!isWikiIndex) {
         return;
       }
 
@@ -64,7 +64,7 @@ export default function HomeTitleLink({
       event.preventDefault();
       scrollToTop();
     },
-    [isHome],
+    [isWikiIndex],
   );
 
   const focusStyles =
@@ -75,10 +75,10 @@ export default function HomeTitleLink({
 
   return (
     <Link
-      href="/"
+      href="/wiki"
       className={mergedClassName}
       aria-label={ariaLabel ?? buildHomeAriaLabel(children)}
-      aria-current={isHome ? "page" : undefined}
+      aria-current={isWikiIndex ? "page" : undefined}
       onClick={handleClick}
     >
       {children}

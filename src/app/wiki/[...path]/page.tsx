@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { normalizeWikiPathFromSegments } from "@/lib/comment-tags";
 import WikiExplorerClient from "@/components/wiki/WikiExplorerClient";
+import { getAdminSessionFromServerCookies } from "@/lib/admin-auth";
 import { getWikiPathOverview, getWikiRootOverview } from "@/lib/wiki";
 
 const DEFAULT_COMMENT_LIMIT = 120;
@@ -63,6 +64,7 @@ export default async function WikiPathPage({ params }: PageProps) {
     notFound();
   }
 
+  const adminSession = await getAdminSessionFromServerCookies();
   const rootOverview = getWikiRootOverview();
   const overview = getWikiPathOverview(normalizedPath, DEFAULT_COMMENT_LIMIT);
   if (!overview) {
@@ -84,6 +86,7 @@ export default async function WikiPathPage({ params }: PageProps) {
         initialRootOverview={rootOverview}
         initialPath={normalizedPath}
         initialPathOverview={overview}
+        isAdmin={Boolean(adminSession)}
       />
     </main>
   );

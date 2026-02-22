@@ -27,6 +27,7 @@ type WikiExplorerClientProps = {
   initialPath: PathValue;
   initialPathOverview: WikiPathOverview | null;
   enableInPlaceNavigation?: boolean;
+  isAdmin?: boolean;
 };
 
 function isPlainLeftClick(event: React.MouseEvent<HTMLAnchorElement>): boolean {
@@ -132,6 +133,7 @@ export default function WikiExplorerClient({
   initialPath,
   initialPathOverview,
   enableInPlaceNavigation = true,
+  isAdmin = false,
 }: WikiExplorerClientProps) {
   const [selectedPath, setSelectedPath] = useState<PathValue>(initialPath);
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>(
@@ -421,11 +423,27 @@ export default function WikiExplorerClient({
     selectedPath && loadingPaths.has(selectedPath),
   );
 
+  const collapsePathBranch = useCallback((path: string) => {
+    setExpandedPaths((current) => {
+      const next = new Set<string>();
+      for (const item of current) {
+        if (item === path || item.startsWith(`${path}/`)) {
+          continue;
+        }
+        next.add(item);
+      }
+      return next;
+    });
+  }, []);
+
   const handlePathLinkClick = useCallback(
     (
       event: React.MouseEvent<HTMLAnchorElement>,
       path: PathValue,
-      options: { forceReplace?: boolean } = {},
+      options: {
+        forceReplace?: boolean;
+        collapseActiveBranchOnRepeat?: boolean;
+      } = {},
     ) => {
       if (!enableInPlaceNavigation) {
         return;
@@ -435,6 +453,15 @@ export default function WikiExplorerClient({
       }
 
       event.preventDefault();
+
+      if (
+        options.collapseActiveBranchOnRepeat &&
+        path &&
+        selectedPathRef.current === path
+      ) {
+        collapsePathBranch(path);
+        return;
+      }
 
       const currentPath =
         typeof window === "undefined"
@@ -451,7 +478,7 @@ export default function WikiExplorerClient({
         historyMode,
       });
     },
-    [activatePath, enableInPlaceNavigation],
+    [activatePath, collapsePathBranch, enableInPlaceNavigation],
   );
 
   const handlePathToggle = useCallback(
@@ -542,7 +569,11 @@ export default function WikiExplorerClient({
 
                 <Link
                   href={buildWikiHref(nodePath)}
-                  onClick={(event) => handlePathLinkClick(event, nodePath)}
+                  onClick={(event) =>
+                    handlePathLinkClick(event, nodePath, {
+                      collapseActiveBranchOnRepeat: true,
+                    })
+                  }
                   aria-current={isActive ? "page" : undefined}
                   className={[
                     "min-w-0 flex-1 truncate rounded-md px-1.5 py-1 text-sm font-medium",
@@ -658,16 +689,36 @@ export default function WikiExplorerClient({
               onClick={(event) => handlePathLinkClick(event, null)}
               aria-current={selectedPath === null ? "page" : undefined}
               data-wiki-active-path={selectedPath === null ? "root" : undefined}
+              data-wiki-root-card
               className={[
-                "flex items-center justify-between rounded-lg border px-3 py-2 text-sm font-medium",
+                "flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]",
                 "focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none",
                 selectedPath === null
-                  ? "border-slate-900 bg-slate-900 text-white"
-                  : "border-slate-200 text-slate-700 hover:bg-slate-50",
+                  ? "border-amber-700 bg-amber-900 text-amber-50"
+                  : "border-amber-200 bg-linear-to-r from-amber-50 to-white text-amber-900 hover:border-amber-300 hover:from-amber-100 hover:to-white",
               ].join(" ")}
             >
-              <span>위키 루트</span>
-              <span className="text-xs tabular-nums">
+              <span className="flex min-w-0 flex-col">
+                <span className="font-semibold">위키 루트</span>
+                <span
+                  className={[
+                    "text-[11px]",
+                    selectedPath === null
+                      ? "text-amber-100/90"
+                      : "text-amber-700",
+                  ].join(" ")}
+                >
+                  전체 경로 보기
+                </span>
+              </span>
+              <span
+                className={[
+                  "rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums",
+                  selectedPath === null
+                    ? "bg-amber-100/20 text-amber-50"
+                    : "bg-amber-100 text-amber-900",
+                ].join(" ")}
+              >
                 {initialRootOverview.totalPaths}
               </span>
             </Link>
@@ -873,12 +924,14 @@ export default function WikiExplorerClient({
                             </p>
 
                             <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-600">
-                              <Link
-                                href={`/posts/${comment.postSlug}`}
-                                className="font-medium text-slate-700 hover:underline"
-                              >
-                                블로그 글 보기
-                              </Link>
+                              {isAdmin ? (
+                                <Link
+                                  href={`/posts/${comment.postSlug}`}
+                                  className="font-medium text-slate-700 hover:underline"
+                                >
+                                  블로그 글 보기
+                                </Link>
+                              ) : null}
                               {comment.sourceUrl ? (
                                 <a
                                   href={comment.sourceUrl}

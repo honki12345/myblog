@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import WikiExplorerClient from "@/components/wiki/WikiExplorerClient";
+import { getAdminSessionFromServerCookies } from "@/lib/admin-auth";
 import { getWikiRootOverview } from "@/lib/wiki";
 
 export const metadata: Metadata = {
@@ -8,7 +9,8 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-export default function WikiIndexPage() {
+export default async function WikiIndexPage() {
+  const adminSession = await getAdminSessionFromServerCookies();
   const overview = getWikiRootOverview();
 
   return (
@@ -26,6 +28,7 @@ export default function WikiIndexPage() {
         initialRootOverview={overview}
         initialPath={null}
         initialPathOverview={null}
+        isAdmin={Boolean(adminSession)}
       />
     </main>
   );

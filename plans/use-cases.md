@@ -120,12 +120,12 @@
 - 수용기준: 실패 케이스는 파일 저장이 발생하지 않아야 함
 - 연결 테스트: `scripts/test-step-3.mjs`, `scripts/test-step-9.mjs`
 
-### UC-VISIBILITY-001 홈 공개 + 포스트 경로 관리자 전용 접근 정책
+### UC-VISIBILITY-001 홈 canonical redirect + 포스트 경로 관리자 전용 접근 정책
 
 - 사전조건: published/draft 글 데이터 존재
-- 기본흐름: 비관리자 `/` 접근은 공개 위키 홈(`200`)을 렌더링하고, `/posts`, `/posts/[slug]`, `/tags`, `/tags/[tag]`는 `/admin/login?next=...`로 이동한다. 관리자 세션에서는 `/`에서 위키 + 빠른 이동(글 목록/글 작성)을 확인하고 `/posts`, `/posts/[slug]` 접근이 허용된다.
+- 기본흐름: `/` 접근은 `308`으로 `/wiki`에 canonical 리다이렉트되고, `/posts`, `/posts/[slug]`, `/tags`, `/tags/[tag]`는 `/admin/login?next=...`로 이동한다. 관리자 세션에서는 `/wiki`에서 위키 탐색 접근이 가능하고 `/posts`, `/posts/[slug]` 접근이 허용된다.
 - 예외흐름: `/tags/[tag]`가 위키 경로 규칙으로 변환되지 않으면 `404`; 비관리자 `GET /api/posts`, `GET /api/posts/suggest`는 `401`
-- 수용기준: 비관리자 홈은 위키 탐색 진입점으로 유지되고 관리자 전용 빠른 이동은 숨김 처리된다. `/tags`는 관리자 시 `/wiki`로, `/tags/[tag]`는 관리자 시 `/wiki/[...path]`로 통합된다.
+- 수용기준: `/`는 항상 `/wiki`로 영구 리다이렉트되며, 헤더 타이틀 링크 목적지는 `/wiki`로 일관된다. `/tags`는 관리자 시 `/wiki`로, `/tags/[tag]`는 관리자 시 `/wiki/[...path]`로 통합된다.
 - 연결 테스트: `scripts/test-step-5.mjs`, `scripts/test-step-10.mjs`, `tests/ui/draft-visibility.spec.ts`, `tests/ui/home-empty-state.spec.ts`, `tests/ui/home-scroll-top.spec.ts`, `tests/ui/tags-index.spec.ts`, `tests/ui/write-link-auth.spec.ts`, `tests/ui/post-admin-actions.spec.ts`
 
 ### UC-WIKI-001 관리자 댓글 CRUD + 태그 경로 검증/CSRF
@@ -139,9 +139,9 @@
 ### UC-WIKI-002 공개 위키 트리/경로 조회 + 숨김/삭제 비노출
 
 - 사전조건: 댓글 + 태그 경로 데이터 존재
-- 기본흐름: `/api/wiki`, `/api/wiki/[...path]`, `/`, `/wiki`, `/wiki/[...path]`에서 카테고리 트리/브레드크럼/원문 링크를 조회하고, 위키 탐색 셸에서 경로 선택 시 URL을 `push/replace` 정책으로 동기화한다.
+- 기본흐름: `/api/wiki`, `/api/wiki/[...path]`, `/wiki`, `/wiki/[...path]`에서 카테고리 트리/브레드크럼/원문 링크를 조회하고, `/`는 `/wiki`로 리다이렉트된다. 위키 탐색 셸은 경로 선택 시 URL을 `push/replace` 정책으로 동기화하며, 활성(검은색) 경로 재클릭 시 선택 경로는 유지하고 하위 트리만 접는다.
 - 예외흐름: 잘못된 경로는 `400`, 존재하지 않는 경로는 `404`
-- 수용기준: 공개 조회에서 `is_hidden=0 AND deleted_at IS NULL`만 노출되고 하위 경로 집계가 일관된다. 위키 헤딩은 `위키`로 일관되며 인플레이스 탐색 이후 Back/Forward 및 새로고침 시 동일 경로 컨텍스트를 복원한다.
+- 수용기준: 공개 조회에서 `is_hidden=0 AND deleted_at IS NULL`만 노출되고 하위 경로 집계가 일관된다. 비관리자 세션에서는 댓글 영역의 `블로그 글 보기` 링크가 DOM에 노출되지 않는다. 위키 헤딩은 `위키`로 일관되며 인플레이스 탐색 이후 Back/Forward 및 새로고침 시 동일 경로 컨텍스트를 복원한다.
 - 연결 테스트: `scripts/test-step-11.mjs`, `tests/ui/accessibility.spec.ts`, `tests/ui/wiki-view.spec.ts`, `tests/ui/visual-regression.spec.ts`
 
 ## 5. Traceability Matrix
@@ -159,7 +159,7 @@
 | UC-ADMIN-001 | ADMIN | 관리자 2FA 로그인/세션 | `scripts/test-step-9.mjs`, `tests/ui/admin-2fa-setup-lock.spec.ts` | Active |
 | UC-ADMIN-002 | ADMIN | 워크스페이스 CRUD + CSRF | `scripts/test-step-9.mjs`, `tests/ui/admin-workspace.spec.ts` | Active |
 | UC-UPLOAD-001 | UPLOAD | 업로드 인증/유효성 검증 | `scripts/test-step-3.mjs`, `scripts/test-step-9.mjs` | Active |
-| UC-VISIBILITY-001 | VISIBILITY | 홈 공개 + 포스트 경로 관리자 전용 접근 정책 | `scripts/test-step-5.mjs`, `scripts/test-step-10.mjs`, `tests/ui/draft-visibility.spec.ts`, `tests/ui/home-empty-state.spec.ts`, `tests/ui/home-scroll-top.spec.ts`, `tests/ui/tags-index.spec.ts`, `tests/ui/write-link-auth.spec.ts`, `tests/ui/post-admin-actions.spec.ts` | Active |
+| UC-VISIBILITY-001 | VISIBILITY | 홈 canonical redirect + 포스트 경로 관리자 전용 접근 정책 | `scripts/test-step-5.mjs`, `scripts/test-step-10.mjs`, `tests/ui/draft-visibility.spec.ts`, `tests/ui/home-empty-state.spec.ts`, `tests/ui/home-scroll-top.spec.ts`, `tests/ui/tags-index.spec.ts`, `tests/ui/write-link-auth.spec.ts`, `tests/ui/post-admin-actions.spec.ts` | Active |
 | UC-WIKI-001 | WIKI | 관리자 댓글 CRUD + 태그 경로 검증 | `scripts/test-step-11.mjs`, `tests/ui/wiki-view.spec.ts` | Active |
 | UC-WIKI-002 | WIKI | 공개 위키 트리/경로 조회 + 숨김/삭제 비노출 | `scripts/test-step-11.mjs`, `tests/ui/accessibility.spec.ts`, `tests/ui/wiki-view.spec.ts`, `tests/ui/visual-regression.spec.ts` | Active |
 

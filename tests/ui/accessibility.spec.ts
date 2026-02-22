@@ -37,7 +37,7 @@ test("critical pages have no serious axe violations", async ({
     ).toEqual([]);
   }
 
-  await authenticateAdminSession(page, { nextPath: "/" });
+  await authenticateAdminSession(page, { nextPath: "/wiki" });
   await page.waitForLoadState("networkidle");
 
   const adminTargets = [

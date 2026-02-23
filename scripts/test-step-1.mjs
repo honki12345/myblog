@@ -123,6 +123,10 @@ async function findServerDirInWorktrees(rootDir, maxDepth = 4) {
     }
 
     for (const entry of entries) {
+      if (entry.isDirectory() && entry.name === "node_modules") {
+        continue;
+      }
+
       const candidatePath = path.join(current.dir, entry.name);
       if (entry.isFile() && entry.name === "server.js") {
         return path.dirname(candidatePath);
@@ -148,13 +152,9 @@ async function resolveStandaloneServerDir() {
   }
 
   const worktreesDir = path.join(".next", "standalone", ".worktrees");
-  try {
-    const nestedServerDir = await findServerDirInWorktrees(worktreesDir, 4);
-    if (nestedServerDir) {
-      return nestedServerDir;
-    }
-  } catch {
-    // fall through to final error
+  const nestedServerDir = await findServerDirInWorktrees(worktreesDir, 4);
+  if (nestedServerDir) {
+    return nestedServerDir;
   }
 
   throw new Error("Missing expected standalone server entry: server.js");

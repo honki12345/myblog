@@ -357,7 +357,13 @@ async function stopServer(child) {
 }
 
 async function requestText(pathname, options = {}) {
-  const { method = "GET", apiKey, body, headers = {} } = options;
+  const {
+    method = "GET",
+    apiKey,
+    body,
+    headers = {},
+    redirect = "follow",
+  } = options;
   const requestMethod = method.toUpperCase();
   const requestHeaders = { ...headers };
 
@@ -371,6 +377,7 @@ async function requestText(pathname, options = {}) {
       method: requestMethod,
       headers: requestHeaders,
       body,
+      redirect,
     },
     {
       retries: getRetryCountForMethod(requestMethod),
@@ -484,11 +491,20 @@ async function runChecks(apiKey) {
     sourceUrl: `https://step5.test/detail/${seed}`,
   });
 
-  const homeResponse = await requestText("/");
-  assert(homeResponse.status === 200, "home should return 200");
+  const homeRedirect = await requestText("/", { redirect: "manual" });
+  assert(homeRedirect.status === 308, "home should return 308 redirect");
+  const homeRedirectLocation = homeRedirect.headers.get("location");
+  assert(
+    typeof homeRedirectLocation === "string" &&
+      homeRedirectLocation.endsWith("/wiki"),
+    "home should redirect to /wiki",
+  );
+
+  const homeResponse = await requestText("/wiki");
+  assert(homeResponse.status === 200, "wiki home should return 200");
   assert(
     homeResponse.text.includes("data-wiki-explorer"),
-    "home should render public wiki explorer for non-admin users",
+    "wiki home should render public wiki explorer for non-admin users",
   );
 
   const postsResponse = await requestText("/posts");

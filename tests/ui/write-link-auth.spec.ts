@@ -69,7 +69,7 @@ test("logged out pages hide admin write entry links", async ({
 test("admin session shows write link in header navigation", async ({
   page,
 }, testInfo) => {
-  await authenticateAdminSession(page, { nextPath: "/" });
+  await authenticateAdminSession(page, { nextPath: "/wiki" });
 
   const nav = page.locator('nav[aria-label="주요 메뉴"]');
   const writeLink = nav.getByRole("link", { name: "글쓰기" });
@@ -79,7 +79,7 @@ test("admin session shows write link in header navigation", async ({
   await expect(page.locator("main").first()).toBeVisible();
   await assertNoHorizontalPageScroll(
     page,
-    `[${testInfo.project.name}] / has horizontal overflow (admin)`,
+    `[${testInfo.project.name}] /wiki has horizontal overflow (admin)`,
   );
 
   const maxDiffPixelRatio = getVisualDiffThreshold(testInfo.project.name);

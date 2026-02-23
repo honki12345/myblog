@@ -39,7 +39,7 @@ async function assertNoSeriousA11yViolations(page: Page) {
   expect(blockingViolations).toEqual([]);
 }
 
-test("home: 위키 루트 빈 상태 안내문이 노출된다", async ({
+test("home(/) redirects to /wiki and shows empty wiki state", async ({
   page,
 }, testInfo) => {
   runCleanupScript();
@@ -50,12 +50,19 @@ test("home: 위키 루트 빈 상태 안내문이 노출된다", async ({
   await page.waitForLoadState("networkidle");
   await page.addStyleTag({ content: DISABLE_ANIMATION_STYLE });
 
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/wiki$/);
   await expect(
     page.getByRole("heading", { name: "위키", level: 1, exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByText("아직 공개된 위키 데이터가 없습니다."),
+    page
+      .locator("[data-wiki-tree-panel]")
+      .getByText("아직 공개된 위키 데이터가 없습니다.", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page
+      .locator("[data-wiki-detail-panel]")
+      .getByRole("heading", { name: "빈 위키", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "관리자 빠른 이동" }),

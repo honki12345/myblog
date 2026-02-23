@@ -208,23 +208,21 @@ for (const route of routes) {
     }
 
     if (route.name === "home") {
+      await expect(page).toHaveURL(/\/wiki$/);
       await expect(
         page.getByRole("heading", { name: "위키", level: 1, exact: true }),
-      ).toBeVisible();
-      await expect(
-        page.getByRole("heading", { name: "관리자 빠른 이동" }),
       ).toBeVisible();
       await expect(
         page.locator("[data-wiki-explorer] [data-wiki-tree-panel]"),
       ).toBeVisible();
       await expect(
-        page.locator("main").getByRole("link", { name: "글 목록" }),
+        page.locator("main").locator("[data-wiki-root-card]"),
       ).toBeVisible();
+      await expect(
+        page.locator("main").locator("[data-wiki-root-card]"),
+      ).toContainText("전체 경로 보기");
       await expect(
         page.locator("main").getByRole("link", { name: "위키 루트" }),
-      ).toBeVisible();
-      await expect(
-        page.locator("main").getByRole("link", { name: "글 작성" }),
       ).toBeVisible();
     }
 

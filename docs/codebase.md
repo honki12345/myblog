@@ -15,14 +15,14 @@
 
 ### Purpose
 
-- 개인 블로그 서비스로, 공개 영역은 홈(`/`)과 댓글 태그 기반 위키 조회(`/wiki`, `/wiki/[...path]`)를 중심으로 제공한다.
+- 개인 블로그 서비스로, 공개 영역은 `/`(canonical `/wiki` 리다이렉트)와 댓글 태그 기반 위키 조회(`/wiki`, `/wiki/[...path]`)를 중심으로 제공한다.
 - 포스트 관련 레거시 웹 경로(`/posts`, `/posts/[slug]`, `/tags`, `/tags/[tag]`)는 관리자 세션 전용으로 운영한다.
 - 운영자 전용 워크스페이스(2FA 세션 기반)에서 글/메모/할일/일정을 관리한다.
 - 프라이빗 방명록(게스트별 스레드/세션)과 AI 수집 인입 큐를 함께 운영한다.
 
 ### Core capabilities
 
-- 공개 웹: `/`, `/wiki`, `/wiki/[...path]`
+- 공개 웹: `/`(`308` -> `/wiki`), `/wiki`, `/wiki/[...path]`
 - 관리자 전용 웹(로그인 필요): `/posts`, `/posts/[slug]`, `/tags`, `/tags/[tag]`, `/admin/write`, `/admin/notes`, `/admin/todos`, `/admin/schedules`, `/admin/guestbook`, `/admin/guestbook/[id]`
 - 인증 웹: `/admin/login`
 - 호환 라우트: `/write`는 `/admin/write`로 리다이렉트(쿼리 유지)
@@ -50,7 +50,7 @@ Sources: `AGENTS.md`, `src/app/layout.tsx`, `src/app/page.tsx`, `src/app/posts/p
 
 | Layer                    | Responsibility                                                                       | Key files                                                                                                                            |
 | ------------------------ | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
-| Home page (RSC)          | 공개 위키 진입점 렌더링 + 관리자 세션일 때 빠른 이동 링크 노출                       | `src/app/page.tsx`, `src/components/wiki/WikiExplorerClient.tsx`                                                                     |
+| Home route (RSC)         | canonical 진입점(`/` -> `/wiki`) 리다이렉트                                          | `src/app/page.tsx`                                                                                                                   |
 | Post surface pages (RSC) | 목록/상세/태그 레거시 경로 접근 제어(비관리자 로그인 리다이렉트)                     | `src/app/posts/page.tsx`, `src/app/tags/page.tsx`, `src/app/tags/[tag]/page.tsx`, `src/app/posts/[slug]/page.tsx`                    |
 | Wiki pages               | 댓글 태그 경로 기반 카테고리/브레드크럼/원문 링크 조회 + 인플레이스 탐색 상태 동기화 | `src/app/wiki/page.tsx`, `src/app/wiki/[...path]/page.tsx`, `src/components/wiki/WikiExplorerClient.tsx`                             |
 | Admin pages              | 로그인/글쓰기/메모/할일/일정/방명록 인박스 UI                                        | `src/app/admin/**`                                                                                                                   |
@@ -65,15 +65,15 @@ Sources: `AGENTS.md`, `src/app/layout.tsx`, `src/app/page.tsx`, `src/app/posts/p
 
 ### Data/control flow
 
-- 홈 진입 흐름: `/`는 공개 위키 탐색 셸을 렌더링하고, 관리자 세션일 때만 빠른 이동(글 목록/글 작성) 링크를 추가 노출한다.
+- 홈 진입 흐름: `/` 요청은 `308 Permanent Redirect`로 `/wiki`로 이동한다.
 - 포스트 경로 접근 흐름: `/posts`, `/posts/[slug]`, `/tags*` 진입 시 서버에서 admin 세션을 확인하고, 미인증이면 `/admin/login?next=...`로 리다이렉트한다.
 - 태그 호환 흐름: `/tags`는 admin 세션에서 `/wiki`로 즉시 이동하고, `/tags/[tag]`는 태그 문자열을 위키 경로 규칙으로 정규화해 `/wiki/[...path]`로 연결(변환 실패 시 404)한다.
-- 관리자 포스트 조회 흐름: 관리자 세션에서는 포스트 목록/자동완성에서 draft+published를 함께 조회하고, `/posts` 기본 정렬은 `미읽음 우선(is_read ASC) -> 최신순`으로 동작한다.
-- 관리자 읽음 메타데이터 흐름: `/posts/[slug]` 상세의 관리자 액션에서 `읽음/읽지 않음`을 토글하면 `/api/admin/posts/[id]` PATCH(`isRead`)로 `posts.is_read`를 갱신하고 목록/상세 경로를 재검증한다.
-- 관리자 인증 흐름: `/api/admin/auth/login`(1차) -> `admin_login_challenge` 쿠키 -> `/api/admin/auth/verify`(2차) -> `admin_session` + `admin_csrf` 쿠키 발급.
-- 관리자 콘텐츠 흐름: `/api/admin/posts*`와 `/api/admin/{notes,todos,schedules}*`가 세션+CSRF를 검증하고 DB를 갱신하며 관련 경로를 `revalidatePath` 한다.
-- 댓글/위키 흐름: 관리자가 `/api/admin/posts/[id]/comments*`로 댓글+태그경로를 관리하고, 공개 `/api/wiki*`/`/wiki*`/`/`는 `is_hidden=0 AND deleted_at IS NULL`만 트리/경로로 노출한다.
-- 위키 탐색 상태 동기화 흐름: 위키 탐색 셸은 클릭 탐색 시 `history.pushState`, 초기 동기화/동일 경로 재선택 시 `history.replaceState`를 사용해 URL(`/wiki/[...path]`)과 선택 경로를 동기화하며, `popstate`에서 경로/스크롤 컨텍스트를 복원한다.
+- 포스트 조회(관리자): 관리자 세션에서는 포스트 목록/자동완성에서 draft+published를 함께 조회하고, `/posts` 기본 정렬은 `미읽음 우선(is_read ASC) -> 최신순`으로 동작한다.
+- 읽음 메타데이터(관리자): `/posts/[slug]` 상세의 관리자 액션에서 `읽음/읽지 않음`을 토글하면 `/api/admin/posts/[id]` PATCH(`isRead`)로 `posts.is_read`를 갱신하고 목록/상세 경로를 재검증한다.
+- 인증 및 관리 API: `/api/admin/auth/login`(1차) -> `admin_login_challenge` 쿠키 -> `/api/admin/auth/verify`(2차) -> `admin_session` + `admin_csrf` 쿠키 발급 후, `/api/admin/posts*`와 `/api/admin/{notes,todos,schedules}*`는 세션+CSRF를 검증하고 DB를 갱신하며 관련 경로를 `revalidatePath` 한다.
+- 댓글/위키 흐름: 관리자가 `/api/admin/posts/[id]/comments*`로 댓글+태그경로를 관리하고, 공개 `/api/wiki*`/`/wiki*`는 `is_hidden=0 AND deleted_at IS NULL`만 트리/경로로 노출한다.
+- 위키 탐색 상태 동기화 흐름: 위키 탐색 셸은 클릭 탐색 시 `history.pushState`, 초기 동기화/동일 경로 재선택 시 `history.replaceState`를 사용해 URL(`/wiki/[...path]`)과 선택 경로를 동기화하며, `popstate`에서 경로/스크롤 컨텍스트를 복원한다. 트리에서 활성 경로 재클릭 시 선택 경로를 유지한 채 하위 트리만 접는다.
+- 헤더 타이틀 흐름: 타이틀 링크 목적지는 `/wiki`이며, 이미 `/wiki`에 있을 때 재클릭하면 스크롤을 최상단으로 복원한다.
 - 방명록 흐름: 게스트가 스레드 생성/로그인 시 `guestbook_session` 쿠키 발급 -> 스레드 단위 메시지 작성 -> 관리자가 `/api/admin/guestbook/*`에서 조회/답장.
 - Inbox 흐름: `/api/inbox` POST가 URL host 기반으로 `x`/`doc` source를 자동 판별하고 정규화 후 큐 적재(중복은 duplicate 응답).
 - 관측 흐름: `POST /api/posts`, `POST /api/posts/bulk`는 요청 요약 구조화 로그를 출력한다.
@@ -183,13 +183,14 @@ Sources: `src/app/api/admin/auth/login/route.ts`, `src/app/api/admin/auth/verify
 
 ### Auth / permissions and cache behavior
 
-- 홈(`/`)은 공개 위키 진입점이며 비관리자도 `200`으로 접근 가능하다. 관리자 세션에서는 홈에 빠른 이동 링크가 추가 표시된다.
+- 홈(`/`)은 콘텐츠 렌더링 대신 `/wiki`로 `308` 리다이렉트한다.
 - 포스트 관련 웹 경로(`/posts`, `/posts/[slug]`, `/tags`, `/tags/[tag]`)는 admin 세션 필수이며, 비관리자는 `/admin/login?next=...`로 리다이렉트된다.
 - `/tags`는 관리자 접근 시 `/wiki`로 리다이렉트되고, `/tags/[tag]`는 위키 경로로 정규화된 뒤 `/wiki/[...path]`로 연결된다(변환 실패 시 404).
 - 포스트 상세(`/posts/[slug]`)는 관리자에게만 렌더링되며 수정/읽음 토글/삭제/댓글 관리 액션이 항상 노출된다.
 - `/posts`는 `read=all|unread` 필터를 지원하고, 기본 정렬은 `is_read ASC -> datetime(COALESCE(published_at, created_at)) DESC -> id DESC`를 따른다.
 - `/write`는 항상 `/admin/write`로 리다이렉트하며 쿼리스트링을 유지한다.
 - 헤더 내비게이션에서 `글 목록`은 관리자 세션일 때만 표시되고 `위키`는 항상 노출된다.
+- 헤더 타이틀 링크는 `/wiki`를 가리키며 `/wiki`에서 `aria-current="page"`를 가진다.
 - `GET /api/posts`, `GET /api/posts/suggest`는 admin 세션 필수이며 미인증 요청은 `401`을 반환한다.
 - 관리자 페이지(`/admin/*`)는 서버에서 세션 확인 후 미인증이면 `/admin/login?next=...`로 리다이렉트한다.
 - 관리자 상태 변경 API는 signed double-submit CSRF(`x-csrf-token` + `admin_csrf`)를 요구한다.
@@ -197,6 +198,7 @@ Sources: `src/app/api/admin/auth/login/route.ts`, `src/app/api/admin/auth/verify
 - 포스트 생성/수정/삭제 시 홈/목록/상세/위키 루트와 태그 기반 위키 경로를 `revalidatePath` 한다.
 - 댓글 생성/수정/삭제 시 `/posts/[slug]`, `/wiki`, `/wiki/[...path]`를 `revalidatePath` 한다.
 - 공개 위키/댓글 조회는 `post_comments.is_hidden=0 AND post_comments.deleted_at IS NULL`만 노출한다.
+- 위키 댓글 카드의 `블로그 글 보기` 링크는 관리자 세션일 때만 렌더링된다.
 - 위키 탐색 UI는 모바일(360)에서 `트리`/`상세` 탭 전환 패턴을 사용한다.
 - `posts.origin`은 immutable 트리거로 보호된다(`ai`/`original`).
 - 레이트리밋 기본값:
@@ -349,9 +351,12 @@ Sources: `package.json`, `scripts/test-step-1.mjs`, `scripts/test-step-2.mjs`, `
 - `DELETE /api/admin/posts/[id]` 시 `sources.post_id`를 NULL 처리해 출처 URL 유니크 이력을 보존한다.
 - `/posts` 기본 정렬은 `미읽음 우선 -> 최신순`이며 `read=unread` 필터는 `is_read=0`만 노출해야 한다.
 - 댓글 태그 경로는 `^[a-z0-9-]+(?:/[a-z0-9-]+)*$` + depth 4/segment 32/total 120 제한을 유지해야 한다.
-- `/`는 공개 위키 진입점이다(비관리자 로그인 리다이렉트로 회귀하면 안 된다).
+- `/`는 항상 `/wiki`로 `308 Permanent Redirect`를 반환해야 한다.
+- 헤더 타이틀 링크(`/wiki`) 재클릭은 `/wiki`에서만 스크롤 최상단 복원을 수행해야 한다.
+- 위키 트리에서 활성 경로 재클릭은 선택 경로를 유지하고 하위 트리만 접어야 한다.
 - `/tags`는 레거시 호환 진입점이며 admin이면 `/wiki`로, 비관리자면 로그인으로 연결된다.
 - 공개 위키는 `hidden/deleted` 댓글을 절대 노출하지 않는다.
+- 비관리자 세션에서는 위키 댓글의 `블로그 글 보기` 링크를 DOM에 포함하면 안 된다.
 - `/write`는 호환용 리다이렉트 라우트이며 실 편집 경로는 `/admin/write`다.
 - guestbook 관련 경로는 색인 차단(noindex/robots disallow)이 기본이다.
 - 레이트리밋은 메모리 기반이므로 수평 확장 시 외부 저장소가 필요하다.

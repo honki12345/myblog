@@ -71,7 +71,7 @@ test("non-admin wiki home is public and protected routes redirect to login", asy
   await triggerRevalidation(request, { ...draftPost, ...draft });
 
   await page.goto("/", { waitUntil: "networkidle" });
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/wiki$/);
   await expect(
     page.getByRole("heading", { name: "위키", level: 1, exact: true }),
   ).toBeVisible();
@@ -147,12 +147,13 @@ test("admin can access protected pages and draft data", async ({
   ).toBeVisible();
 
   await page.goto("/", { waitUntil: "networkidle" });
+  await expect(page).toHaveURL(/\/wiki$/);
   await expect(
     page.getByRole("heading", { name: "위키", level: 1, exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "관리자 빠른 이동" }),
-  ).toBeVisible();
+  ).toHaveCount(0);
 
   await page.goto("/tags", { waitUntil: "networkidle" });
   await expect(page).toHaveURL(/\/wiki$/);

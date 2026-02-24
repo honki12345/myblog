@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
 import {
   assertNoHorizontalPageScroll,
   authenticateAdminSession,
@@ -24,6 +24,17 @@ function getVisualDiffThreshold(projectName: string): number {
   return 0.01;
 }
 
+async function expectHeaderNavItemOrder(
+  nav: Locator,
+  expectedLabels: string[],
+): Promise<void> {
+  const interactiveItems = nav.locator(
+    "a.header-nav-item, button.header-nav-item",
+  );
+  await expect(interactiveItems).toHaveCount(expectedLabels.length);
+  await expect(interactiveItems).toHaveText(expectedLabels);
+}
+
 test.beforeEach(() => {
   runCleanupScript();
 });
@@ -38,7 +49,11 @@ test("logged out pages hide admin write entry links", async ({
 
   await expect(page.locator('a[href^="/admin/write"]')).toHaveCount(0);
   await expect(nav.getByRole("link", { name: "글 목록" })).toHaveCount(0);
+  await expect(
+    nav.getByRole("button", { name: "관리자 로그아웃" }),
+  ).toHaveCount(0);
   await expect(nav).toBeVisible();
+  await expectHeaderNavItemOrder(nav, ["위키", "로그인"]);
   await expect(loginLink).toHaveAttribute("href", "/admin/login?next=%2Fwiki");
   await expect(page.locator("main").first()).toBeVisible();
   await assertNoHorizontalPageScroll(
@@ -73,8 +88,16 @@ test("admin session shows write link in header navigation", async ({
 
   const nav = page.locator('nav[aria-label="주요 메뉴"]');
   const writeLink = nav.getByRole("link", { name: "글쓰기" });
+  const logoutButton = nav.getByRole("button", { name: "관리자 로그아웃" });
 
   await expect(writeLink).toBeVisible({ timeout: 10_000 });
+  await expect(logoutButton).toBeVisible();
+  await expectHeaderNavItemOrder(nav, [
+    "위키",
+    "글 목록",
+    "글쓰기",
+    "로그아웃",
+  ]);
   await expect(writeLink).toHaveAttribute("href", "/admin/write");
   await expect(page.locator("main").first()).toBeVisible();
   await assertNoHorizontalPageScroll(

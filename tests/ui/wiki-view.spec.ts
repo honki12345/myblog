@@ -166,7 +166,7 @@ test("wiki explorer keeps context with in-place navigation, history, and refresh
   page,
   request,
 }, testInfo) => {
-  const seed = Date.now();
+  const seed = 20260224;
   const post = await insertPostDirect(request, {
     title: `PW-WIKI-INPLACE-${seed}`,
     content: "위키 탐색 인플레이스 시나리오",
@@ -192,8 +192,10 @@ test("wiki explorer keeps context with in-place navigation, history, and refresh
     tagPath: "ai/platform/nextjs",
   });
 
+  await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
   await page.goto("/wiki", { waitUntil: "networkidle" });
   await waitForDocumentTitle(page);
+  await page.addStyleTag({ content: DISABLE_ANIMATION_STYLE });
   await expect(page).toHaveURL(/\/wiki$/);
 
   const isMobile = testInfo.project.name === "mobile-360";
@@ -288,6 +290,17 @@ test("wiki explorer keeps context with in-place navigation, history, and refresh
     exact: true,
   });
   await expect(nextjsTreeLink).toBeVisible();
+  await assertNoHorizontalPageScroll(
+    page,
+    `[${testInfo.project.name}] /wiki/ai/platform retoggle has horizontal overflow`,
+  );
+  await expectNoSeriousA11y(page);
+  await expect(page.locator("main")).toHaveScreenshot(
+    "wiki-inplace-retoggle-platform.png",
+    {
+      maxDiffPixelRatio: getWikiDiffThreshold(testInfo.project.name),
+    },
+  );
 
   await page.evaluate(() => {
     document.body.style.minHeight = "5000px";

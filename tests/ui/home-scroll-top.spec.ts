@@ -1,26 +1,79 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import {
   authenticateAdminSession,
-  seedVisualPosts,
+  insertCommentDirect,
+  insertPostDirect,
   waitForDocumentTitle,
 } from "./helpers";
 
+const HOME_TITLE_LINK_SELECTOR =
+  'header a[aria-label="홈 (honki12345 블로그)"]';
+
+type ClickProbeResult = {
+  defaultPrevented: boolean;
+  dispatchResult: boolean;
+};
+
+type HomeTitleClickProbe = {
+  plain: ClickProbeResult;
+  meta: ClickProbeResult;
+  ctrl: ClickProbeResult;
+  shift: ClickProbeResult;
+  alt: ClickProbeResult;
+  middle: ClickProbeResult;
+};
+
+function getHomeTitleLink(page: Page) {
+  return page.locator(HOME_TITLE_LINK_SELECTOR);
+}
+
+async function probeHomeTitleClickBehavior(
+  page: Page,
+): Promise<HomeTitleClickProbe> {
+  return page.evaluate((selector) => {
+    const homeTitleLink = document.querySelector(selector);
+    if (!(homeTitleLink instanceof HTMLAnchorElement)) {
+      throw new Error("home title link not found");
+    }
+
+    const probe = (init: MouseEventInit) => {
+      const event = new MouseEvent("click", {
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+        ...init,
+      });
+
+      const dispatchResult = homeTitleLink.dispatchEvent(event);
+      return {
+        defaultPrevented: event.defaultPrevented,
+        dispatchResult,
+      };
+    };
+
+    return {
+      plain: probe({ button: 0 }),
+      meta: probe({ button: 0, metaKey: true }),
+      ctrl: probe({ button: 0, ctrlKey: true }),
+      shift: probe({ button: 0, shiftKey: true }),
+      alt: probe({ button: 0, altKey: true }),
+      middle: probe({ button: 1 }),
+    };
+  }, HOME_TITLE_LINK_SELECTOR);
+}
+
 test("home title link scrolls to top when already on /wiki", async ({
   page,
-  request,
 }) => {
-  await seedVisualPosts(request);
-
   await authenticateAdminSession(page, { nextPath: "/wiki" });
   await page.waitForLoadState("networkidle");
   await waitForDocumentTitle(page);
   await expect(
     page.getByRole("heading", { name: "위키", level: 1, exact: true }),
   ).toBeVisible();
+  await expect(page).toHaveURL(/\/wiki$/);
 
-  const titleLink = page.locator(
-    'header a[aria-label="홈 (honki12345 블로그)"]',
-  );
+  const titleLink = getHomeTitleLink(page);
   await expect(titleLink).toHaveCount(1);
   await expect(titleLink).toHaveAttribute(
     "aria-label",
@@ -58,4 +111,52 @@ test("home title link scrolls to top when already on /wiki", async ({
       return await page.evaluate(() => window.scrollY);
     })
     .toBe(0);
+  await expect(page).toHaveURL(/\/wiki$/);
+});
+
+test("home title link keeps navigation policy across wiki paths and modifier keys", async ({
+  page,
+  request,
+}) => {
+  const seed = Date.now();
+  const wikiPath = `home-scroll-top/${seed}`;
+  const escapedWikiPath = wikiPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const seededPost = await insertPostDirect(request, {
+    title: `PW-SEED-HOME-TITLE-LINK-${seed}`,
+    content: "홈 타이틀 링크 경로 시드",
+    tags: ["home-scroll-top"],
+    status: "published",
+    sourceUrl: `https://playwright.seed/home-scroll-top/${seed}`,
+    origin: "original",
+  });
+  await insertCommentDirect(request, {
+    postId: seededPost.id,
+    content: "홈 타이틀 링크 위키 경로 시드",
+    tagPath: wikiPath,
+    isHidden: false,
+  });
+
+  await authenticateAdminSession(page, { nextPath: `/wiki/${wikiPath}` });
+  await page.waitForLoadState("networkidle");
+  await waitForDocumentTitle(page);
+
+  await expect(page).toHaveURL(new RegExp(`/wiki/${escapedWikiPath}$`));
+
+  const titleLink = getHomeTitleLink(page);
+  await expect(titleLink).toHaveCount(1);
+  await expect(titleLink).toHaveAttribute("href", "/wiki");
+  await expect(titleLink).not.toHaveAttribute("aria-current", "page");
+
+  await titleLink.click();
+  await expect(page).toHaveURL(/\/wiki$/);
+  await expect(titleLink).toHaveAttribute("aria-current", "page");
+
+  const wikiIndexProbe = await probeHomeTitleClickBehavior(page);
+  expect(wikiIndexProbe.plain.defaultPrevented).toBe(true);
+  expect(wikiIndexProbe.plain.dispatchResult).toBe(false);
+
+  for (const key of ["meta", "ctrl", "shift", "alt", "middle"] as const) {
+    expect(wikiIndexProbe[key].defaultPrevented).toBe(false);
+    expect(wikiIndexProbe[key].dispatchResult).toBe(true);
+  }
 });

@@ -307,6 +307,11 @@ test("admin manages post comments and wiki pages expose only visible comments", 
     "href",
     seed.sourceUrl ?? "",
   );
+  const parentToAiLink = page.getByRole("link", {
+    name: /상위 경로\s*\(\/wiki\/ai\)/,
+  });
+  await expect(parentToAiLink).toBeVisible();
+  await expect(parentToAiLink).toHaveAttribute("href", "/wiki/ai");
   const breadcrumb = page.getByRole("navigation", { name: "브레드크럼" });
   await expect(breadcrumb.getByRole("link", { name: "위키" })).toHaveAttribute(
     "href",
@@ -411,9 +416,15 @@ test("wiki explorer keeps context with in-place navigation, history, and refresh
     })
     .toBe(historyAfterPlatform);
   await expect(page).toHaveURL(/\/wiki\/ai\/platform$/);
-  await expect(
-    page.getByRole("heading", { name: "위키 경로: /ai/platform", exact: true }),
-  ).toBeVisible();
+  const platformHeading = page.getByRole("heading", {
+    name: "위키 경로: /ai/platform",
+    exact: true,
+  });
+  if (isMobile) {
+    await expect(platformHeading).toHaveCount(0);
+  } else {
+    await expect(platformHeading).toBeVisible();
+  }
   await expect(
     treePanel.getByRole("link", { name: "nextjs", exact: true }),
   ).toHaveCount(0);
@@ -495,5 +506,25 @@ test("wiki explorer keeps context with in-place navigation, history, and refresh
   await expect(breadcrumb.getByRole("link", { name: "위키" })).toBeVisible();
   await expect(
     breadcrumb.getByRole("link", { name: "ai", exact: true }),
+  ).toBeVisible();
+
+  const parentToAiLink = page.getByRole("link", {
+    name: /상위 경로\s*\(\/wiki\/ai\)/,
+  });
+  await expect(parentToAiLink).toHaveAttribute("href", "/wiki/ai");
+  await parentToAiLink.click();
+  await expect(page).toHaveURL(/\/wiki\/ai$/);
+  await expect(
+    page.getByRole("heading", { name: "위키 경로: /ai", exact: true }),
+  ).toBeVisible();
+
+  const parentToRootLink = page.getByRole("link", {
+    name: /상위 경로\s*\(\/wiki\)/,
+  });
+  await expect(parentToRootLink).toHaveAttribute("href", "/wiki");
+  await parentToRootLink.click();
+  await expect(page).toHaveURL(/\/wiki$/);
+  await expect(
+    page.getByRole("heading", { name: "위키", level: 1, exact: true }),
   ).toBeVisible();
 });

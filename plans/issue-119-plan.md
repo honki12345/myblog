@@ -5,7 +5,7 @@
 - Issue 번호: 119
 - 기준 브랜치: main
 - 작업 브랜치: feat/issue-119-wiki-home-navigation
-- Worktree 경로: /home/fpg123/Workspace/honki12345/.worktrees/feat/issue-119-wiki-home-navigation
+- Worktree 경로: .../.worktrees/feat/issue-119-wiki-home-navigation
 - 작성일: 2026-02-24
 
 ## 배경/문제
@@ -61,3 +61,20 @@
   - 헤더(브랜드 링크 포함) 영역이 노출된 상태로 캡처하여 스타일/상태 회귀를 탐지
 - [ ] 접근성 검사(`@axe-core/playwright`) 점검
 - [ ] 회귀 규칙에 따라 `npm run test:all` 실행
+
+## PR 리뷰 반영 내역 (2026-02-24)
+- 코멘트 ID: 2844041540 (Copilot)
+  - 요약: `/wiki/sample` 경로 테스트가 데이터 시드 없이 실행되어 테스트 간 의존 가능성 존재
+  - 실제 변경: `tests/ui/home-scroll-top.spec.ts`에서 테스트 내부 시드(`insertPostDirect`, `insertCommentDirect`)로 전환하고 고정 경로 대신 동적 위키 경로를 사용
+  - 검증: `npx playwright test tests/ui/home-scroll-top.spec.ts --project=desktop-1440` 통과
+  - 후속 작업: 없음
+- 코멘트: `triggerRevalidationForSeededPost`의 중복 `if (!response.ok())` 가드 제거 제안 (CodeRabbit/Copilot 리뷰 공통)
+  - 요약: 도달 시점에 항상 참인 조건문으로 가독성 저하
+  - 실제 변경: `tests/ui/helpers.ts`에서 중복 가드를 제거하고 에러 throw를 직접 실행하도록 단순화
+  - 검증: `npx playwright test tests/ui/home-scroll-top.spec.ts --project=desktop-1440` 통과
+  - 후속 작업: 없음
+- 코멘트 ID: 2844045525 (CodeRabbit)
+  - 요약: 계획 문서에 로컬 절대 경로/사용자명 노출
+  - 실제 변경: `plans/issue-119-plan.md`의 Worktree 경로를 `.../.worktrees/...` 형태로 일반화
+  - 검증: 문서 diff 확인
+  - 후속 작업: 없음

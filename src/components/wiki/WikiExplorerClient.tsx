@@ -803,7 +803,7 @@ export default function WikiExplorerClient({
                     className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1.5 text-left text-xs font-medium text-slate-700 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none"
                   >
                     <span className="shrink-0">상위 경로</span>
-                    <span className="min-w-0 break-all whitespace-normal text-[11px] text-slate-500 sm:max-w-52 sm:truncate sm:whitespace-nowrap sm:break-normal">
+                    <span className="min-w-0 text-[11px] break-all whitespace-normal text-slate-500 sm:max-w-52 sm:truncate sm:break-normal sm:whitespace-nowrap">
                       ({parentPathLabel})
                     </span>
                   </Link>

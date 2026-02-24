@@ -110,10 +110,11 @@ function parseSearchParams(requestUrl: URL): ParsedSearchParams {
 
   const q = parseSearchQuery(rawQ);
   const tagPath = parseSearchTagPath(rawTagPath);
-  const limit = parseSearchLimit(rawLimit);
+  const hasSearchParams = q !== null || tagPath !== null || rawSort !== null;
+  const limit = hasSearchParams
+    ? parseSearchLimit(rawLimit)
+    : WIKI_SEARCH_LIMIT_DEFAULT;
   const sort = parseSearchSort(rawSort, Boolean(q));
-  const hasSearchParams =
-    q !== null || tagPath !== null || rawSort !== null || rawLimit !== null;
 
   return {
     hasSearchParams,
@@ -163,10 +164,9 @@ export async function GET(request: Request) {
       categories: overview.categories,
     });
   } catch {
-    return errorResponse(
-      500,
-      "INTERNAL_ERROR",
-      "Failed to load wiki root overview.",
-    );
+    const message = parsedSearchParams.hasSearchParams
+      ? "Failed to perform wiki search."
+      : "Failed to load wiki root overview.";
+    return errorResponse(500, "INTERNAL_ERROR", message);
   }
 }

@@ -155,9 +155,9 @@
 ### UC-WIKI-002 공개 위키 트리/경로 조회 + 내용/태그 검색 + 숨김/삭제 비노출
 
 - 사전조건: 댓글 + 태그 경로 데이터 존재
-- 기본흐름: `/api/wiki`, `/api/wiki/[...path]`, `/wiki`, `/wiki/[...path]`에서 카테고리 트리/브레드크럼/원문 링크를 조회하고, 검색 파라미터(`q`, `tagPath`, `sort`, `limit`)로 내용/태그 필터를 단독 또는 조합으로 적용한다. `/`는 `/wiki`로 리다이렉트된다. 위키 탐색 셸은 경로 선택 시 URL을 `push/replace` 정책으로 동기화하며, 활성(검은색) 경로 재클릭 시 선택 경로는 유지하고 하위 트리만 접는다.
+- 기본흐름: `/api/wiki`, `/api/wiki/[...path]`, `/wiki`, `/wiki/[...path]`에서 카테고리 트리/브레드크럼/원문 링크를 조회하고, 검색 파라미터(`q`, `tagPath`, `sort`, `limit`)로 내용/태그 필터를 단독 또는 조합으로 적용한다. `/`는 `/wiki`로 리다이렉트된다. 위키 탐색 셸은 경로 선택 시 URL을 `push/replace` 정책으로 동기화하며, 활성(검은색) 경로 재클릭 시 선택 경로는 유지하고 하위 트리만 접는다. `/api/wiki?limit=...`처럼 `q/tagPath/sort` 없이 `limit`만 전달된 요청은 검색 모드로 전환하지 않고 루트 overview 응답 형태를 유지한다.
 - 예외흐름: 잘못된 경로/검색 파라미터는 `400`, 존재하지 않는 경로는 `404`, `/api/wiki/[...path]`에 `tagPath`를 함께 전달하면 `400 INVALID_INPUT`
-- 수용기준: 공개 조회/검색에서 `is_hidden=0 AND deleted_at IS NULL`만 노출되고, 키워드+태그 조합 기본 정렬은 `관련도 -> updated_at DESC -> id DESC`를 따른다. 비관리자 세션에서는 댓글 영역의 `블로그 글 보기` 링크가 DOM에 노출되지 않는다. 위키 헤딩은 `위키`로 일관되며 인플레이스 탐색 이후 Back/Forward 및 새로고침 시 동일 경로 컨텍스트를 복원한다. 검색 상태 UX(로딩/빈 결과/에러/재시도)가 일관되게 동작한다.
+- 수용기준: 공개 조회/검색에서 `is_hidden=0 AND deleted_at IS NULL`만 노출되고, 키워드+태그 조합 기본 정렬은 `관련도 -> updated_at DESC -> id DESC`를 따른다. 비관리자 세션에서는 댓글 영역의 `블로그 글 보기` 링크가 DOM에 노출되지 않는다. 위키 헤딩은 `위키`로 일관되며 인플레이스 탐색 이후 Back/Forward 및 새로고침 시 동일 경로 컨텍스트를 복원한다. 검색 상태 UX(로딩/빈 결과/에러/재시도)가 일관되게 동작하며, 동시 검색 요청 시 최신 요청 결과가 최종 상태를 덮어써야 한다. 검색 입력 미충족 오류(`검색어 또는 태그 경로를 입력해 주세요.`)에서는 재시도 버튼이 노출되지 않는다.
 - 연결 테스트: `scripts/test-step-11.mjs`, `tests/ui/accessibility.spec.ts`, `tests/ui/wiki-view.spec.ts`, `tests/ui/visual-regression.spec.ts`
 
 ## 5. Traceability Matrix
@@ -179,7 +179,7 @@
 | UC-UPLOAD-001 | UPLOAD | 업로드 인증/유효성 검증 | `scripts/test-step-3.mjs`, `scripts/test-step-9.mjs` | Active |
 | UC-VISIBILITY-001 | VISIBILITY | 홈 canonical redirect + 포스트 경로 관리자 전용 접근 정책 | `scripts/test-step-5.mjs`, `scripts/test-step-10.mjs`, `tests/ui/draft-visibility.spec.ts`, `tests/ui/home-empty-state.spec.ts`, `tests/ui/home-scroll-top.spec.ts`, `tests/ui/tags-index.spec.ts`, `tests/ui/write-link-auth.spec.ts`, `tests/ui/post-admin-actions.spec.ts` | Active |
 | UC-WIKI-001 | WIKI | 관리자 댓글 CRUD + 태그 경로 검증 | `scripts/test-step-11.mjs`, `tests/ui/wiki-view.spec.ts` | Active |
-| UC-WIKI-002 | WIKI | 공개 위키 트리/경로 조회 + 내용/태그 검색 + 숨김/삭제 비노출 | `scripts/test-step-11.mjs`, `tests/ui/accessibility.spec.ts`, `tests/ui/wiki-view.spec.ts`, `tests/ui/visual-regression.spec.ts` | Active |
+| UC-WIKI-002 | WIKI | 공개 위키 트리/경로 조회 + 내용/태그 검색 + 숨김/삭제 비노출 + limit 단독 호환/검색 레이스 방지 | `scripts/test-step-11.mjs`, `tests/ui/accessibility.spec.ts`, `tests/ui/wiki-view.spec.ts`, `tests/ui/visual-regression.spec.ts` | Active |
 
 ## 6. 테스트 게이트 정책
 

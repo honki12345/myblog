@@ -521,6 +521,21 @@ async function runApiScenario() {
   );
   assert(aiCategory, "wiki root should include ai category");
 
+  const wikiRootLimitOnly = await requestJson("/api/wiki?limit=50");
+  assert(
+    wikiRootLimitOnly.status === 200,
+    "wiki root limit-only request should return 200",
+  );
+  assert(
+    typeof wikiRootLimitOnly.data?.summary?.totalPaths === "number" &&
+      Array.isArray(wikiRootLimitOnly.data?.categories),
+    "wiki root limit-only request should keep overview response shape",
+  );
+  assert(
+    wikiRootLimitOnly.data?.query === undefined,
+    "wiki root limit-only request should not switch to search response",
+  );
+
   const wikiPlatform = await requestJson("/api/wiki/ai/platform");
   assert(wikiPlatform.status === 200, "wiki path should return 200");
   assert(

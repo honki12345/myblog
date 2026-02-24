@@ -5,7 +5,6 @@
 - Issue 번호: 112
 - 기준 브랜치: main
 - 작업 브랜치: feat/issue-112-wiki-content-tag-search
-- Worktree 경로: /home/fpg123/Workspace/honki12345/.worktrees/feat/issue-112-wiki-content-tag-search
 - 작성일: 2026-02-24
 
 ## 배경/문제
@@ -132,3 +131,31 @@
 - 검색 파라미터 미지정 시 기존 `/api/wiki*` 응답 스키마/동작과 호환된다.
 - 검색/조합 검색 결과의 정렬 우선순위가 문서화된 규칙과 일치한다.
 - 결과 0건/에러 시 UX 문구와 재시도 동작이 일관되게 동작한다.
+
+## PR 리뷰 반영 내역 (2026-02-24)
+
+### PR #122 코멘트 반영
+- 코멘트 요약: `/api/wiki`에서 `limit` 단독 요청이 overview가 아닌 검색 응답으로 전환되는 호환성 문제
+  - 변경 파일: `src/app/api/wiki/route.ts`, `scripts/test-step-11.mjs`
+  - 반영 내용: `hasSearchParams`에서 `rawLimit`을 제외하고, 검색 모드가 아닐 때 `limit` 파싱을 생략해 기존 overview 응답 형태를 유지
+  - 검증: `scripts/test-step-11.mjs`에 `GET /api/wiki?limit=50` 회귀 테스트 추가, `npm run test:all` 통과
+
+- 코멘트 요약: 위키 검색 동시 요청 시 늦게 도착한 이전 응답이 최신 검색 결과를 덮어쓰는 경쟁 상태
+  - 변경 파일: `src/components/wiki/WikiExplorerClient.tsx`, `tests/ui/wiki-view.spec.ts`
+  - 반영 내용: 검색 요청마다 `AbortController`를 부여하고 이전 요청을 취소하며, stale 응답은 상태 업데이트에서 제외
+  - 검증: `tests/ui/wiki-view.spec.ts`에 `slow-keyword -> fast-keyword` 경쟁 시나리오 추가, `npm run test:all` 통과
+
+- 코멘트 요약: 검색 입력 미충족 에러에서 `다시 시도` 버튼이 동작하지 않는 UX 문제
+  - 변경 파일: `src/components/wiki/WikiExplorerClient.tsx`, `tests/ui/wiki-view.spec.ts`
+  - 반영 내용: 입력 검증 오류에서는 재시도 대상 요청을 비우고 버튼을 숨기도록 분기 추가
+  - 검증: `tests/ui/wiki-view.spec.ts`에 빈 입력 에러 시 재시도 버튼 비노출 검증 추가, `npm run test:all` 통과
+
+- 코멘트 요약: `/api/wiki`, `/api/wiki/[...path]`의 `catch` 에러 메시지가 검색/overview를 구분하지 않아 진단 정보가 부족함
+  - 변경 파일: `src/app/api/wiki/route.ts`, `src/app/api/wiki/[...path]/route.ts`
+  - 반영 내용: 검색 모드와 overview 모드에 따라 서로 다른 `INTERNAL_ERROR` 메시지 반환
+  - 검증: `npm run test:all` 통과
+
+- 코멘트 요약: 계획 문서에 로컬 절대 경로(`Worktree 경로`)가 포함되어 정보 노출 위험
+  - 변경 파일: `plans/issue-112-plan.md`
+  - 반영 내용: 개인 환경 절대 경로 항목 삭제
+  - 검증: 문서 diff 확인

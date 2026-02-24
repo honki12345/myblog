@@ -156,6 +156,10 @@ function formatSearchError(error: unknown): string {
   return "검색 결과를 불러오지 못했습니다.";
 }
 
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === "AbortError";
+}
+
 export default function WikiExplorerClient({
   initialRootOverview,
   initialPath,
@@ -198,6 +202,7 @@ export default function WikiExplorerClient({
   const inflightRequestsRef = useRef(
     new Map<string, Promise<WikiPathOverview>>(),
   );
+  const searchAbortControllerRef = useRef<AbortController | null>(null);
   const selectedPathRef = useRef<PathValue>(initialPath);
   const pathOverviewsRef = useRef(pathOverviews);
   const scrollByPathRef = useRef<Record<string, number>>({});
@@ -209,6 +214,13 @@ export default function WikiExplorerClient({
   useEffect(() => {
     pathOverviewsRef.current = pathOverviews;
   }, [pathOverviews]);
+
+  useEffect(() => {
+    return () => {
+      searchAbortControllerRef.current?.abort();
+      searchAbortControllerRef.current = null;
+    };
+  }, []);
 
   const setPathLoading = useCallback((path: string, isLoading: boolean) => {
     setLoadingPaths((current) => {
@@ -321,14 +333,22 @@ export default function WikiExplorerClient({
   );
 
   const runSearch = useCallback(async (input: WikiSearchRequest) => {
+    searchAbortControllerRef.current?.abort();
+    const controller = new AbortController();
+    searchAbortControllerRef.current = controller;
+
     const normalizedQ = input.q.trim();
     const normalizedTagPath = input.tagPath.trim();
     const normalizedSort: WikiSearchSort =
       normalizedQ.length > 0 ? input.sort : "updated";
 
     if (normalizedQ.length === 0 && normalizedTagPath.length === 0) {
+      if (searchAbortControllerRef.current === controller) {
+        searchAbortControllerRef.current = null;
+      }
       setSearchResult(null);
       setSearchError("검색어 또는 태그 경로를 입력해 주세요.");
+      setSearchLoading(false);
       setActiveSearchRequest(null);
       return;
     }
@@ -348,6 +368,7 @@ export default function WikiExplorerClient({
         method: "GET",
         cache: "no-store",
         headers: { Accept: "application/json" },
+        signal: controller.signal,
       });
       const payload = (await response.json()) as
         | WikiSearchResult
@@ -368,16 +389,27 @@ export default function WikiExplorerClient({
         throw new Error(message);
       }
 
+      if (searchAbortControllerRef.current !== controller) {
+        return;
+      }
       setSearchResult(payload as WikiSearchResult);
     } catch (error) {
+      if (isAbortError(error) || searchAbortControllerRef.current !== controller) {
+        return;
+      }
       setSearchError(formatSearchError(error));
       setSearchResult(null);
     } finally {
-      setSearchLoading(false);
+      if (searchAbortControllerRef.current === controller) {
+        searchAbortControllerRef.current = null;
+        setSearchLoading(false);
+      }
     }
   }, []);
 
   const resetSearch = useCallback(() => {
+    searchAbortControllerRef.current?.abort();
+    searchAbortControllerRef.current = null;
     setSearchQueryInput("");
     setSearchTagPathInput("");
     setSearchSort("relevance");
@@ -1000,13 +1032,15 @@ export default function WikiExplorerClient({
               {searchError ? (
                 <div className="rounded-xl border border-red-200 bg-red-50 p-4">
                   <p className="text-sm text-red-700">{searchError}</p>
-                  <button
-                    type="button"
-                    onClick={retrySearch}
-                    className="mt-3 inline-flex rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 focus-visible:ring-2 focus-visible:ring-red-300 focus-visible:ring-offset-2 focus-visible:ring-offset-red-50 focus-visible:outline-none"
-                  >
-                    다시 시도
-                  </button>
+                  {activeSearchRequest ? (
+                    <button
+                      type="button"
+                      onClick={retrySearch}
+                      className="mt-3 inline-flex rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 focus-visible:ring-2 focus-visible:ring-red-300 focus-visible:ring-offset-2 focus-visible:ring-offset-red-50 focus-visible:outline-none"
+                    >
+                      다시 시도
+                    </button>
+                  ) : null}
                 </div>
               ) : null}
 

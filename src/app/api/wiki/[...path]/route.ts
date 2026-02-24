@@ -189,10 +189,9 @@ export async function GET(request: Request, context: RouteContext) {
       comments: overview.comments,
     });
   } catch {
-    return errorResponse(
-      500,
-      "INTERNAL_ERROR",
-      "Failed to load wiki path overview.",
-    );
+    const message = hasSearchParams
+      ? "Failed to search wiki comments."
+      : "Failed to load wiki path overview.";
+    return errorResponse(500, "INTERNAL_ERROR", message);
   }
 }

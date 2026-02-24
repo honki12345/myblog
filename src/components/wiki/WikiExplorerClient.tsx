@@ -893,12 +893,12 @@ export default function WikiExplorerClient({
 
       <form
         onSubmit={handleSearchSubmit}
-        className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+        className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900"
         data-wiki-search-form
       >
         <div className="grid gap-3 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,0.8fr)_auto] md:items-end">
-          <label className="space-y-1 text-sm text-slate-700">
-            <span className="block text-xs font-medium text-slate-500">
+          <label className="space-y-1 text-sm text-slate-700 dark:text-slate-200">
+            <span className="block text-xs font-medium text-slate-500 dark:text-slate-300">
               내용 키워드
             </span>
             <input
@@ -908,13 +908,13 @@ export default function WikiExplorerClient({
                 setSearchQueryInput(event.currentTarget.value)
               }
               placeholder="댓글/글 제목에서 찾을 키워드"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none"
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-400 dark:ring-offset-slate-900 dark:focus-visible:ring-slate-300"
               data-wiki-search-q
             />
           </label>
 
-          <label className="space-y-1 text-sm text-slate-700">
-            <span className="block text-xs font-medium text-slate-500">
+          <label className="space-y-1 text-sm text-slate-700 dark:text-slate-200">
+            <span className="block text-xs font-medium text-slate-500 dark:text-slate-300">
               태그 경로
             </span>
             <input
@@ -924,13 +924,13 @@ export default function WikiExplorerClient({
                 setSearchTagPathInput(event.currentTarget.value)
               }
               placeholder="예: ai/platform"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none"
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-400 dark:ring-offset-slate-900 dark:focus-visible:ring-slate-300"
               data-wiki-search-tag-path
             />
           </label>
 
-          <label className="space-y-1 text-sm text-slate-700">
-            <span className="block text-xs font-medium text-slate-500">
+          <label className="space-y-1 text-sm text-slate-700 dark:text-slate-200">
+            <span className="block text-xs font-medium text-slate-500 dark:text-slate-300">
               정렬
             </span>
             <select
@@ -938,7 +938,7 @@ export default function WikiExplorerClient({
               onChange={(event) =>
                 setSearchSort(event.currentTarget.value as WikiSearchSort)
               }
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none"
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:ring-offset-slate-900 dark:focus-visible:ring-slate-300"
               data-wiki-search-sort
             >
               <option value="relevance">관련도 우선</option>
@@ -949,7 +949,7 @@ export default function WikiExplorerClient({
           <div className="flex items-end gap-2">
             <button
               type="submit"
-              className="inline-flex rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60 dark:ring-offset-slate-900 dark:focus-visible:ring-slate-300"
               disabled={searchLoading}
               data-wiki-search-submit
             >
@@ -958,7 +958,7 @@ export default function WikiExplorerClient({
             <button
               type="button"
               onClick={resetSearch}
-              className="inline-flex rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none"
+              className="inline-flex rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none dark:border-slate-500 dark:text-slate-100 dark:hover:bg-slate-800 dark:ring-offset-slate-900 dark:focus-visible:ring-slate-300"
               data-wiki-search-reset
             >
               초기화

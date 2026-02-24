@@ -150,6 +150,14 @@ test("home title link keeps navigation policy across wiki paths and modifier key
   await titleLink.click();
   await expect(page).toHaveURL(/\/wiki$/);
   await expect(titleLink).toHaveAttribute("aria-current", "page");
+  await expect(
+    page.getByRole("heading", { name: "위키", level: 1, exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      name: new RegExp(`^위키 경로: /${escapedWikiPath}$`),
+    }),
+  ).toHaveCount(0);
 
   const wikiIndexProbe = await probeHomeTitleClickBehavior(page);
   expect(wikiIndexProbe.plain.defaultPrevented).toBe(true);

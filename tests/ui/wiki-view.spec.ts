@@ -446,6 +446,27 @@ test("wiki explorer keeps context with in-place navigation, history, and refresh
     }
     await expect(treePanel).toBeVisible();
   };
+  const absoluteWikiRootLink = page.locator(
+    "a[data-test-wiki-absolute-root-link]",
+  );
+  const setAbsoluteWikiRootLinkHref = async (href: string) => {
+    await page.evaluate((nextHref) => {
+      const explorer = document.querySelector("[data-wiki-explorer]");
+      if (!(explorer instanceof HTMLElement)) {
+        throw new Error("wiki explorer not found");
+      }
+
+      let link = explorer.querySelector("a[data-test-wiki-absolute-root-link]");
+      if (!(link instanceof HTMLAnchorElement)) {
+        link = document.createElement("a");
+        link.setAttribute("data-test-wiki-absolute-root-link", "true");
+        link.textContent = "절대 위키 홈 링크";
+        explorer.appendChild(link);
+      }
+
+      link.href = nextHref;
+    }, href);
+  };
 
   await openTreePanel();
   await treePanel.getByRole("link", { name: "ai", exact: true }).click();
@@ -626,6 +647,42 @@ test("wiki explorer keeps context with in-place navigation, history, and refresh
   });
   await expect(parentToRootLink).toHaveAttribute("href", "/wiki");
   await parentToRootLink.click();
+  await expect(page).toHaveURL(/\/wiki$/);
+  await expect(
+    page.getByRole("heading", { name: "위키", level: 1, exact: true }),
+  ).toBeVisible();
+
+  await openTreePanel();
+  await treePanel.getByRole("link", { name: "ai", exact: true }).click();
+  await expect(page).toHaveURL(/\/wiki\/ai$/);
+  await expect(
+    page.getByRole("heading", { name: "위키 경로: /ai", exact: true }),
+  ).toBeVisible();
+
+  const origin = new URL(page.url()).origin;
+
+  await setAbsoluteWikiRootLinkHref(`${origin}/wiki`);
+  await absoluteWikiRootLink.click();
+  await expect(page).toHaveURL(/\/wiki$/);
+  await expect(
+    page.getByRole("heading", { name: "위키", level: 1, exact: true }),
+  ).toBeVisible();
+
+  await openTreePanel();
+  await treePanel.getByRole("link", { name: "ai", exact: true }).click();
+  await expect(page).toHaveURL(/\/wiki\/ai$/);
+
+  await setAbsoluteWikiRootLinkHref(`${origin}/wiki?x=1#y`);
+  await absoluteWikiRootLink.click();
+  await expect(page).toHaveURL(/\/wiki$/);
+
+  await page.goBack();
+  await expect(page).toHaveURL(/\/wiki\/ai$/);
+  await expect(
+    page.getByRole("heading", { name: "위키 경로: /ai", exact: true }),
+  ).toBeVisible();
+
+  await page.goForward();
   await expect(page).toHaveURL(/\/wiki$/);
   await expect(
     page.getByRole("heading", { name: "위키", level: 1, exact: true }),

@@ -14,6 +14,7 @@ test("critical pages have no serious axe violations", async ({
   const loggedOutTargets = [
     "/",
     "/wiki",
+    "/wiki/sample",
     `/wiki/${seeded.wikiPath}`,
     "/posts",
     `/posts/${seeded.detailSlug}`,

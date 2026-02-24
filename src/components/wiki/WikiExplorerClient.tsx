@@ -161,12 +161,17 @@ export default function WikiExplorerClient({
     new Map<string, Promise<WikiPathOverview>>(),
   );
   const selectedPathRef = useRef<PathValue>(initialPath);
+  const expandedPathsRef = useRef(expandedPaths);
   const pathOverviewsRef = useRef(pathOverviews);
   const scrollByPathRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
     selectedPathRef.current = selectedPath;
   }, [selectedPath]);
+
+  useEffect(() => {
+    expandedPathsRef.current = expandedPaths;
+  }, [expandedPaths]);
 
   useEffect(() => {
     pathOverviewsRef.current = pathOverviews;
@@ -451,6 +456,24 @@ export default function WikiExplorerClient({
     });
   }, []);
 
+  const expandPathBranch = useCallback(
+    (path: string) => {
+      setExpandedPaths((current) => {
+        if (current.has(path)) {
+          return current;
+        }
+        const next = new Set(current);
+        next.add(path);
+        return next;
+      });
+
+      void loadPathOverview(path).catch(() => {
+        // keep UI responsive and surface errors only where context is shown
+      });
+    },
+    [loadPathOverview],
+  );
+
   const handlePathLinkClick = useCallback(
     (
       event: React.MouseEvent<HTMLAnchorElement>,
@@ -474,7 +497,11 @@ export default function WikiExplorerClient({
         path &&
         selectedPathRef.current === path
       ) {
-        collapsePathBranch(path);
+        if (expandedPathsRef.current.has(path)) {
+          collapsePathBranch(path);
+        } else {
+          expandPathBranch(path);
+        }
         return;
       }
 
@@ -493,7 +520,12 @@ export default function WikiExplorerClient({
         historyMode,
       });
     },
-    [activatePath, collapsePathBranch, enableInPlaceNavigation],
+    [
+      activatePath,
+      collapsePathBranch,
+      enableInPlaceNavigation,
+      expandPathBranch,
+    ],
   );
 
   const handlePathToggle = useCallback(

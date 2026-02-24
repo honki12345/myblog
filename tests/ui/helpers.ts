@@ -9,7 +9,7 @@ const ROOT = path.resolve(__dirname, "../..");
 const ENV_PATH = path.join(ROOT, ".env.local");
 
 export const PLAYWRIGHT_DATABASE_PATH =
-  process.env.DATABASE_PATH?.trim() ||
+  process.env.PLAYWRIGHT_DATABASE_PATH?.trim() ||
   path.join(ROOT, "data", "playwright-ui.db");
 
 const DEFAULT_ADMIN_USERNAME = "admin";

@@ -126,8 +126,8 @@
 - 사전조건: 유효한 관리자 세션 + `admin_csrf` 쿠키 보유, 대상 글 존재
 - 기본흐름: `/posts/[slug]` 관리자 액션 또는 `PATCH /api/admin/posts/:id`에서 `isRead` 값을 변경하면 DB `posts.is_read`가 갱신된다.
 - 예외흐름: CSRF 누락은 `401/403`, 잘못된 `isRead` 타입은 `400`, 없는 글 ID는 `404`
-- 수용기준: API 응답에 변경된 `is_read`가 반영되고 상세 화면 버튼 라벨(`읽음으로 표시`/`읽지 않음으로 표시`)이 상태와 일치한다.
-- 연결 테스트: `scripts/test-step-9.mjs`, `scripts/test-step-10.mjs`, `tests/ui/post-admin-actions.spec.ts`
+- 수용기준: API 응답에 변경된 `is_read`가 반영되고 상세 화면 버튼 라벨(`읽음으로 표시`/`읽지 않음으로 표시`)이 상태와 일치한다. `360` 뷰포트에서는 관리자 액션이 `수정 -> 읽음 토글 -> 삭제` 세로 스택을 유지하고, 진행 라벨(`변경 중…`/`삭제 중…`)에서도 수평 오버플로우/겹침이 발생하지 않는다.
+- 연결 테스트: `scripts/test-step-9.mjs`, `scripts/test-step-10.mjs`, `tests/ui/post-admin-actions.spec.ts`, `tests/ui/visual-regression.spec.ts`, `tests/ui/dark-mode-risk.spec.ts`
 
 ### UC-UPLOAD-001 업로드 인증/타입/크기 검증
 
@@ -184,7 +184,7 @@
 | UC-SEARCH-002 | SEARCH | 관리자 `/posts` 미읽음 필터 및 기본 정렬 | `scripts/test-step-10.mjs`, `tests/ui/posts-archive.spec.ts`, `tests/ui/visual-regression.spec.ts` | Active |
 | UC-ADMIN-001 | ADMIN | 관리자 2FA 로그인/세션 | `scripts/test-step-9.mjs`, `tests/ui/admin-2fa-setup-lock.spec.ts` | Active |
 | UC-ADMIN-002 | ADMIN | 워크스페이스 CRUD + CSRF | `scripts/test-step-9.mjs`, `tests/ui/admin-workspace.spec.ts` | Active |
-| UC-ADMIN-003 | ADMIN | 관리자 글 읽음 메타데이터 토글(`isRead`) | `scripts/test-step-9.mjs`, `scripts/test-step-10.mjs`, `tests/ui/post-admin-actions.spec.ts` | Active |
+| UC-ADMIN-003 | ADMIN | 관리자 글 읽음 메타데이터 토글(`isRead`) | `scripts/test-step-9.mjs`, `scripts/test-step-10.mjs`, `tests/ui/post-admin-actions.spec.ts`, `tests/ui/visual-regression.spec.ts`, `tests/ui/dark-mode-risk.spec.ts` | Active |
 | UC-UPLOAD-001 | UPLOAD | 업로드 인증/유효성 검증 | `scripts/test-step-3.mjs`, `scripts/test-step-9.mjs` | Active |
 | UC-VISIBILITY-001 | VISIBILITY | 홈 canonical redirect + 포스트 경로 관리자 전용 접근 정책 | `scripts/test-step-5.mjs`, `scripts/test-step-10.mjs`, `tests/ui/draft-visibility.spec.ts`, `tests/ui/home-empty-state.spec.ts`, `tests/ui/home-scroll-top.spec.ts`, `tests/ui/tags-index.spec.ts`, `tests/ui/write-link-auth.spec.ts`, `tests/ui/post-admin-actions.spec.ts` | Active |
 | UC-WIKI-001 | WIKI | 관리자 댓글 CRUD + 태그 경로 검증 | `scripts/test-step-11.mjs`, `tests/ui/wiki-view.spec.ts` | Active |

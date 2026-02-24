@@ -1,13 +1,25 @@
+import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import {
   authenticateAdminSession,
   insertCommentDirect,
   insertPostDirect,
+  runCleanupScript,
   waitForDocumentTitle,
 } from "./helpers";
 
 const HOME_TITLE_LINK_SELECTOR =
   'header a[aria-label="홈 (honki12345 블로그)"]';
+const HOME_SCROLL_TOP_SEED = "home-scroll-top-seed-123";
+const DISABLE_ANIMATION_STYLE = `
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+    caret-color: transparent !important;
+  }
+`;
 
 type ClickProbeResult = {
   defaultPrevented: boolean;
@@ -25,6 +37,25 @@ type HomeTitleClickProbe = {
 
 function getHomeTitleLink(page: Page) {
   return page.locator(HOME_TITLE_LINK_SELECTOR);
+}
+
+function getHomeScrollTopDiffThreshold(projectName: string): number {
+  if (projectName === "mobile-360") {
+    return 0.04;
+  }
+  if (projectName === "tablet-768") {
+    return 0.05;
+  }
+  return 0.03;
+}
+
+async function expectNoSeriousA11y(page: Page) {
+  await waitForDocumentTitle(page);
+  const results = await new AxeBuilder({ page }).analyze();
+  const blocking = results.violations.filter((item) => {
+    return item.impact === "critical" || item.impact === "serious";
+  });
+  expect(blocking).toEqual([]);
 }
 
 async function probeHomeTitleClickBehavior(
@@ -61,6 +92,10 @@ async function probeHomeTitleClickBehavior(
     };
   }, HOME_TITLE_LINK_SELECTOR);
 }
+
+test.beforeEach(() => {
+  runCleanupScript();
+});
 
 test("home title link scrolls to top when already on /wiki", async ({
   page,
@@ -117,9 +152,9 @@ test("home title link scrolls to top when already on /wiki", async ({
 test("home title link keeps navigation policy across wiki paths and modifier keys", async ({
   page,
   request,
-}) => {
-  const seed = Date.now();
-  const wikiPath = `home-scroll-top/${seed}`;
+}, testInfo) => {
+  const seed = HOME_SCROLL_TOP_SEED;
+  const wikiPath = `home-scroll-top/${HOME_SCROLL_TOP_SEED}`;
   const escapedWikiPath = wikiPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const seededPost = await insertPostDirect(request, {
     title: `PW-SEED-HOME-TITLE-LINK-${seed}`,
@@ -136,9 +171,11 @@ test("home title link keeps navigation policy across wiki paths and modifier key
     isHidden: false,
   });
 
+  await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
   await authenticateAdminSession(page, { nextPath: `/wiki/${wikiPath}` });
   await page.waitForLoadState("networkidle");
   await waitForDocumentTitle(page);
+  await page.addStyleTag({ content: DISABLE_ANIMATION_STYLE });
 
   await expect(page).toHaveURL(new RegExp(`/wiki/${escapedWikiPath}$`));
 
@@ -158,6 +195,10 @@ test("home title link keeps navigation policy across wiki paths and modifier key
       name: new RegExp(`^위키 경로: /${escapedWikiPath}$`),
     }),
   ).toHaveCount(0);
+  await expectNoSeriousA11y(page);
+  await expect(page).toHaveScreenshot("home-scroll-top-wiki-root.png", {
+    maxDiffPixelRatio: getHomeScrollTopDiffThreshold(testInfo.project.name),
+  });
 
   const wikiIndexProbe = await probeHomeTitleClickBehavior(page);
   expect(wikiIndexProbe.plain.defaultPrevented).toBe(true);

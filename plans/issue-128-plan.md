@@ -72,3 +72,18 @@
 - `same-origin` 판정은 `https://honki12345.me`와 스킴/호스트/포트가 완전히 일치하는 URL만 허용한다.
 - `https://honki12345.me/wiki` 절대 URL 인터셉트 시 쿼리/해시는 제거하고 `/wiki`로 정규화한다.
 - 영향 컴포넌트/테스트 파일(`src/components/wiki/WikiExplorerClient.tsx`, `tests/ui/wiki-view.spec.ts`, `tests/ui/home-scroll-top.spec.ts`, `scripts/test-step-11.mjs`)을 최소 검토 대상으로 고정한다.
+
+## PR 리뷰 반영 내역 (2026-02-24)
+- 코멘트 ID/요약: `PR Review #3846129228` (outside diff) - `/wiki` 루트 이동 검증 테스트에 a11y/시각회귀/안정화 보강 필요
+- 실제 변경 파일/함수:
+  - `tests/ui/home-scroll-top.spec.ts`
+  - `expectNoSeriousA11y` 로컬 헬퍼 추가
+  - `DISABLE_ANIMATION_STYLE` 및 고정 시드(`home-scroll-top-seed-123`) 적용
+  - `/wiki` 루트 이동 이후 `toHaveScreenshot("home-scroll-top-wiki-root.png")` 추가
+  - `test.beforeEach(() => runCleanupScript())` 추가
+  - 스냅샷: `tests/ui/home-scroll-top.spec.ts-snapshots/home-scroll-top-wiki-root-{mobile-360|tablet-768|desktop-1440}-linux.png`
+- 검증 결과:
+  - `pnpm test:ui:update -- tests/ui/home-scroll-top.spec.ts` 통과(신규 스냅샷 생성)
+  - `pnpm test:ui -- tests/ui/home-scroll-top.spec.ts` 통과
+- 후속 작업:
+  - 없음

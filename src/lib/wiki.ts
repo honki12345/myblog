@@ -22,6 +22,10 @@ type WikiCommentRow = {
   source_url: string | null;
 };
 
+type WikiSearchRow = WikiCommentRow & {
+  relevance: number;
+};
+
 type PostCommentRow = {
   id: number;
   post_id: number;
@@ -66,6 +70,38 @@ export type WikiPathOverview = {
   categories: WikiCategory[];
   comments: WikiCommentItem[];
   truncated: boolean;
+};
+
+export const WIKI_SEARCH_LIMIT_DEFAULT = 120;
+export const WIKI_SEARCH_LIMIT_MAX = 200;
+
+export type WikiSearchSort = "relevance" | "updated";
+
+export type WikiSearchQuery = {
+  q: string | null;
+  tagPath: string | null;
+  path: string | null;
+  sort: WikiSearchSort;
+  limit: number;
+};
+
+export type WikiSearchItem = WikiCommentItem & {
+  relevance: number;
+};
+
+export type WikiSearchResult = {
+  query: WikiSearchQuery;
+  totalCount: number;
+  truncated: boolean;
+  items: WikiSearchItem[];
+};
+
+type WikiSearchOptions = {
+  q?: string | null;
+  tagPath?: string | null;
+  path?: string | null;
+  sort?: WikiSearchSort;
+  limit?: number;
 };
 
 export type AdminPostComment = {
@@ -123,6 +159,13 @@ function mapAdminCommentRow(row: PostCommentRow): AdminPostComment {
     isHidden: row.is_hidden === 1,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  };
+}
+
+function mapWikiSearchRow(row: WikiSearchRow): WikiSearchItem {
+  return {
+    ...mapWikiCommentRow(row),
+    relevance: row.relevance,
   };
 }
 
@@ -308,6 +351,171 @@ export function getWikiPathOverview(
     categories,
     comments,
     truncated,
+  };
+}
+
+function normalizeSearchQuery(input: string | null | undefined): string | null {
+  if (typeof input !== "string") {
+    return null;
+  }
+
+  const normalized = input.trim().toLowerCase();
+  if (normalized.length === 0) {
+    return null;
+  }
+
+  return normalized;
+}
+
+function normalizeSearchPath(input: string | null | undefined): string | null {
+  if (typeof input !== "string") {
+    return null;
+  }
+
+  const normalized = input.trim();
+  if (normalized.length === 0) {
+    return null;
+  }
+
+  return normalized;
+}
+
+export function searchWikiComments(
+  options: WikiSearchOptions,
+): WikiSearchResult {
+  const db = getDb();
+  const q = normalizeSearchQuery(options.q);
+  const tagPath = normalizeSearchPath(options.tagPath);
+  const path = normalizeSearchPath(options.path);
+  const boundedLimit = Math.max(
+    1,
+    Math.min(
+      WIKI_SEARCH_LIMIT_MAX,
+      Math.floor(options.limit ?? WIKI_SEARCH_LIMIT_DEFAULT),
+    ),
+  );
+  const requestedSort = options.sort ?? (q ? "relevance" : "updated");
+  const sort: WikiSearchSort = q ? requestedSort : "updated";
+
+  const whereClauses = ["pc.is_hidden = 0", "pc.deleted_at IS NULL"];
+  const whereParams: Array<string | number> = [];
+
+  if (path) {
+    whereClauses.push("(ct.tag_path = ? OR ct.tag_path LIKE ?)");
+    whereParams.push(path, `${path}/%`);
+  }
+
+  if (tagPath) {
+    whereClauses.push("(ct.tag_path = ? OR ct.tag_path LIKE ?)");
+    whereParams.push(tagPath, `${tagPath}/%`);
+  }
+
+  if (q) {
+    whereClauses.push(
+      "(instr(lower(pc.content), ?) > 0 OR instr(lower(p.title), ?) > 0)",
+    );
+    whereParams.push(q, q);
+  }
+
+  const whereSql = whereClauses.join("\n        AND ");
+
+  const countRow = db
+    .prepare(
+      `
+      SELECT COUNT(*) AS count
+      FROM comment_tags ct
+      INNER JOIN post_comments pc ON pc.id = ct.comment_id
+      INNER JOIN posts p ON p.id = pc.post_id
+      WHERE ${whereSql}
+      `,
+    )
+    .get(...whereParams) as { count: number } | undefined;
+
+  const totalCount = countRow?.count ?? 0;
+  if (totalCount === 0) {
+    return {
+      query: {
+        q,
+        tagPath,
+        path,
+        sort,
+        limit: boundedLimit,
+      },
+      totalCount: 0,
+      truncated: false,
+      items: [],
+    };
+  }
+
+  const relevanceSql = q
+    ? `
+      (
+        CASE
+          WHEN lower(p.title) = ? THEN 120
+          WHEN lower(p.title) LIKE ? THEN 80
+          WHEN instr(lower(p.title), ?) > 0 THEN 50
+          ELSE 0
+        END
+        +
+        CASE
+          WHEN lower(pc.content) = ? THEN 90
+          WHEN lower(pc.content) LIKE ? THEN 60
+          WHEN instr(lower(pc.content), ?) > 0 THEN 30
+          ELSE 0
+        END
+      )
+      `
+    : "0";
+  const relevanceParams = q ? [q, `${q}%`, q, q, `${q}%`, q] : [];
+  const orderBySql =
+    sort === "relevance"
+      ? "relevance DESC, datetime(pc.updated_at) DESC, pc.id DESC"
+      : "datetime(pc.updated_at) DESC, pc.id DESC";
+  const rows = db
+    .prepare(
+      `
+      SELECT
+        pc.id AS comment_id,
+        pc.post_id,
+        pc.content,
+        ct.tag_path,
+        pc.created_at,
+        pc.updated_at,
+        p.slug AS post_slug,
+        p.title AS post_title,
+        p.origin AS post_origin,
+        p.published_at AS post_published_at,
+        COALESCE(p.source_url, source_url_fallback.url) AS source_url,
+        ${relevanceSql} AS relevance
+      FROM comment_tags ct
+      INNER JOIN post_comments pc ON pc.id = ct.comment_id
+      INNER JOIN posts p ON p.id = pc.post_id
+      ${SOURCE_URL_JOIN_SQL}
+      WHERE ${whereSql}
+      ORDER BY ${orderBySql}
+      LIMIT ?
+      `,
+    )
+    .all(
+      ...relevanceParams,
+      ...whereParams,
+      boundedLimit + 1,
+    ) as WikiSearchRow[];
+
+  const truncated = rows.length > boundedLimit;
+  const items = rows.slice(0, boundedLimit).map(mapWikiSearchRow);
+
+  return {
+    query: {
+      q,
+      tagPath,
+      path,
+      sort,
+      limit: boundedLimit,
+    },
+    totalCount,
+    truncated,
+    items,
   };
 }
 

@@ -124,6 +124,94 @@ test("admin manages post comments and wiki pages expose only visible comments", 
     maxDiffPixelRatio: getWikiDiffThreshold(testInfo.project.name),
   });
 
+  let delayOnce = true;
+  await page.route("**/api/wiki?*", async (route) => {
+    const requestUrl = new URL(route.request().url());
+    if (
+      delayOnce &&
+      requestUrl.searchParams.get("q") === "nextjs" &&
+      requestUrl.searchParams.get("tagPath") === "ai/platform"
+    ) {
+      delayOnce = false;
+      await page.waitForTimeout(180);
+    }
+    await route.continue();
+  });
+
+  await page.locator("[data-wiki-search-q]").fill("nextjs");
+  await page.locator("[data-wiki-search-tag-path]").fill("ai/platform");
+  await page.locator("[data-wiki-search-submit]").click();
+  await expect(page.locator("[data-wiki-search-submit]")).toHaveText(
+    "검색 중...",
+  );
+  await expect(
+    page.locator("[data-wiki-search-results]").getByText('내용: "nextjs"'),
+  ).toBeVisible();
+  await expect(page.getByText("수정된 댓글: nextjs 하위 경로")).toBeVisible();
+  await expect(page.getByRole("button", { name: "검색 해제" })).toBeVisible();
+  await expect(
+    page
+      .locator("[data-wiki-search-results]")
+      .getByRole("link", { name: "블로그 글 보기", exact: true }),
+  ).toHaveAttribute("href", `/posts/${created.slug}`);
+
+  await page.locator("[data-wiki-search-q]").fill("no-match-keyword");
+  await page.locator("[data-wiki-search-tag-path]").fill("ai/platform");
+  await page.locator("[data-wiki-search-submit]").click();
+  await expect(
+    page.getByText("조건에 맞는 댓글을 찾지 못했습니다."),
+  ).toBeVisible();
+
+  await page.locator("[data-wiki-search-q]").fill("nextjs");
+  await page.locator("[data-wiki-search-tag-path]").fill("bad/path/");
+  await page.locator("[data-wiki-search-submit]").click();
+  await expect(
+    page.getByText(
+      "tagPath must match ^[a-z0-9-]+(?:/[a-z0-9-]+)*$ (lowercase path segments).",
+    ),
+  ).toBeVisible();
+
+  let failOnce = true;
+  await page.unroute("**/api/wiki?*");
+  await page.route("**/api/wiki?*", async (route) => {
+    const requestUrl = new URL(route.request().url());
+    if (
+      failOnce &&
+      requestUrl.searchParams.get("q") === "nextjs" &&
+      requestUrl.searchParams.get("tagPath") === "ai/platform"
+    ) {
+      failOnce = false;
+      await route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({
+          error: {
+            code: "INTERNAL_ERROR",
+            message: "임시 검색 오류",
+            details: null,
+          },
+        }),
+      });
+      return;
+    }
+
+    await route.continue();
+  });
+
+  await page.locator("[data-wiki-search-q]").fill("nextjs");
+  await page.locator("[data-wiki-search-tag-path]").fill("ai/platform");
+  await page.locator("[data-wiki-search-submit]").click();
+  await expect(page.getByText("임시 검색 오류")).toBeVisible();
+  await page
+    .locator("[data-wiki-search-results]")
+    .getByRole("button", { name: "다시 시도" })
+    .click();
+  await expect(page.getByText("수정된 댓글: nextjs 하위 경로")).toBeVisible();
+  await page.unroute("**/api/wiki?*");
+
+  await page.getByRole("button", { name: "검색 해제" }).click();
+  await expect(page.locator("[data-wiki-search-results]")).toHaveCount(0);
+
   await page.goto("/wiki/ai/platform", { waitUntil: "networkidle" });
   await page.addStyleTag({ content: DISABLE_ANIMATION_STYLE });
 

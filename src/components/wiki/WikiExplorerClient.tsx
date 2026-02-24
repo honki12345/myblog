@@ -11,6 +11,9 @@ import type {
   WikiCategory,
   WikiPathOverview,
   WikiRootOverview,
+  WikiSearchItem,
+  WikiSearchResult,
+  WikiSearchSort,
 } from "@/lib/wiki";
 
 const ROOT_WIKI_HREF = "/wiki";
@@ -21,6 +24,11 @@ type HistoryMode = "push" | "replace";
 type MobilePanel = "tree" | "detail";
 type NavigationSource = "user" | "popstate" | "initial";
 type PathValue = string | null;
+type WikiSearchRequest = {
+  q: string;
+  tagPath: string;
+  sort: WikiSearchSort;
+};
 
 type WikiExplorerClientProps = {
   initialRootOverview: WikiRootOverview;
@@ -50,6 +58,19 @@ function encodeWikiPath(path: string): string {
 function buildWikiApiPathHref(path: string): string {
   const encodedPath = encodeWikiPath(path);
   return `/api/wiki/${encodedPath}?limit=${DEFAULT_COMMENT_LIMIT}`;
+}
+
+function buildWikiSearchApiHref(request: WikiSearchRequest): string {
+  const params = new URLSearchParams();
+  if (request.q.length > 0) {
+    params.set("q", request.q);
+  }
+  if (request.tagPath.length > 0) {
+    params.set("tagPath", request.tagPath);
+  }
+  params.set("sort", request.sort);
+  params.set("limit", String(DEFAULT_COMMENT_LIMIT));
+  return `/api/wiki?${params.toString()}`;
 }
 
 function buildWikiHref(path: PathValue): string {
@@ -128,6 +149,13 @@ function formatLoadError(error: unknown): string {
   return "경로 데이터를 불러오지 못했습니다.";
 }
 
+function formatSearchError(error: unknown): string {
+  if (error instanceof Error && error.message.trim().length > 0) {
+    return error.message;
+  }
+  return "검색 결과를 불러오지 못했습니다.";
+}
+
 export default function WikiExplorerClient({
   initialRootOverview,
   initialPath,
@@ -156,6 +184,16 @@ export default function WikiExplorerClient({
     () => new Set(),
   );
   const [pathErrors, setPathErrors] = useState<Record<string, string>>({});
+  const [searchQueryInput, setSearchQueryInput] = useState("");
+  const [searchTagPathInput, setSearchTagPathInput] = useState("");
+  const [searchSort, setSearchSort] = useState<WikiSearchSort>("relevance");
+  const [searchResult, setSearchResult] = useState<WikiSearchResult | null>(
+    null,
+  );
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [activeSearchRequest, setActiveSearchRequest] =
+    useState<WikiSearchRequest | null>(null);
 
   const inflightRequestsRef = useRef(
     new Map<string, Promise<WikiPathOverview>>(),
@@ -281,6 +319,80 @@ export default function WikiExplorerClient({
     },
     [setPathLoading],
   );
+
+  const runSearch = useCallback(async (input: WikiSearchRequest) => {
+    const normalizedQ = input.q.trim();
+    const normalizedTagPath = input.tagPath.trim();
+    const normalizedSort: WikiSearchSort =
+      normalizedQ.length > 0 ? input.sort : "updated";
+
+    if (normalizedQ.length === 0 && normalizedTagPath.length === 0) {
+      setSearchResult(null);
+      setSearchError("검색어 또는 태그 경로를 입력해 주세요.");
+      setActiveSearchRequest(null);
+      return;
+    }
+
+    const request: WikiSearchRequest = {
+      q: normalizedQ,
+      tagPath: normalizedTagPath,
+      sort: normalizedSort,
+    };
+    setActiveSearchRequest(request);
+    setSearchError(null);
+    setSearchLoading(true);
+    setMobilePanel("detail");
+
+    try {
+      const response = await fetch(buildWikiSearchApiHref(request), {
+        method: "GET",
+        cache: "no-store",
+        headers: { Accept: "application/json" },
+      });
+      const payload = (await response.json()) as
+        | WikiSearchResult
+        | {
+            error?: { message?: string };
+          };
+
+      if (!response.ok) {
+        const message =
+          typeof payload === "object" &&
+          payload &&
+          "error" in payload &&
+          payload.error &&
+          typeof payload.error.message === "string" &&
+          payload.error.message.trim().length > 0
+            ? payload.error.message
+            : `검색 결과를 불러오지 못했습니다. (${response.status})`;
+        throw new Error(message);
+      }
+
+      setSearchResult(payload as WikiSearchResult);
+    } catch (error) {
+      setSearchError(formatSearchError(error));
+      setSearchResult(null);
+    } finally {
+      setSearchLoading(false);
+    }
+  }, []);
+
+  const resetSearch = useCallback(() => {
+    setSearchQueryInput("");
+    setSearchTagPathInput("");
+    setSearchSort("relevance");
+    setSearchResult(null);
+    setSearchError(null);
+    setSearchLoading(false);
+    setActiveSearchRequest(null);
+  }, []);
+
+  const retrySearch = useCallback(() => {
+    if (!activeSearchRequest) {
+      return;
+    }
+    void runSearch(activeSearchRequest);
+  }, [activeSearchRequest, runSearch]);
 
   const expandPathChain = useCallback((path: string) => {
     const chain = getAncestorPaths(path);
@@ -500,6 +612,35 @@ export default function WikiExplorerClient({
     [loadPathOverview],
   );
 
+  const handleSearchSubmit = useCallback(
+    (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      void runSearch({
+        q: searchQueryInput,
+        tagPath: searchTagPathInput,
+        sort: searchSort,
+      });
+    },
+    [runSearch, searchQueryInput, searchSort, searchTagPathInput],
+  );
+
+  const hasActiveSearch = Boolean(
+    activeSearchRequest || searchLoading || searchError || searchResult,
+  );
+  const searchItems: WikiSearchItem[] = searchResult?.items ?? [];
+  const activeSearchLabel = activeSearchRequest
+    ? [
+        activeSearchRequest.q.length > 0
+          ? `내용: "${activeSearchRequest.q}"`
+          : null,
+        activeSearchRequest.tagPath.length > 0
+          ? `경로: /${activeSearchRequest.tagPath}`
+          : null,
+      ]
+        .filter((value): value is string => Boolean(value))
+        .join(" · ")
+    : "";
+
   const treeRootCategories = initialRootOverview.categories;
 
   const treePanelClassName = [
@@ -666,6 +807,82 @@ export default function WikiExplorerClient({
         </div>
       </div>
 
+      <form
+        onSubmit={handleSearchSubmit}
+        className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+        data-wiki-search-form
+      >
+        <div className="grid gap-3 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,0.8fr)_auto] md:items-end">
+          <label className="space-y-1 text-sm text-slate-700">
+            <span className="block text-xs font-medium text-slate-500">
+              내용 키워드
+            </span>
+            <input
+              type="text"
+              value={searchQueryInput}
+              onChange={(event) =>
+                setSearchQueryInput(event.currentTarget.value)
+              }
+              placeholder="댓글/글 제목에서 찾을 키워드"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none"
+              data-wiki-search-q
+            />
+          </label>
+
+          <label className="space-y-1 text-sm text-slate-700">
+            <span className="block text-xs font-medium text-slate-500">
+              태그 경로
+            </span>
+            <input
+              type="text"
+              value={searchTagPathInput}
+              onChange={(event) =>
+                setSearchTagPathInput(event.currentTarget.value)
+              }
+              placeholder="예: ai/platform"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none"
+              data-wiki-search-tag-path
+            />
+          </label>
+
+          <label className="space-y-1 text-sm text-slate-700">
+            <span className="block text-xs font-medium text-slate-500">
+              정렬
+            </span>
+            <select
+              value={searchSort}
+              onChange={(event) =>
+                setSearchSort(event.currentTarget.value as WikiSearchSort)
+              }
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none"
+              data-wiki-search-sort
+            >
+              <option value="relevance">관련도 우선</option>
+              <option value="updated">최신순</option>
+            </select>
+          </label>
+
+          <div className="flex items-end gap-2">
+            <button
+              type="submit"
+              className="inline-flex rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={searchLoading}
+              data-wiki-search-submit
+            >
+              {searchLoading ? "검색 중..." : "검색"}
+            </button>
+            <button
+              type="button"
+              onClick={resetSearch}
+              className="inline-flex rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none"
+              data-wiki-search-reset
+            >
+              초기화
+            </button>
+          </div>
+        </div>
+      </form>
+
       <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
         <aside
           className={[
@@ -740,7 +957,125 @@ export default function WikiExplorerClient({
           ].join(" ")}
           data-wiki-detail-panel
         >
-          {selectedPath ? (
+          {hasActiveSearch ? (
+            <div className="space-y-4" data-wiki-search-results>
+              <header className="space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="text-xl font-semibold tracking-tight">
+                    검색 결과
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={resetSearch}
+                    className="inline-flex rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none"
+                  >
+                    검색 해제
+                  </button>
+                </div>
+                {activeSearchLabel ? (
+                  <p className="text-sm text-slate-600">{activeSearchLabel}</p>
+                ) : (
+                  <p className="text-sm text-slate-600">
+                    검색어 또는 경로 필터로 위키 댓글을 탐색합니다.
+                  </p>
+                )}
+                {searchResult ? (
+                  <p className="text-xs text-slate-500">
+                    총 {searchResult.totalCount}개 결과
+                    {searchResult.truncated
+                      ? ` · 최신 ${searchResult.query.limit}개만 표시`
+                      : ""}
+                  </p>
+                ) : null}
+              </header>
+
+              {searchLoading ? (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm text-slate-600">
+                    검색 결과를 불러오는 중입니다...
+                  </p>
+                </div>
+              ) : null}
+
+              {searchError ? (
+                <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+                  <p className="text-sm text-red-700">{searchError}</p>
+                  <button
+                    type="button"
+                    onClick={retrySearch}
+                    className="mt-3 inline-flex rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 focus-visible:ring-2 focus-visible:ring-red-300 focus-visible:ring-offset-2 focus-visible:ring-offset-red-50 focus-visible:outline-none"
+                  >
+                    다시 시도
+                  </button>
+                </div>
+              ) : null}
+
+              {!searchLoading && !searchError && searchResult ? (
+                searchItems.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
+                    <p className="text-sm text-slate-600">
+                      조건에 맞는 댓글을 찾지 못했습니다.
+                    </p>
+                  </div>
+                ) : (
+                  <ul className="space-y-3">
+                    {searchItems.map((comment) => (
+                      <li
+                        key={comment.commentId}
+                        className="rounded-2xl border border-slate-200 bg-white p-4"
+                      >
+                        <div className="mb-2 flex flex-wrap items-center gap-2">
+                          <Link
+                            href={buildWikiHref(comment.tagPath)}
+                            onClick={(event) =>
+                              handlePathLinkClick(event, comment.tagPath)
+                            }
+                            className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-200 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none"
+                          >
+                            /{comment.tagPath}
+                          </Link>
+                          <span className="text-xs text-slate-500">
+                            업데이트: {formatDate(comment.updatedAt) ?? "-"}
+                          </span>
+                          {comment.relevance > 0 ? (
+                            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">
+                              관련도 {comment.relevance}
+                            </span>
+                          ) : null}
+                        </div>
+
+                        <p className="text-sm leading-6 whitespace-pre-wrap text-slate-800">
+                          {comment.content}
+                        </p>
+
+                        <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-600">
+                          {isAdmin ? (
+                            <Link
+                              href={`/posts/${comment.postSlug}`}
+                              className="font-medium text-slate-700 hover:underline"
+                            >
+                              블로그 글 보기
+                            </Link>
+                          ) : null}
+                          {comment.sourceUrl ? (
+                            <a
+                              href={comment.sourceUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="font-medium text-slate-700 hover:underline"
+                            >
+                              원문 링크
+                            </a>
+                          ) : null}
+                          <span>{comment.postTitle}</span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )
+              ) : null}
+            </div>
+          ) : selectedPath ? (
             <div className="space-y-4">
               <header className="space-y-3">
                 <nav aria-label="브레드크럼">

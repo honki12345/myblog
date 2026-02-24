@@ -399,7 +399,10 @@ export default function WikiExplorerClient({
       }
       setSearchResult(payload as WikiSearchResult);
     } catch (error) {
-      if (isAbortError(error) || searchAbortControllerRef.current !== controller) {
+      if (
+        isAbortError(error) ||
+        searchAbortControllerRef.current !== controller
+      ) {
         return;
       }
       setSearchError(formatSearchError(error));

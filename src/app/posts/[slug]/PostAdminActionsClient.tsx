@@ -1,16 +1,22 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { adminFetch } from "@/lib/admin-client";
 
 type PostAdminActionsClientProps = {
   postId: number;
+  editHref: string;
   isRead: boolean;
 };
 
+const ACTION_BASE_CLASS =
+  "inline-flex w-full items-center justify-center rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-60 sm:w-auto dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800";
+
 export default function PostAdminActionsClient({
   postId,
+  editHref,
   isRead: initialIsRead,
 }: PostAdminActionsClientProps) {
   const router = useRouter();
@@ -109,32 +115,46 @@ export default function PostAdminActionsClient({
   };
 
   return (
-    <div className="flex flex-col items-end gap-2">
+    <section className="w-full space-y-2" data-post-admin-actions>
       {error ? (
         <p className="text-sm font-medium text-rose-600" role="alert">
           {error}
         </p>
       ) : null}
-      <button
-        type="button"
-        onClick={handleToggleRead}
-        className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-60 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
-        disabled={isDeleting || isUpdatingRead}
+      <div
+        className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end"
+        data-post-admin-actions-list
       >
-        {isUpdatingRead
-          ? "변경 중…"
-          : isRead
-            ? "읽지 않음으로 표시"
-            : "읽음으로 표시"}
-      </button>
-      <button
-        type="button"
-        onClick={handleDelete}
-        className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-60 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
-        disabled={isDeleting || isUpdatingRead}
-      >
-        {isDeleting ? "삭제 중…" : "삭제"}
-      </button>
-    </div>
+        <Link
+          href={editHref}
+          className={`${ACTION_BASE_CLASS} whitespace-nowrap`}
+          data-post-admin-action="edit"
+        >
+          수정
+        </Link>
+        <button
+          type="button"
+          onClick={handleToggleRead}
+          className={`${ACTION_BASE_CLASS} whitespace-nowrap`}
+          data-post-admin-action="toggle-read"
+          disabled={isDeleting || isUpdatingRead}
+        >
+          {isUpdatingRead
+            ? "변경 중…"
+            : isRead
+              ? "읽지 않음으로 표시"
+              : "읽음으로 표시"}
+        </button>
+        <button
+          type="button"
+          onClick={handleDelete}
+          className={`${ACTION_BASE_CLASS} whitespace-nowrap`}
+          data-post-admin-action="delete"
+          disabled={isDeleting || isUpdatingRead}
+        >
+          {isDeleting ? "삭제 중…" : "삭제"}
+        </button>
+      </div>
+    </section>
   );
 }

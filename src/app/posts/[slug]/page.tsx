@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import PostContent from "@/components/PostContent";
 import TagList from "@/components/TagList";
@@ -131,15 +130,10 @@ export default async function PostDetailPage({ params }: PageProps) {
           <span>slug: /posts/{post.slug}</span>
         </div>
         {tags.length > 0 ? <TagList tags={tags} /> : null}
-        <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
-          <Link
-            href={`/admin/write?id=${post.id}`}
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
-          >
-            수정
-          </Link>
+        <div className="pt-2">
           <PostAdminActionsClient
             postId={post.id}
+            editHref={`/admin/write?id=${post.id}`}
             isRead={post.is_read === 1}
           />
         </div>

@@ -1,5 +1,10 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type APIRequestContext } from "@playwright/test";
+import {
+  expect,
+  test,
+  type APIRequestContext,
+  type Page,
+} from "@playwright/test";
 import {
   assertNoHorizontalPageScroll,
   authenticateAdminSession,
@@ -57,6 +62,53 @@ async function triggerRevalidationForSeededPost(
   }
 }
 
+async function expectMobileActionStackLayout(
+  page: Page,
+  projectName: string,
+): Promise<void> {
+  if (projectName !== "mobile-360") {
+    return;
+  }
+
+  const layout = await page.locator("[data-post-admin-actions-list]").evaluate(
+    (node) => {
+      const actions = Array.from(
+        node.querySelectorAll<HTMLElement>("[data-post-admin-action]"),
+      ).map((item) => {
+        const rect = item.getBoundingClientRect();
+        return {
+          action: item.dataset.postAdminAction ?? "",
+          top: rect.top,
+          left: rect.left,
+        };
+      });
+
+      return {
+        flexDirection: window.getComputedStyle(node).flexDirection,
+        actions,
+      };
+    },
+  );
+
+  expect(layout.flexDirection).toBe("column");
+  expect(layout.actions.map((item) => item.action)).toEqual([
+    "edit",
+    "toggle-read",
+    "delete",
+  ]);
+
+  const [editAction, toggleAction, deleteAction] = layout.actions;
+  if (!editAction || !toggleAction || !deleteAction) {
+    throw new Error("expected exactly three admin actions in mobile stack");
+  }
+  expect(toggleAction.top).toBeGreaterThan(editAction.top + 1);
+  expect(deleteAction.top).toBeGreaterThan(toggleAction.top + 1);
+  expect(Math.abs(toggleAction.left - editAction.left)).toBeLessThanOrEqual(1);
+  expect(Math.abs(deleteAction.left - toggleAction.left)).toBeLessThanOrEqual(
+    1,
+  );
+}
+
 test.beforeEach(() => {
   runCleanupScript();
 });
@@ -98,6 +150,21 @@ test("admin can see edit/delete actions on public detail and delete post", async
   await authenticateAdminSession(page, { nextPath: `/posts/${created.slug}` });
   await page.waitForLoadState("networkidle");
   await page.addStyleTag({ content: DISABLE_ANIMATION_STYLE });
+  const postRoutePattern = `**/api/admin/posts/${created.id}`;
+  let delayedPatchOnce = true;
+  let delayedDeleteOnce = true;
+  await page.route(postRoutePattern, async (route) => {
+    const method = route.request().method();
+    if (method === "PATCH" && delayedPatchOnce) {
+      delayedPatchOnce = false;
+      await page.waitForTimeout(250);
+    } else if (method === "DELETE" && delayedDeleteOnce) {
+      delayedDeleteOnce = false;
+      await page.waitForTimeout(250);
+    }
+
+    await route.continue();
+  });
 
   await expect(page.getByRole("heading", { name: seed.title })).toBeVisible();
   await expect(page.getByRole("link", { name: "수정" })).toHaveAttribute(
@@ -108,10 +175,17 @@ test("admin can see edit/delete actions on public detail and delete post", async
   await expect(
     page.getByRole("button", { name: "읽음으로 표시" }),
   ).toBeVisible();
+  await expectMobileActionStackLayout(page, testInfo.project.name);
   await page.getByRole("button", { name: "읽음으로 표시" }).click();
+  await expect(page.getByRole("button", { name: "변경 중…" })).toBeVisible();
+  await assertNoHorizontalPageScroll(
+    page,
+    `[${testInfo.project.name}] /posts/${created.slug} overflows while read toggle is pending`,
+  );
   await expect(
     page.getByRole("button", { name: "읽지 않음으로 표시" }),
   ).toBeVisible();
+  await expectMobileActionStackLayout(page, testInfo.project.name);
   await waitForDocumentTitle(page);
   await expect(page).toHaveTitle(
     new RegExp(seed.title.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")),
@@ -136,9 +210,15 @@ test("admin can see edit/delete actions on public detail and delete post", async
 
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "삭제" }).click();
+  await expect(page.getByRole("button", { name: "삭제 중…" })).toBeVisible();
+  await assertNoHorizontalPageScroll(
+    page,
+    `[${testInfo.project.name}] /posts/${created.slug} overflows while delete is pending`,
+  );
 
   await expect(page).toHaveURL(/\/posts(?:\?|$)/);
   await expect(page.getByRole("heading", { name: "글 목록" })).toBeVisible();
+  await page.unroute(postRoutePattern);
 
   const response = await page.goto(`/posts/${created.slug}`, {
     waitUntil: "networkidle",

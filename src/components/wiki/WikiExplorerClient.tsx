@@ -1109,52 +1109,74 @@ export default function WikiExplorerClient({
                       <li
                         key={comment.commentId}
                         className="rounded-2xl border border-slate-200 bg-white p-4"
+                        data-wiki-comment-card={comment.commentId}
                       >
-                        <div className="mb-2 flex flex-wrap items-center gap-2">
-                          <Link
-                            href={buildWikiHref(comment.tagPath)}
-                            onClick={(event) =>
-                              handlePathLinkClick(event, comment.tagPath)
-                            }
-                            className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-200 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none"
+                        <div
+                          className="mb-2 flex flex-wrap items-start justify-between gap-2"
+                          data-wiki-comment-meta
+                        >
+                          <div
+                            className="flex min-w-0 flex-1 flex-wrap items-center gap-2"
+                            data-wiki-comment-meta-left
                           >
-                            /{comment.tagPath}
-                          </Link>
-                          <span className="text-xs text-slate-500">
-                            업데이트: {formatDate(comment.updatedAt) ?? "-"}
-                          </span>
-                          {comment.relevance > 0 ? (
-                            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">
-                              관련도 {comment.relevance}
+                            <Link
+                              href={buildWikiHref(comment.tagPath)}
+                              onClick={(event) =>
+                                handlePathLinkClick(event, comment.tagPath)
+                              }
+                              className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-200 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none"
+                            >
+                              /{comment.tagPath}
+                            </Link>
+                            <span
+                              className="min-w-0 break-words text-sm font-semibold text-slate-900"
+                              data-wiki-comment-post-title
+                            >
+                              {comment.postTitle}
                             </span>
-                          ) : null}
+                          </div>
+                          <div
+                            className="flex shrink-0 flex-wrap items-center justify-end gap-1.5 text-xs text-slate-500"
+                            data-wiki-comment-meta-right
+                          >
+                            <span>업데이트: {formatDate(comment.updatedAt) ?? "-"}</span>
+                            {comment.relevance > 0 ? (
+                              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">
+                                관련도 {comment.relevance}
+                              </span>
+                            ) : null}
+                          </div>
                         </div>
 
                         <p className="text-sm leading-6 whitespace-pre-wrap text-slate-800">
                           {comment.content}
                         </p>
 
-                        <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-600">
-                          {isAdmin ? (
-                            <Link
-                              href={`/posts/${comment.postSlug}`}
-                              className="font-medium text-slate-700 hover:underline"
-                            >
-                              블로그 글 보기
-                            </Link>
-                          ) : null}
-                          {comment.sourceUrl ? (
-                            <a
-                              href={comment.sourceUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="font-medium text-slate-700 hover:underline"
-                            >
-                              원문 링크
-                            </a>
-                          ) : null}
-                          <span>{comment.postTitle}</span>
-                        </div>
+                        {isAdmin || comment.sourceUrl ? (
+                          <div
+                            className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-600"
+                            data-wiki-comment-links
+                          >
+                            {isAdmin ? (
+                              <Link
+                                href={`/posts/${comment.postSlug}`}
+                                className="font-medium text-slate-700 hover:underline"
+                              >
+                                블로그 글 보기
+                              </Link>
+                            ) : null}
+                            {comment.sourceUrl ? (
+                              <a
+                                href={comment.sourceUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="font-medium text-slate-700 hover:underline"
+                              >
+                                원문 링크
+                              </a>
+                            ) : null}
+                          </div>
+                        ) : null}
                       </li>
                     ))}
                   </ul>
@@ -1329,47 +1351,71 @@ export default function WikiExplorerClient({
                           <li
                             key={comment.commentId}
                             className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
+                            data-wiki-comment-card={comment.commentId}
                           >
-                            <div className="mb-2 flex flex-wrap items-center gap-2">
-                              <Link
-                                href={buildWikiHref(comment.tagPath)}
-                                onClick={(event) =>
-                                  handlePathLinkClick(event, comment.tagPath)
-                                }
-                                className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-200 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none dark:bg-slate-800 dark:text-slate-200 dark:ring-offset-slate-900 dark:hover:bg-slate-700 dark:focus-visible:ring-slate-300"
+                            <div
+                              className="mb-2 flex flex-wrap items-start justify-between gap-2"
+                              data-wiki-comment-meta
+                            >
+                              <div
+                                className="flex min-w-0 flex-1 flex-wrap items-center gap-2"
+                                data-wiki-comment-meta-left
                               >
-                                /{comment.tagPath}
-                              </Link>
-                              <span className="text-xs text-slate-500 dark:text-slate-400">
-                                업데이트: {formatDate(comment.updatedAt) ?? "-"}
-                              </span>
+                                <Link
+                                  href={buildWikiHref(comment.tagPath)}
+                                  onClick={(event) =>
+                                    handlePathLinkClick(event, comment.tagPath)
+                                  }
+                                  className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-200 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none dark:bg-slate-800 dark:text-slate-200 dark:ring-offset-slate-900 dark:hover:bg-slate-700 dark:focus-visible:ring-slate-300"
+                                >
+                                  /{comment.tagPath}
+                                </Link>
+                                <span
+                                  className="min-w-0 break-words text-sm font-semibold text-slate-900 dark:text-slate-100"
+                                  data-wiki-comment-post-title
+                                >
+                                  {comment.postTitle}
+                                </span>
+                              </div>
+                              <div
+                                className="flex shrink-0 flex-wrap items-center justify-end gap-1.5 text-xs text-slate-500 dark:text-slate-400"
+                                data-wiki-comment-meta-right
+                              >
+                                <span>
+                                  업데이트: {formatDate(comment.updatedAt) ?? "-"}
+                                </span>
+                              </div>
                             </div>
 
                             <p className="text-sm leading-6 whitespace-pre-wrap text-slate-800 dark:text-slate-200">
                               {comment.content}
                             </p>
 
-                            <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-600 dark:text-slate-300">
-                              {isAdmin ? (
-                                <Link
-                                  href={`/posts/${comment.postSlug}`}
-                                  className="font-medium text-slate-700 hover:underline dark:text-slate-200"
-                                >
-                                  블로그 글 보기
-                                </Link>
-                              ) : null}
-                              {comment.sourceUrl ? (
-                                <a
-                                  href={comment.sourceUrl}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="font-medium text-slate-700 hover:underline dark:text-slate-200"
-                                >
-                                  원문 링크
-                                </a>
-                              ) : null}
-                              <span>{comment.postTitle}</span>
-                            </div>
+                            {isAdmin || comment.sourceUrl ? (
+                              <div
+                                className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-600 dark:text-slate-300"
+                                data-wiki-comment-links
+                              >
+                                {isAdmin ? (
+                                  <Link
+                                    href={`/posts/${comment.postSlug}`}
+                                    className="font-medium text-slate-700 hover:underline dark:text-slate-200"
+                                  >
+                                    블로그 글 보기
+                                  </Link>
+                                ) : null}
+                                {comment.sourceUrl ? (
+                                  <a
+                                    href={comment.sourceUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="font-medium text-slate-700 hover:underline dark:text-slate-200"
+                                  >
+                                    원문 링크
+                                  </a>
+                                ) : null}
+                              </div>
+                            ) : null}
                           </li>
                         ))}
                       </ul>

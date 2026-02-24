@@ -141,7 +141,7 @@
 - 사전조건: published/draft 글 데이터 존재
 - 기본흐름: `/` 접근은 `308`으로 `/wiki`에 canonical 리다이렉트되고, `/posts`, `/posts/[slug]`, `/tags`, `/tags/[tag]`는 `/admin/login?next=...`로 이동한다. 관리자 세션에서는 `/wiki`에서 위키 탐색 접근이 가능하고 `/posts`, `/posts/[slug]` 접근이 허용된다.
 - 예외흐름: `/tags/[tag]`가 위키 경로 규칙으로 변환되지 않으면 `404`; 비관리자 `GET /api/posts`, `GET /api/posts/suggest`는 `401`
-- 수용기준: `/`는 항상 `/wiki`로 영구 리다이렉트되며, 헤더 타이틀 링크 목적지는 `/wiki`로 일관된다. `/tags`는 관리자 시 `/wiki`로, `/tags/[tag]`는 관리자 시 `/wiki/[...path]`로 통합된다.
+- 수용기준: `/`는 항상 `/wiki`로 영구 리다이렉트된다. 헤더 타이틀 링크 목적지는 `/wiki`로 일관되고, `/wiki` 인덱스에서 재클릭 시 URL을 유지한 채 최상단으로 복원된다. `/wiki/[...path]`에서 타이틀 클릭 시 `/wiki`로 라우팅되며 수정키(⌘/Ctrl/Shift/Alt)/중클릭 입력에서는 `preventDefault` 없이 기본 링크 동작을 유지한다. `aria-current="page"`는 `/wiki` 인덱스에서만 노출된다. `/tags`는 관리자 시 `/wiki`로, `/tags/[tag]`는 관리자 시 `/wiki/[...path]`로 통합된다.
 - 연결 테스트: `scripts/test-step-5.mjs`, `scripts/test-step-10.mjs`, `tests/ui/draft-visibility.spec.ts`, `tests/ui/home-empty-state.spec.ts`, `tests/ui/home-scroll-top.spec.ts`, `tests/ui/tags-index.spec.ts`, `tests/ui/write-link-auth.spec.ts`, `tests/ui/post-admin-actions.spec.ts`
 
 ### UC-WIKI-001 관리자 댓글 CRUD + 태그 경로 검증/CSRF

@@ -49,14 +49,14 @@ export default async function RootLayout({
                 aria-label="주요 메뉴"
                 className="flex w-full min-w-0 flex-wrap items-center gap-1 text-sm font-medium sm:w-auto sm:justify-end sm:gap-2"
               >
+                <Link href="/wiki" className="header-nav-item">
+                  위키
+                </Link>
                 {isAdmin ? (
                   <Link href="/posts" className="header-nav-item">
                     글 목록
                   </Link>
                 ) : null}
-                <Link href="/wiki" className="header-nav-item">
-                  위키
-                </Link>
                 <Suspense
                   fallback={
                     <Link href="/admin/login" className="header-nav-item">

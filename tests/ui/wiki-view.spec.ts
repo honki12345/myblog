@@ -218,12 +218,20 @@ test("wiki explorer keeps context with in-place navigation, history, and refresh
     .toBe(historyAfterAi);
   await expect(page).toHaveURL(/\/wiki\/ai$/);
   await expect(
+    treePanel.getByRole("link", { name: "ai", exact: true }),
+  ).toHaveAttribute("aria-current", "page");
+  await expect(
     treePanel.getByRole("link", { name: "platform", exact: true }),
   ).toHaveCount(0);
 
-  await treePanel
-    .getByRole("button", { name: "ai 펼치기", exact: true })
-    .click();
+  await openTreePanel();
+  await treePanel.getByRole("link", { name: "ai", exact: true }).click();
+  await expect
+    .poll(async () => {
+      return await page.evaluate(() => window.history.length);
+    })
+    .toBe(historyAfterAi);
+  await expect(page).toHaveURL(/\/wiki\/ai$/);
   await expect(
     treePanel.getByRole("link", { name: "platform", exact: true }),
   ).toBeVisible();
@@ -247,15 +255,20 @@ test("wiki explorer keeps context with in-place navigation, history, and refresh
     .toBe(historyAfterPlatform);
   await expect(page).toHaveURL(/\/wiki\/ai\/platform$/);
   await expect(
-    page.getByRole("heading", { name: "위키 경로: /ai/platform", exact: true }),
-  ).toBeVisible();
+    treePanel.getByRole("link", { name: "platform", exact: true }),
+  ).toHaveAttribute("aria-current", "page");
   await expect(
     treePanel.getByRole("link", { name: "nextjs", exact: true }),
   ).toHaveCount(0);
 
-  await treePanel
-    .getByRole("button", { name: "platform 펼치기", exact: true })
-    .click();
+  await openTreePanel();
+  await treePanel.getByRole("link", { name: "platform", exact: true }).click();
+  await expect
+    .poll(async () => {
+      return await page.evaluate(() => window.history.length);
+    })
+    .toBe(historyAfterPlatform);
+  await expect(page).toHaveURL(/\/wiki\/ai\/platform$/);
   const nextjsTreeLink = treePanel.getByRole("link", {
     name: "nextjs",
     exact: true,

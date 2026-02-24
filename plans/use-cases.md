@@ -155,9 +155,9 @@
 ### UC-WIKI-002 공개 위키 트리/경로 조회 + 숨김/삭제 비노출
 
 - 사전조건: 댓글 + 태그 경로 데이터 존재
-- 기본흐름: `/api/wiki`, `/api/wiki/[...path]`, `/wiki`, `/wiki/[...path]`에서 카테고리 트리/브레드크럼/원문 링크를 조회하고, `/`는 `/wiki`로 리다이렉트된다. 위키 탐색 셸은 경로 선택 시 URL을 `push/replace` 정책으로 동기화하며, 활성(검은색) 경로 재클릭 시 선택 경로는 유지하고 하위 트리만 접는다.
+- 기본흐름: `/api/wiki`, `/api/wiki/[...path]`, `/wiki`, `/wiki/[...path]`에서 카테고리 트리/브레드크럼/원문 링크를 조회하고, `/`는 `/wiki`로 리다이렉트된다. 위키 탐색 셸은 경로 선택 시 URL을 `push/replace` 정책으로 동기화하며, 활성(검은색) 경로 재클릭 시 선택 경로/URL/history를 유지한 채 하위 트리를 `닫기 -> 재열기` 토글한다.
 - 예외흐름: 잘못된 경로는 `400`, 존재하지 않는 경로는 `404`
-- 수용기준: 공개 조회에서 `is_hidden=0 AND deleted_at IS NULL`만 노출되고 하위 경로 집계가 일관된다. 비관리자 세션에서는 댓글 영역의 `블로그 글 보기` 링크가 DOM에 노출되지 않는다. 위키 헤딩은 `위키`로 일관되며 인플레이스 탐색 이후 Back/Forward 및 새로고침 시 동일 경로 컨텍스트를 복원한다.
+- 수용기준: 공개 조회에서 `is_hidden=0 AND deleted_at IS NULL`만 노출되고 하위 경로 집계가 일관된다. 비관리자 세션에서는 댓글 영역의 `블로그 글 보기` 링크가 DOM에 노출되지 않는다. 활성 경로 재클릭 토글 동안 `window.history.length`가 증가하지 않고 선택 경로/URL(`/wiki/{path}`)이 유지된다. 위키 헤딩은 `위키`로 일관되며 인플레이스 탐색 이후 Back/Forward 및 새로고침 시 동일 경로 컨텍스트를 복원한다.
 - 연결 테스트: `scripts/test-step-11.mjs`, `tests/ui/accessibility.spec.ts`, `tests/ui/wiki-view.spec.ts`, `tests/ui/visual-regression.spec.ts`
 
 ## 5. Traceability Matrix

@@ -12,9 +12,12 @@ if (!process.env.BLOG_API_KEY && !process.env.API_KEY) {
 const PROJECT_ROOT = __dirname;
 const PROJECT_ROOT_SHELL = PROJECT_ROOT.replace(/'/g, "'\"'\"'");
 const PLAYWRIGHT_DB_PATH =
-  process.env.DATABASE_PATH?.trim() ||
+  process.env.PLAYWRIGHT_DATABASE_PATH?.trim() ||
   path.join(PROJECT_ROOT, "data", "playwright-ui.db");
-process.env.DATABASE_PATH = PLAYWRIGHT_DB_PATH;
+process.env.PLAYWRIGHT_DATABASE_PATH = PLAYWRIGHT_DB_PATH;
+if (!process.env.DATABASE_PATH) {
+  process.env.DATABASE_PATH = PLAYWRIGHT_DB_PATH;
+}
 const DEFAULT_PLAYWRIGHT_PORT = process.env.CI ? 3000 : 3400;
 const PLAYWRIGHT_PORT_RAW = process.env.PLAYWRIGHT_PORT?.trim();
 const PLAYWRIGHT_PORT = PLAYWRIGHT_PORT_RAW

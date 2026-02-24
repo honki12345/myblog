@@ -1129,7 +1129,7 @@ export default function WikiExplorerClient({
                               /{comment.tagPath}
                             </Link>
                             <span
-                              className="min-w-0 break-words text-sm font-semibold text-slate-900"
+                              className="min-w-0 text-sm font-semibold break-words text-slate-900"
                               data-wiki-comment-post-title
                             >
                               {comment.postTitle}
@@ -1139,7 +1139,9 @@ export default function WikiExplorerClient({
                             className="flex shrink-0 flex-wrap items-center justify-end gap-1.5 text-xs text-slate-500"
                             data-wiki-comment-meta-right
                           >
-                            <span>업데이트: {formatDate(comment.updatedAt) ?? "-"}</span>
+                            <span>
+                              업데이트: {formatDate(comment.updatedAt) ?? "-"}
+                            </span>
                             {comment.relevance > 0 ? (
                               <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">
                                 관련도 {comment.relevance}
@@ -1371,7 +1373,7 @@ export default function WikiExplorerClient({
                                   /{comment.tagPath}
                                 </Link>
                                 <span
-                                  className="min-w-0 break-words text-sm font-semibold text-slate-900 dark:text-slate-100"
+                                  className="min-w-0 text-sm font-semibold break-words text-slate-900 dark:text-slate-100"
                                   data-wiki-comment-post-title
                                 >
                                   {comment.postTitle}
@@ -1382,7 +1384,8 @@ export default function WikiExplorerClient({
                                 data-wiki-comment-meta-right
                               >
                                 <span>
-                                  업데이트: {formatDate(comment.updatedAt) ?? "-"}
+                                  업데이트:{" "}
+                                  {formatDate(comment.updatedAt) ?? "-"}
                                 </span>
                               </div>
                             </div>

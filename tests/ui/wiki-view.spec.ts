@@ -170,12 +170,12 @@ test("admin manages post comments and wiki pages expose only visible comments", 
   await expect(
     searchCommentCard.locator("[data-wiki-comment-links]"),
   ).not.toContainText(seed.title);
-  await expect(searchCommentCard.locator("[data-wiki-comment-links]")).toContainText(
-    "블로그 글 보기",
-  );
-  await expect(searchCommentCard.locator("[data-wiki-comment-links]")).toContainText(
-    "원문 링크",
-  );
+  await expect(
+    searchCommentCard.locator("[data-wiki-comment-links]"),
+  ).toContainText("블로그 글 보기");
+  await expect(
+    searchCommentCard.locator("[data-wiki-comment-links]"),
+  ).toContainText("원문 링크");
 
   // Newer search results should win even if an earlier request resolves later.
   await page.unroute("**/api/wiki?*");
@@ -389,9 +389,9 @@ test("admin manages post comments and wiki pages expose only visible comments", 
     .locator("[data-wiki-detail-panel] [data-wiki-comment-card]")
     .filter({ hasText: "링크 없는 공개 댓글" })
     .first();
-  await expect(
-    noLinkCard.locator("[data-wiki-comment-post-title]"),
-  ).toHaveText(noLinkSeed.title);
+  await expect(noLinkCard.locator("[data-wiki-comment-post-title]")).toHaveText(
+    noLinkSeed.title,
+  );
   await expect(noLinkCard.locator("[data-wiki-comment-links]")).toHaveCount(0);
   await expect(
     noLinkCard.getByRole("link", { name: "블로그 글 보기", exact: true }),

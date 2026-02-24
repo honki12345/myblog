@@ -11,7 +11,10 @@ if (!process.env.BLOG_API_KEY && !process.env.API_KEY) {
 
 const PROJECT_ROOT = __dirname;
 const PROJECT_ROOT_SHELL = PROJECT_ROOT.replace(/'/g, "'\"'\"'");
-const PLAYWRIGHT_DB_PATH = path.join(PROJECT_ROOT, "data", "playwright-ui.db");
+const PLAYWRIGHT_DB_PATH =
+  process.env.PLAYWRIGHT_DATABASE_PATH?.trim() ||
+  path.join(PROJECT_ROOT, "data", "playwright-ui.db");
+process.env.PLAYWRIGHT_DATABASE_PATH = PLAYWRIGHT_DB_PATH;
 if (!process.env.DATABASE_PATH) {
   process.env.DATABASE_PATH = PLAYWRIGHT_DB_PATH;
 }

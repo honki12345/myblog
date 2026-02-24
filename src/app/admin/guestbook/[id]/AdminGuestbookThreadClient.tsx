@@ -143,7 +143,7 @@ export default function AdminGuestbookThreadClient({
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight">스레드 상세</h1>
           {detail ? (
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-slate-600 dark:text-slate-300">
               아이디:{" "}
               <span className="font-mono">{detail.thread.guestUsername}</span>
             </p>
@@ -152,13 +152,13 @@ export default function AdminGuestbookThreadClient({
         <div className="flex flex-wrap gap-2">
           <Link
             href="/admin/guestbook"
-            className="inline-flex items-center justify-center rounded-lg bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-300 hover:bg-slate-50"
+            className="inline-flex items-center justify-center rounded-lg bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-300 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800/70"
           >
             목록으로
           </Link>
           <button
             type="button"
-            className="inline-flex items-center justify-center rounded-lg bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-300 hover:bg-slate-50"
+            className="inline-flex items-center justify-center rounded-lg bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-300 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800/70"
             onClick={() => loadThread()}
           >
             새로고침
@@ -169,20 +169,20 @@ export default function AdminGuestbookThreadClient({
       {errorMessage ? (
         <div
           role="alert"
-          className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800"
+          className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-200"
         >
           {errorMessage}
         </div>
       ) : null}
 
       {isLoading ? (
-        <div className="rounded-xl border border-slate-200 bg-white px-4 py-4 text-sm text-slate-600">
+        <div className="rounded-xl border border-slate-200 bg-white px-4 py-4 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
           불러오는 중...
         </div>
       ) : null}
 
       {!isLoading && detail ? (
-        <section className="rounded-xl border border-slate-200 bg-white">
+        <section className="rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
           <div className="px-4 py-4">
             <ul className="flex flex-col gap-3">
               {detail.messages.map((message) => {
@@ -198,7 +198,7 @@ export default function AdminGuestbookThreadClient({
                       className={
                         isAdmin
                           ? "max-w-[85%] rounded-2xl bg-slate-900 px-4 py-3 text-sm text-white shadow-sm"
-                          : "max-w-[85%] rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 shadow-sm"
+                          : "max-w-[85%] rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 shadow-sm dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-100"
                       }
                     >
                       <div className="mb-1 text-xs font-semibold opacity-80">
@@ -217,14 +217,14 @@ export default function AdminGuestbookThreadClient({
           <form
             data-testid="admin-guestbook-reply-form"
             onSubmit={handleReply}
-            className="flex flex-col gap-3 border-t border-slate-200 px-4 py-4 sm:flex-row sm:items-end"
+            className="flex flex-col gap-3 border-t border-slate-200 px-4 py-4 sm:flex-row sm:items-end dark:border-slate-700"
           >
-            <label className="grid flex-1 gap-1 text-sm font-medium text-slate-700">
+            <label className="grid flex-1 gap-1 text-sm font-medium text-slate-700 dark:text-slate-200">
               답장
               <textarea
                 value={replyDraft}
                 onChange={(event) => setReplyDraft(event.target.value)}
-                className="min-h-20 resize-y rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                className="min-h-20 resize-y rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-600"
                 maxLength={5000}
                 disabled={isSubmitting}
               />

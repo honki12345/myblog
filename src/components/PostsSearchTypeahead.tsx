@@ -294,14 +294,14 @@ export default function PostsSearchTypeahead({
         role="listbox"
         aria-label="검색 추천"
         hidden={!isOpen}
-        className="max-h-72 overflow-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
+        className="max-h-72 overflow-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-slate-900"
       >
         {isLoading ? (
           <li
             role="option"
             aria-disabled="true"
             aria-selected={false}
-            className="px-3 py-2 text-sm text-slate-600"
+            className="px-3 py-2 text-sm text-slate-600 dark:text-slate-300"
           >
             검색 중...
           </li>
@@ -312,7 +312,7 @@ export default function PostsSearchTypeahead({
             role="option"
             aria-disabled="true"
             aria-selected={false}
-            className="px-3 py-2 text-sm text-rose-700"
+            className="px-3 py-2 text-sm text-rose-700 dark:text-rose-300"
           >
             {error}
           </li>
@@ -331,8 +331,8 @@ export default function PostsSearchTypeahead({
                   tabIndex={-1}
                   className={
                     isActive
-                      ? "cursor-pointer bg-slate-100"
-                      : "cursor-pointer bg-white hover:bg-slate-50"
+                      ? "cursor-pointer bg-slate-100 dark:bg-slate-800"
+                      : "cursor-pointer bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800/70"
                   }
                   onMouseMove={() => {
                     if (activeIndex !== index) {
@@ -344,12 +344,12 @@ export default function PostsSearchTypeahead({
                     selectItem(item);
                   }}
                 >
-                  <div className="flex w-full items-start gap-2 px-3 py-2 text-sm text-slate-900">
+                  <div className="flex w-full items-start gap-2 px-3 py-2 text-sm text-slate-900 dark:text-slate-100">
                     <span className="min-w-0 flex-1 break-words">
                       {item.title}
                     </span>
                     {item.status === "draft" ? (
-                      <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                      <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/45 dark:text-amber-200">
                         draft
                       </span>
                     ) : null}

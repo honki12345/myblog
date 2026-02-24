@@ -28,10 +28,25 @@ export default function MermaidDiagram() {
       }
 
       const mermaid = mermaidModule.default;
+      const prefersDark = window.matchMedia(
+        "(prefers-color-scheme: dark)",
+      ).matches;
+      const prefersHighContrast = window.matchMedia(
+        "(prefers-contrast: more)",
+      ).matches;
+      const forcedColorsActive = window.matchMedia(
+        "(forced-colors: active)",
+      ).matches;
+      const theme =
+        forcedColorsActive || prefersHighContrast
+          ? "neutral"
+          : prefersDark
+            ? "dark"
+            : "default";
       mermaid.initialize({
         startOnLoad: false,
         securityLevel: "strict",
-        theme: "default",
+        theme,
       });
 
       for (const [index, container] of containers.entries()) {

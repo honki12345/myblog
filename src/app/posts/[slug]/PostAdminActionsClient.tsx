@@ -118,7 +118,7 @@ export default function PostAdminActionsClient({
       <button
         type="button"
         onClick={handleToggleRead}
-        className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+        className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-60 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
         disabled={isDeleting || isUpdatingRead}
       >
         {isUpdatingRead
@@ -130,7 +130,7 @@ export default function PostAdminActionsClient({
       <button
         type="button"
         onClick={handleDelete}
-        className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+        className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-60 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
         disabled={isDeleting || isUpdatingRead}
       >
         {isDeleting ? "삭제 중…" : "삭제"}

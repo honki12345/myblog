@@ -126,7 +126,7 @@ export default async function PostDetailPage({ params }: PageProps) {
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8 sm:px-6 lg:px-8">
       <header className="space-y-3">
         <h1 className="text-3xl font-bold tracking-tight">{post.title}</h1>
-        <div className="flex flex-wrap items-center gap-3 text-sm break-words text-slate-600">
+        <div className="flex flex-wrap items-center gap-3 text-sm break-words text-slate-600 dark:text-slate-300">
           {publishedDate ? <span>발행일: {publishedDate}</span> : null}
           <span>slug: /posts/{post.slug}</span>
         </div>
@@ -134,7 +134,7 @@ export default async function PostDetailPage({ params }: PageProps) {
         <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
           <Link
             href={`/admin/write?id=${post.id}`}
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
           >
             수정
           </Link>

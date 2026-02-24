@@ -251,16 +251,16 @@ export default function AdminSchedulesClient() {
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6 lg:px-8">
       <header className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight">관리자 일정</h1>
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-slate-600 dark:text-slate-300">
           리스트/캘린더를 함께 제공하는 일정 워크스페이스입니다.
         </p>
       </header>
 
       <form
         onSubmit={handleCreate}
-        className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 md:grid-cols-2"
+        className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 md:grid-cols-2 dark:border-slate-700 dark:bg-slate-900"
       >
-        <label className="grid gap-1 text-sm font-medium text-slate-700 md:col-span-2">
+        <label className="grid gap-1 text-sm font-medium text-slate-700 md:col-span-2 dark:text-slate-200">
           제목
           <input
             type="text"
@@ -268,11 +268,11 @@ export default function AdminSchedulesClient() {
             onChange={(event) =>
               setForm((prev) => ({ ...prev, title: event.target.value }))
             }
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-600"
             disabled={isSubmitting}
           />
         </label>
-        <label className="grid gap-1 text-sm font-medium text-slate-700">
+        <label className="grid gap-1 text-sm font-medium text-slate-700 dark:text-slate-200">
           시작
           <input
             type="datetime-local"
@@ -280,11 +280,11 @@ export default function AdminSchedulesClient() {
             onChange={(event) =>
               setForm((prev) => ({ ...prev, startAt: event.target.value }))
             }
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-600"
             disabled={isSubmitting}
           />
         </label>
-        <label className="grid gap-1 text-sm font-medium text-slate-700">
+        <label className="grid gap-1 text-sm font-medium text-slate-700 dark:text-slate-200">
           종료
           <input
             type="datetime-local"
@@ -292,18 +292,18 @@ export default function AdminSchedulesClient() {
             onChange={(event) =>
               setForm((prev) => ({ ...prev, endAt: event.target.value }))
             }
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-600"
             disabled={isSubmitting}
           />
         </label>
-        <label className="grid gap-1 text-sm font-medium text-slate-700 md:col-span-2">
+        <label className="grid gap-1 text-sm font-medium text-slate-700 md:col-span-2 dark:text-slate-200">
           메모
           <textarea
             value={form.description}
             onChange={(event) =>
               setForm((prev) => ({ ...prev, description: event.target.value }))
             }
-            className="min-h-24 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="min-h-24 rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-600"
             disabled={isSubmitting}
           />
         </label>
@@ -319,7 +319,7 @@ export default function AdminSchedulesClient() {
       </form>
 
       {errorMessage ? (
-        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300">
           {errorMessage}
         </p>
       ) : null}
@@ -330,7 +330,7 @@ export default function AdminSchedulesClient() {
           className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
             viewMode === "list"
               ? "bg-slate-900 text-white"
-              : "border border-slate-300 text-slate-700 hover:bg-slate-100"
+              : "border border-slate-300 text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
           }`}
           onClick={() => setViewMode("list")}
         >
@@ -341,7 +341,7 @@ export default function AdminSchedulesClient() {
           className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
             viewMode === "calendar"
               ? "bg-slate-900 text-white"
-              : "border border-slate-300 text-slate-700 hover:bg-slate-100"
+              : "border border-slate-300 text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
           }`}
           onClick={() => setViewMode("calendar")}
         >
@@ -350,25 +350,27 @@ export default function AdminSchedulesClient() {
       </div>
 
       {isLoading ? (
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-slate-600 dark:text-slate-300">
           일정 목록을 불러오는 중입니다...
         </p>
       ) : viewMode === "list" ? (
         <section className="space-y-3">
           {items.length === 0 ? (
-            <p className="text-sm text-slate-600">등록된 일정이 없습니다.</p>
+            <p className="text-sm text-slate-600 dark:text-slate-300">
+              등록된 일정이 없습니다.
+            </p>
           ) : (
             items.map((item) => (
               <article
                 key={item.id}
-                className="rounded-xl border border-slate-200 bg-white p-4"
+                className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <h2 className="text-lg font-semibold text-slate-900">
+                    <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
                       {item.title}
                     </h2>
-                    <p className="mt-1 text-xs text-slate-500">
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                       {new Date(item.startAt).toLocaleString("ko-KR")} -{" "}
                       {new Date(item.endAt).toLocaleString("ko-KR")}
                     </p>
@@ -376,7 +378,7 @@ export default function AdminSchedulesClient() {
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
-                      className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                      className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
                       onClick={() => {
                         toggleDone(item).catch(() => undefined);
                       }}
@@ -385,7 +387,7 @@ export default function AdminSchedulesClient() {
                     </button>
                     <button
                       type="button"
-                      className="rounded-md border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50"
+                      className="rounded-md border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 dark:border-rose-700 dark:text-rose-300 dark:hover:bg-rose-900/40"
                       onClick={() => {
                         deleteSchedule(item.id).catch(() => undefined);
                       }}
@@ -395,7 +397,7 @@ export default function AdminSchedulesClient() {
                   </div>
                 </div>
                 {item.description ? (
-                  <p className="mt-3 text-sm whitespace-pre-wrap text-slate-700">
+                  <p className="mt-3 text-sm whitespace-pre-wrap text-slate-700 dark:text-slate-200">
                     {item.description}
                   </p>
                 ) : null}
@@ -404,13 +406,13 @@ export default function AdminSchedulesClient() {
           )}
         </section>
       ) : (
-        <section className="rounded-xl border border-slate-200 bg-white p-4">
+        <section className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-700">
+            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
               {calendarAnchor.getFullYear()}년 {calendarAnchor.getMonth() + 1}월
             </h2>
           </div>
-          <div className="grid grid-cols-7 gap-2 text-xs text-slate-500">
+          <div className="grid grid-cols-7 gap-2 text-xs text-slate-500 dark:text-slate-400">
             {["일", "월", "화", "수", "목", "금", "토"].map((label) => (
               <div key={label} className="px-1 py-1 text-center font-medium">
                 {label}
@@ -426,26 +428,28 @@ export default function AdminSchedulesClient() {
                   key={key}
                   className={`min-h-20 rounded-md border p-1 ${
                     isCurrentMonth
-                      ? "border-slate-200 bg-white"
-                      : "border-slate-100 bg-slate-50"
+                      ? "border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"
+                      : "border-slate-100 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/60"
                   }`}
                 >
-                  <p className="text-[11px] text-slate-500">{date.getDate()}</p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    {date.getDate()}
+                  </p>
                   <div className="mt-1 space-y-1">
                     {dayItems.slice(0, 3).map((item) => (
                       <p
                         key={item.id}
                         className={`truncate rounded px-1 py-0.5 text-[10px] ${
                           item.isDone
-                            ? "bg-emerald-100 text-emerald-700"
-                            : "bg-slate-100 text-slate-700"
+                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/45 dark:text-emerald-300"
+                            : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200"
                         }`}
                       >
                         {item.title}
                       </p>
                     ))}
                     {dayItems.length > 3 ? (
-                      <p className="text-[10px] text-slate-500">
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400">
                         +{dayItems.length - 3} more
                       </p>
                     ) : null}

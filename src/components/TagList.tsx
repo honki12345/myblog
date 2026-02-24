@@ -22,7 +22,7 @@ export default function TagList({ tags }: TagListProps) {
             const wikiPath = normalizeWikiPathFromTagName(tag);
             if (!wikiPath) {
               return (
-                <span className="pointer-events-auto rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-500">
+                <span className="pointer-events-auto rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400">
                   #{tag}
                 </span>
               );
@@ -31,7 +31,7 @@ export default function TagList({ tags }: TagListProps) {
             return (
               <Link
                 href={buildWikiPathHref(wikiPath)}
-                className="pointer-events-auto rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-200 focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none"
+                className="pointer-events-auto rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-200 focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none dark:bg-slate-800 dark:text-slate-200 dark:ring-offset-slate-900 dark:hover:bg-slate-700 dark:focus-visible:ring-slate-500"
               >
                 #{tag}
               </Link>

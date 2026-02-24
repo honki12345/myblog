@@ -34,7 +34,7 @@ export default function SearchBar({ query, isAdmin = false }: SearchBarProps) {
           defaultValue={normalizedQuery}
           autoComplete="off"
           placeholder="예: Kubernetes…"
-          className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-900 focus:ring-2 focus:ring-slate-200 focus:outline-none"
+          className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-900 focus:ring-2 focus:ring-slate-200 focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:focus:border-slate-300 dark:focus:ring-slate-700"
         />
         <button
           type="submit"
@@ -47,7 +47,7 @@ export default function SearchBar({ query, isAdmin = false }: SearchBarProps) {
       {hasQuery ? (
         <Link
           href={isAdmin ? "/posts" : loginHref}
-          className="text-sm text-slate-600 hover:underline"
+          className="text-sm text-slate-600 hover:underline dark:text-slate-300"
         >
           초기화
         </Link>

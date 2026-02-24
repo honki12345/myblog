@@ -552,8 +552,8 @@ export default function WikiExplorerClient({
                   isActive
                     ? "bg-slate-900 text-white"
                     : isInActiveBranch
-                      ? "bg-slate-100 text-slate-900"
-                      : "text-slate-700 hover:bg-slate-100",
+                      ? "bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100"
+                      : "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800",
                 ].join(" ")}
                 style={{ paddingLeft: `${Math.max(0, depth - 1) * 0.5}rem` }}
               >
@@ -563,10 +563,10 @@ export default function WikiExplorerClient({
                     onClick={() => handlePathToggle(nodePath)}
                     className={[
                       "inline-flex size-6 shrink-0 items-center justify-center rounded-md text-xs font-semibold",
-                      "focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none",
+                      "focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none dark:ring-offset-slate-900 dark:focus-visible:ring-slate-300",
                       isActive
                         ? "text-white/90 hover:bg-white/10"
-                        : "hover:bg-slate-200",
+                        : "hover:bg-slate-200 dark:hover:bg-slate-700",
                     ].join(" ")}
                     aria-label={`${category.segment} ${isExpanded ? "접기" : "펼치기"}`}
                     aria-expanded={isExpanded}
@@ -592,7 +592,7 @@ export default function WikiExplorerClient({
                   aria-current={isActive ? "page" : undefined}
                   className={[
                     "min-w-0 flex-1 truncate rounded-md px-1.5 py-1 text-sm font-medium",
-                    "focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none",
+                    "focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none dark:ring-offset-slate-900 dark:focus-visible:ring-slate-300",
                     isActive ? "text-white" : "",
                   ].join(" ")}
                 >
@@ -604,7 +604,7 @@ export default function WikiExplorerClient({
                     "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums",
                     isActive
                       ? "bg-white/20 text-white"
-                      : "bg-slate-200 text-slate-700",
+                      : "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200",
                   ].join(" ")}
                 >
                   {category.count}
@@ -612,14 +612,16 @@ export default function WikiExplorerClient({
               </div>
 
               {category.hasChildren && isExpanded ? (
-                <div className="ml-3 border-l border-slate-200 pl-2">
+                <div className="ml-3 border-l border-slate-200 pl-2 dark:border-slate-700">
                   {childIsLoading ? (
-                    <p className="py-2 text-xs text-slate-500">
+                    <p className="py-2 text-xs text-slate-500 dark:text-slate-400">
                       하위 경로를 불러오는 중...
                     </p>
                   ) : childError ? (
                     <div className="space-y-1 py-2">
-                      <p className="text-xs text-red-600">{childError}</p>
+                      <p className="text-xs text-red-600 dark:text-rose-300">
+                        {childError}
+                      </p>
                       <button
                         type="button"
                         onClick={() => {
@@ -627,7 +629,7 @@ export default function WikiExplorerClient({
                             // retry error is kept in state and shown above
                           });
                         }}
-                        className="inline-flex rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none"
+                        className="inline-flex rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none dark:border-slate-600 dark:text-slate-200 dark:ring-offset-slate-900 dark:hover:bg-slate-800/70 dark:focus-visible:ring-slate-300"
                       >
                         다시 시도
                       </button>
@@ -635,7 +637,7 @@ export default function WikiExplorerClient({
                   ) : childCategories.length > 0 ? (
                     renderTreeNodes(childCategories, depth + 1)
                   ) : (
-                    <p className="py-2 text-xs text-slate-500">
+                    <p className="py-2 text-xs text-slate-500 dark:text-slate-400">
                       하위 경로가 없습니다.
                     </p>
                   )}
@@ -651,16 +653,16 @@ export default function WikiExplorerClient({
   return (
     <section className="space-y-4" data-wiki-explorer>
       <div className="md:hidden">
-        <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1">
+        <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-900">
           <button
             type="button"
             data-wiki-mobile-tab="tree"
             onClick={() => setMobilePanel("tree")}
             className={[
-              "rounded-lg px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none",
+              "rounded-lg px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none dark:ring-offset-slate-900 dark:focus-visible:ring-slate-300",
               mobilePanel === "tree"
                 ? "bg-slate-900 text-white"
-                : "text-slate-700 hover:bg-slate-100",
+                : "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800",
             ].join(" ")}
           >
             트리
@@ -670,10 +672,10 @@ export default function WikiExplorerClient({
             data-wiki-mobile-tab="detail"
             onClick={() => setMobilePanel("detail")}
             className={[
-              "rounded-lg px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none",
+              "rounded-lg px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none dark:ring-offset-slate-900 dark:focus-visible:ring-slate-300",
               mobilePanel === "detail"
                 ? "bg-slate-900 text-white"
-                : "text-slate-700 hover:bg-slate-100",
+                : "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800",
             ].join(" ")}
           >
             상세
@@ -684,7 +686,7 @@ export default function WikiExplorerClient({
       <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
         <aside
           className={[
-            "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm",
+            "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900",
             treePanelClassName,
           ].join(" ")}
           data-wiki-tree-panel
@@ -693,7 +695,7 @@ export default function WikiExplorerClient({
             <h2 className="text-base font-semibold tracking-tight">
               카테고리 트리
             </h2>
-            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600">
+            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">
               루트 {treeRootCategories.length}개
             </span>
           </div>
@@ -707,10 +709,10 @@ export default function WikiExplorerClient({
               data-wiki-root-card
               className={[
                 "flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]",
-                "focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none",
+                "focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none dark:ring-offset-slate-900 dark:focus-visible:ring-slate-300",
                 selectedPath === null
                   ? "border-amber-700 bg-amber-900 text-amber-50"
-                  : "border-amber-200 bg-linear-to-r from-amber-50 to-white text-amber-900 hover:border-amber-300 hover:from-amber-100 hover:to-white",
+                  : "border-amber-200 bg-linear-to-r from-amber-50 to-white text-amber-900 hover:border-amber-300 hover:from-amber-100 hover:to-white dark:border-amber-700 dark:text-amber-100",
               ].join(" ")}
             >
               <span className="flex min-w-0 flex-col">
@@ -720,7 +722,7 @@ export default function WikiExplorerClient({
                     "text-[11px]",
                     selectedPath === null
                       ? "text-amber-100/90"
-                      : "text-amber-700",
+                      : "text-amber-700 dark:text-amber-200",
                   ].join(" ")}
                 >
                   전체 경로 보기
@@ -731,7 +733,7 @@ export default function WikiExplorerClient({
                   "rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums",
                   selectedPath === null
                     ? "bg-amber-100/20 text-amber-50"
-                    : "bg-amber-100 text-amber-900",
+                    : "bg-amber-100 text-amber-900 dark:bg-amber-900/45 dark:text-amber-100",
                 ].join(" ")}
               >
                 {initialRootOverview.totalPaths}
@@ -739,7 +741,7 @@ export default function WikiExplorerClient({
             </Link>
 
             {treeRootCategories.length === 0 ? (
-              <p className="rounded-lg border border-dashed border-slate-300 px-3 py-4 text-xs text-slate-500">
+              <p className="rounded-lg border border-dashed border-slate-300 px-3 py-4 text-xs text-slate-500 dark:border-slate-600 dark:text-slate-400">
                 아직 공개된 위키 데이터가 없습니다.
               </p>
             ) : (
@@ -750,7 +752,7 @@ export default function WikiExplorerClient({
 
         <section
           className={[
-            "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm",
+            "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900",
             detailPanelClassName,
           ].join(" ")}
           data-wiki-detail-panel
@@ -759,7 +761,7 @@ export default function WikiExplorerClient({
             <div className="space-y-4">
               <header className="space-y-3">
                 <nav aria-label="브레드크럼">
-                  <ol className="flex flex-wrap items-center gap-1 text-xs text-slate-600">
+                  <ol className="flex flex-wrap items-center gap-1 text-xs text-slate-600 dark:text-slate-300">
                     <li>
                       <Link
                         href={buildWikiHref(null)}
@@ -768,7 +770,7 @@ export default function WikiExplorerClient({
                             forceReplace: true,
                           })
                         }
-                        className="rounded px-1 py-0.5 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none"
+                        className="rounded px-1 py-0.5 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none dark:ring-offset-slate-900 dark:hover:bg-slate-800 dark:hover:text-slate-100 dark:focus-visible:ring-slate-300"
                       >
                         위키
                       </Link>
@@ -781,7 +783,7 @@ export default function WikiExplorerClient({
                           onClick={(event) =>
                             handlePathLinkClick(event, item.path)
                           }
-                          className="rounded px-1 py-0.5 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none"
+                          className="rounded px-1 py-0.5 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none dark:ring-offset-slate-900 dark:hover:bg-slate-800 dark:hover:text-slate-100 dark:focus-visible:ring-slate-300"
                         >
                           {item.label}
                         </Link>
@@ -800,35 +802,39 @@ export default function WikiExplorerClient({
                   <Link
                     href={parentPathHref}
                     onClick={(event) => handlePathLinkClick(event, parentPath)}
-                    className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1.5 text-left text-xs font-medium text-slate-700 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none"
+                    className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1.5 text-left text-xs font-medium text-slate-700 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none dark:border-slate-600 dark:text-slate-200 dark:ring-offset-slate-900 dark:hover:bg-slate-800 dark:focus-visible:ring-slate-300"
                   >
                     <span className="shrink-0">상위 경로</span>
-                    <span className="min-w-0 text-[11px] break-all whitespace-normal text-slate-500 sm:max-w-52 sm:truncate sm:break-normal sm:whitespace-nowrap">
+                    <span className="min-w-0 text-[11px] break-all whitespace-normal text-slate-500 sm:max-w-52 sm:truncate sm:break-normal sm:whitespace-nowrap dark:text-slate-400">
                       ({parentPathLabel})
                     </span>
                   </Link>
                 </div>
                 {selectedOverview ? (
-                  <p className="text-sm text-slate-600">
+                  <p className="text-sm text-slate-600 dark:text-slate-300">
                     정확히 매칭된 댓글 {selectedOverview.exactCount}개, 하위
                     경로 포함 총 {selectedOverview.totalCount}개
                   </p>
                 ) : isSelectedPathLoading ? (
-                  <p className="text-sm text-slate-600">
+                  <p className="text-sm text-slate-600 dark:text-slate-300">
                     경로 데이터를 불러오는 중입니다...
                   </p>
                 ) : selectedError ? (
-                  <p className="text-sm text-red-600">{selectedError}</p>
+                  <p className="text-sm text-red-600 dark:text-rose-300">
+                    {selectedError}
+                  </p>
                 ) : (
-                  <p className="text-sm text-slate-600">
+                  <p className="text-sm text-slate-600 dark:text-slate-300">
                     경로 데이터를 준비 중입니다.
                   </p>
                 )}
               </header>
 
               {selectedError ? (
-                <div className="rounded-xl border border-red-200 bg-red-50 p-4">
-                  <p className="text-sm text-red-700">{selectedError}</p>
+                <div className="rounded-xl border border-red-200 bg-red-50 p-4 dark:border-rose-800 dark:bg-rose-950/40">
+                  <p className="text-sm text-red-700 dark:text-rose-300">
+                    {selectedError}
+                  </p>
                   <button
                     type="button"
                     onClick={() => {
@@ -836,7 +842,7 @@ export default function WikiExplorerClient({
                         // retry result is reflected by state updates
                       });
                     }}
-                    className="mt-3 inline-flex rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 focus-visible:ring-2 focus-visible:ring-red-300 focus-visible:ring-offset-2 focus-visible:ring-offset-red-50 focus-visible:outline-none"
+                    className="mt-3 inline-flex rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 focus-visible:ring-2 focus-visible:ring-red-300 focus-visible:ring-offset-2 focus-visible:ring-offset-red-50 focus-visible:outline-none dark:border-rose-700 dark:text-rose-300 dark:hover:bg-rose-900/55"
                   >
                     다시 시도
                   </button>
@@ -857,7 +863,7 @@ export default function WikiExplorerClient({
                         >
                           하위 카테고리
                         </h3>
-                        <p className="text-xs text-slate-600">
+                        <p className="text-xs text-slate-600 dark:text-slate-300">
                           {selectedOverview.categories.length}개
                         </p>
                       </div>
@@ -869,17 +875,17 @@ export default function WikiExplorerClient({
                               onClick={(event) =>
                                 handlePathLinkClick(event, category.path)
                               }
-                              className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 hover:border-slate-300 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none"
+                              className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 hover:border-slate-300 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none dark:border-slate-700 dark:bg-slate-900 dark:ring-offset-slate-900 dark:hover:border-slate-600 dark:focus-visible:ring-slate-300"
                             >
                               <div className="min-w-0">
-                                <p className="truncate text-sm font-semibold text-slate-900">
+                                <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
                                   {category.segment}
                                 </p>
-                                <p className="truncate text-xs text-slate-500">
+                                <p className="truncate text-xs text-slate-500 dark:text-slate-400">
                                   /{category.path}
                                 </p>
                               </div>
-                              <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700 tabular-nums">
+                              <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700 tabular-nums dark:bg-slate-800 dark:text-slate-200">
                                 {category.count}개
                               </span>
                             </Link>
@@ -901,15 +907,15 @@ export default function WikiExplorerClient({
                         연결된 댓글
                       </h3>
                       {selectedOverview.truncated ? (
-                        <p className="text-xs text-slate-600">
+                        <p className="text-xs text-slate-600 dark:text-slate-300">
                           최신 {DEFAULT_COMMENT_LIMIT}개만 표시합니다.
                         </p>
                       ) : null}
                     </div>
 
                     {selectedOverview.comments.length === 0 ? (
-                      <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
-                        <p className="text-sm text-slate-600">
+                      <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center dark:border-slate-600 dark:bg-slate-900">
+                        <p className="text-sm text-slate-600 dark:text-slate-300">
                           이 경로에 노출 가능한 댓글이 없습니다.
                         </p>
                       </div>
@@ -918,7 +924,7 @@ export default function WikiExplorerClient({
                         {selectedOverview.comments.map((comment) => (
                           <li
                             key={comment.commentId}
-                            className="rounded-2xl border border-slate-200 bg-white p-4"
+                            className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
                           >
                             <div className="mb-2 flex flex-wrap items-center gap-2">
                               <Link
@@ -926,24 +932,24 @@ export default function WikiExplorerClient({
                                 onClick={(event) =>
                                   handlePathLinkClick(event, comment.tagPath)
                                 }
-                                className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-200 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none"
+                                className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-200 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none dark:bg-slate-800 dark:text-slate-200 dark:ring-offset-slate-900 dark:hover:bg-slate-700 dark:focus-visible:ring-slate-300"
                               >
                                 /{comment.tagPath}
                               </Link>
-                              <span className="text-xs text-slate-500">
+                              <span className="text-xs text-slate-500 dark:text-slate-400">
                                 업데이트: {formatDate(comment.updatedAt) ?? "-"}
                               </span>
                             </div>
 
-                            <p className="text-sm leading-6 whitespace-pre-wrap text-slate-800">
+                            <p className="text-sm leading-6 whitespace-pre-wrap text-slate-800 dark:text-slate-200">
                               {comment.content}
                             </p>
 
-                            <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-600">
+                            <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-600 dark:text-slate-300">
                               {isAdmin ? (
                                 <Link
                                   href={`/posts/${comment.postSlug}`}
-                                  className="font-medium text-slate-700 hover:underline"
+                                  className="font-medium text-slate-700 hover:underline dark:text-slate-200"
                                 >
                                   블로그 글 보기
                                 </Link>
@@ -953,7 +959,7 @@ export default function WikiExplorerClient({
                                   href={comment.sourceUrl}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className="font-medium text-slate-700 hover:underline"
+                                  className="font-medium text-slate-700 hover:underline dark:text-slate-200"
                                 >
                                   원문 링크
                                 </a>
@@ -972,18 +978,18 @@ export default function WikiExplorerClient({
             <div className="space-y-4">
               <header className="space-y-2">
                 <h2 className="text-xl font-semibold tracking-tight">위키</h2>
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-slate-600 dark:text-slate-300">
                   공개 댓글 {initialRootOverview.totalComments}개 / 경로{" "}
                   {initialRootOverview.totalPaths}개
                 </p>
               </header>
 
               {treeRootCategories.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
-                  <h3 className="text-lg font-semibold text-slate-800">
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center dark:border-slate-600 dark:bg-slate-900">
+                  <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200">
                     빈 위키
                   </h3>
-                  <p className="mt-2 text-sm text-slate-600">
+                  <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
                     관리자가 댓글에 태그 경로를 추가하면 카테고리가 표시됩니다.
                   </p>
                 </div>
@@ -999,7 +1005,7 @@ export default function WikiExplorerClient({
                     >
                       루트 카테고리
                     </h3>
-                    <p className="text-xs text-slate-600">
+                    <p className="text-xs text-slate-600 dark:text-slate-300">
                       {treeRootCategories.length}개
                     </p>
                   </div>
@@ -1012,26 +1018,26 @@ export default function WikiExplorerClient({
                           onClick={(event) =>
                             handlePathLinkClick(event, category.path)
                           }
-                          className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm hover:border-slate-300 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none"
+                          className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm hover:border-slate-300 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none dark:border-slate-700 dark:bg-slate-900 dark:ring-offset-slate-900 dark:hover:border-slate-600 dark:focus-visible:ring-slate-300"
                         >
                           <div className="min-w-0 space-y-1">
-                            <p className="truncate text-base font-semibold text-slate-900">
+                            <p className="truncate text-base font-semibold text-slate-900 dark:text-slate-100">
                               {category.segment}
                             </p>
-                            <p className="truncate text-xs text-slate-500">
+                            <p className="truncate text-xs text-slate-500 dark:text-slate-400">
                               /{category.path}
                             </p>
                           </div>
                           <div className="flex shrink-0 flex-col items-end gap-1">
-                            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 tabular-nums">
+                            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 tabular-nums dark:bg-slate-800 dark:text-slate-200">
                               {category.count}개
                             </span>
                             {category.hasChildren ? (
-                              <span className="text-[11px] font-medium text-slate-500">
+                              <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
                                 하위 있음
                               </span>
                             ) : (
-                              <span className="text-[11px] font-medium text-slate-400">
+                              <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
                                 leaf
                               </span>
                             )}

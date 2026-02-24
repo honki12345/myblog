@@ -37,10 +37,10 @@ export default async function RootLayout({
   return (
     <html lang="ko">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-slate-50 text-slate-900 antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} min-h-screen antialiased`}
       >
         <div className="flex min-h-screen flex-col">
-          <header className="border-b border-slate-200 bg-white/90 backdrop-blur">
+          <header className="border-b border-slate-200 bg-white/90 backdrop-blur dark:border-slate-700 dark:bg-slate-900/90">
             <div className="mx-auto flex w-full max-w-5xl flex-col items-start gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
               <HomeTitleLink className="min-w-0 text-lg font-semibold tracking-tight">
                 honki12345 블로그

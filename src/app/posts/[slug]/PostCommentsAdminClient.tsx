@@ -247,58 +247,58 @@ export default function PostCommentsAdminClient({
 
   return (
     <section
-      className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+      className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900"
       data-post-comments-admin
     >
       <header className="space-y-1">
         <h2 className="text-lg font-semibold tracking-tight">댓글 위키 관리</h2>
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-slate-600 dark:text-slate-300">
           댓글은 관리자만 수정할 수 있고, 태그 경로는 단일 값만 허용됩니다.
         </p>
       </header>
 
       {error ? (
         <p
-          className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700"
+          className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300"
           role="alert"
         >
           {error}
         </p>
       ) : null}
       {notice ? (
-        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
           {notice}
         </p>
       ) : null}
 
       <form
         onSubmit={handleSubmit}
-        className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3"
+        className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900/60"
         data-comment-form
       >
-        <label className="grid gap-1 text-sm font-medium text-slate-700">
+        <label className="grid gap-1 text-sm font-medium text-slate-700 dark:text-slate-200">
           댓글 내용
           <textarea
             value={content}
             onChange={(event) => setContent(event.target.value)}
             placeholder="댓글 내용을 입력하세요"
-            className="min-h-24 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+            className="min-h-24 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-900"
             disabled={isSaving}
           />
         </label>
 
-        <label className="grid gap-1 text-sm font-medium text-slate-700">
+        <label className="grid gap-1 text-sm font-medium text-slate-700 dark:text-slate-200">
           태그 경로
           <input
             value={tagPath}
             onChange={(event) => setTagPath(event.target.value)}
             placeholder="예: ai/nextjs/app-router"
-            className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm"
+            className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm dark:border-slate-600 dark:bg-slate-900"
             disabled={isSaving}
           />
         </label>
 
-        <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+        <label className="inline-flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
           <input
             type="checkbox"
             checked={isHidden}
@@ -313,7 +313,7 @@ export default function PostCommentsAdminClient({
             <button
               type="button"
               onClick={cancelEdit}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
               disabled={isSaving}
             >
               취소
@@ -330,41 +330,45 @@ export default function PostCommentsAdminClient({
       </form>
 
       {isLoading ? (
-        <p className="text-sm text-slate-600">댓글 목록을 불러오는 중입니다…</p>
+        <p className="text-sm text-slate-600 dark:text-slate-300">
+          댓글 목록을 불러오는 중입니다…
+        </p>
       ) : items.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center">
-          <p className="text-sm text-slate-600">등록된 댓글이 없습니다.</p>
+        <div className="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center dark:border-slate-600 dark:bg-slate-900">
+          <p className="text-sm text-slate-600 dark:text-slate-300">
+            등록된 댓글이 없습니다.
+          </p>
         </div>
       ) : (
         <ul className="space-y-3" data-comment-list>
           {items.map((item) => (
             <li
               key={item.id}
-              className="rounded-xl border border-slate-200 bg-white p-3"
+              className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"
               data-comment-id={String(item.id)}
             >
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <Link
                   href={buildWikiPathHref(item.tagPath)}
-                  className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-200"
+                  className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                 >
                   /{item.tagPath}
                 </Link>
                 {item.isHidden ? (
-                  <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800">
+                  <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800 dark:bg-amber-900/45 dark:text-amber-200">
                     hidden
                   </span>
                 ) : (
-                  <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-800">
+                  <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-800 dark:bg-emerald-900/45 dark:text-emerald-200">
                     visible
                   </span>
                 )}
-                <span className="text-xs text-slate-500">
+                <span className="text-xs text-slate-500 dark:text-slate-400">
                   {formatDateTime(item.updatedAt)}
                 </span>
               </div>
 
-              <p className="text-sm leading-6 whitespace-pre-wrap text-slate-800">
+              <p className="text-sm leading-6 whitespace-pre-wrap text-slate-800 dark:text-slate-200">
                 {item.content}
               </p>
 
@@ -372,7 +376,7 @@ export default function PostCommentsAdminClient({
                 <button
                   type="button"
                   onClick={() => beginEdit(item)}
-                  className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                  className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
                   disabled={isSaving || deletingId !== null}
                 >
                   수정
@@ -380,7 +384,7 @@ export default function PostCommentsAdminClient({
                 <button
                   type="button"
                   onClick={() => handleDelete(item.id)}
-                  className="rounded-lg border border-rose-300 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-60"
+                  className="rounded-lg border border-rose-300 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-60 dark:border-rose-700 dark:text-rose-300 dark:hover:bg-rose-900/45"
                   disabled={isSaving || deletingId !== null}
                 >
                   {deletingId === item.id ? "삭제 중…" : "삭제"}

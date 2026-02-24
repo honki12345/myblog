@@ -24,6 +24,10 @@ type HistoryMode = "push" | "replace";
 type MobilePanel = "tree" | "detail";
 type NavigationSource = "user" | "popstate" | "initial";
 type PathValue = string | null;
+type PlainClickEvent = Pick<
+  React.MouseEvent,
+  "button" | "metaKey" | "ctrlKey" | "shiftKey" | "altKey"
+>;
 type WikiSearchRequest = {
   q: string;
   tagPath: string;
@@ -38,7 +42,7 @@ type WikiExplorerClientProps = {
   isAdmin?: boolean;
 };
 
-function isPlainLeftClick(event: React.MouseEvent<HTMLAnchorElement>): boolean {
+function isPlainLeftClick(event: PlainClickEvent): boolean {
   if (event.button !== 0) {
     return false;
   }
@@ -125,6 +129,24 @@ function parseWikiPathFromLocation(pathname: string): PathValue | "outside" {
   }
 
   return normalizedPath;
+}
+
+function parseWikiPathFromHref(
+  href: string,
+  locationOrigin: string,
+): PathValue | "outside" {
+  let resolvedUrl: URL;
+  try {
+    resolvedUrl = new URL(href, locationOrigin);
+  } catch {
+    return "outside";
+  }
+
+  if (resolvedUrl.origin !== locationOrigin) {
+    return "outside";
+  }
+
+  return parseWikiPathFromLocation(resolvedUrl.pathname);
 }
 
 function buildBreadcrumbs(
@@ -226,6 +248,30 @@ export default function WikiExplorerClient({
       searchAbortControllerRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    setSelectedPath(initialPath);
+    selectedPathRef.current = initialPath;
+    setMobilePanel(initialPath ? "detail" : "tree");
+  }, [initialPath]);
+
+  useEffect(() => {
+    if (!initialPathOverview) {
+      return;
+    }
+
+    setPathOverviews((current) => {
+      const existing = current[initialPathOverview.path];
+      if (existing === initialPathOverview) {
+        return current;
+      }
+
+      return {
+        ...current,
+        [initialPathOverview.path]: initialPathOverview,
+      };
+    });
+  }, [initialPathOverview]);
 
   const setPathLoading = useCallback((path: string, isLoading: boolean) => {
     setLoadingPaths((current) => {
@@ -675,6 +721,63 @@ export default function WikiExplorerClient({
     ],
   );
 
+  const handleWikiAnchorClick = useCallback(
+    (event: React.MouseEvent<HTMLElement>) => {
+      if (!enableInPlaceNavigation) {
+        return;
+      }
+      if (event.defaultPrevented) {
+        return;
+      }
+      if (!isPlainLeftClick(event)) {
+        return;
+      }
+      if (typeof window === "undefined") {
+        return;
+      }
+
+      const eventTarget = event.target;
+      if (!(eventTarget instanceof Element)) {
+        return;
+      }
+
+      const anchor = eventTarget.closest("a[href]");
+      if (!(anchor instanceof HTMLAnchorElement)) {
+        return;
+      }
+
+      const targetAttr = anchor.getAttribute("target");
+      if (targetAttr && targetAttr !== "_self") {
+        return;
+      }
+      if (anchor.hasAttribute("download")) {
+        return;
+      }
+
+      const parsedPath = parseWikiPathFromHref(
+        anchor.getAttribute("href") ?? anchor.href,
+        window.location.origin,
+      );
+      if (parsedPath === "outside") {
+        return;
+      }
+
+      event.preventDefault();
+
+      const currentPath = parseWikiPathFromLocation(window.location.pathname);
+      const historyMode: HistoryMode =
+        currentPath !== "outside" && currentPath === parsedPath
+          ? "replace"
+          : "push";
+
+      activatePath(parsedPath, {
+        source: "user",
+        historyMode,
+      });
+    },
+    [activatePath, enableInPlaceNavigation],
+  );
+
   const handlePathToggle = useCallback(
     (path: string) => {
       setExpandedPaths((current) => {
@@ -859,7 +962,11 @@ export default function WikiExplorerClient({
   };
 
   return (
-    <section className="space-y-4" data-wiki-explorer>
+    <section
+      className="space-y-4"
+      data-wiki-explorer
+      onClick={handleWikiAnchorClick}
+    >
       <div className="md:hidden">
         <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-900">
           <button

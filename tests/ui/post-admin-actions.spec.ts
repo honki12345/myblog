@@ -70,8 +70,9 @@ async function expectMobileActionStackLayout(
     return;
   }
 
-  const layout = await page.locator("[data-post-admin-actions-list]").evaluate(
-    (node) => {
+  const layout = await page
+    .locator("[data-post-admin-actions-list]")
+    .evaluate((node) => {
       const actions = Array.from(
         node.querySelectorAll<HTMLElement>("[data-post-admin-action]"),
       ).map((item) => {
@@ -87,8 +88,7 @@ async function expectMobileActionStackLayout(
         flexDirection: window.getComputedStyle(node).flexDirection,
         actions,
       };
-    },
-  );
+    });
 
   expect(layout.flexDirection).toBe("column");
   expect(layout.actions.map((item) => item.action)).toEqual([

@@ -59,6 +59,9 @@ test("home(/) redirects to /wiki and shows empty wiki state", async ({
       .locator("[data-wiki-tree-panel]")
       .getByText("아직 공개된 위키 데이터가 없습니다.", { exact: true }),
   ).toBeVisible();
+  if (testInfo.project.name === "mobile-360") {
+    await page.getByRole("button", { name: "상세", exact: true }).click();
+  }
   await expect(
     page
       .locator("[data-wiki-detail-panel]")

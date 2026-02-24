@@ -124,6 +124,171 @@ test("admin manages post comments and wiki pages expose only visible comments", 
     maxDiffPixelRatio: getWikiDiffThreshold(testInfo.project.name),
   });
 
+  let delayOnce = true;
+  await page.route("**/api/wiki?*", async (route) => {
+    const requestUrl = new URL(route.request().url());
+    if (
+      delayOnce &&
+      requestUrl.searchParams.get("q") === "nextjs" &&
+      requestUrl.searchParams.get("tagPath") === "ai/platform"
+    ) {
+      delayOnce = false;
+      await page.waitForTimeout(180);
+    }
+    await route.continue();
+  });
+
+  await page.locator("[data-wiki-search-q]").fill("nextjs");
+  await page.locator("[data-wiki-search-tag-path]").fill("ai/platform");
+  await page.locator("[data-wiki-search-submit]").click();
+  await expect(page.locator("[data-wiki-search-submit]")).toHaveText(
+    "검색 중...",
+  );
+  await expect(
+    page.locator("[data-wiki-search-results]").getByText('내용: "nextjs"'),
+  ).toBeVisible();
+  await expect(page.getByText("수정된 댓글: nextjs 하위 경로")).toBeVisible();
+  await expect(page.getByRole("button", { name: "검색 해제" })).toBeVisible();
+  await expect(
+    page
+      .locator("[data-wiki-search-results]")
+      .getByRole("link", { name: "블로그 글 보기", exact: true }),
+  ).toHaveAttribute("href", `/posts/${created.slug}`);
+
+  // Newer search results should win even if an earlier request resolves later.
+  await page.unroute("**/api/wiki?*");
+  await page.route("**/api/wiki?*", async (route) => {
+    const requestUrl = new URL(route.request().url());
+    const q = requestUrl.searchParams.get("q");
+    const buildPayload = (content: string, commentId: number) => ({
+      query: {
+        q,
+        tagPath: "ai/platform",
+        path: null,
+        sort: "relevance",
+        limit: 120,
+      },
+      totalCount: 1,
+      truncated: false,
+      items: [
+        {
+          commentId,
+          postId: created.id,
+          content,
+          tagPath: "ai/platform",
+          createdAt: "2026-02-24T00:00:00.000Z",
+          updatedAt: "2026-02-24T00:00:00.000Z",
+          postSlug: created.slug,
+          postTitle: seed.title,
+          postOrigin: "ai",
+          postPublishedAt: "2026-02-24T00:00:00.000Z",
+          sourceUrl: seed.sourceUrl ?? null,
+          relevance: 90,
+        },
+      ],
+    });
+
+    if (q === "slow-keyword") {
+      await page.waitForTimeout(220);
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(buildPayload("느린 검색 결과", 8001)),
+      });
+      return;
+    }
+
+    if (q === "fast-keyword") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(buildPayload("빠른 검색 결과", 8002)),
+      });
+      return;
+    }
+
+    await route.continue();
+  });
+
+  await page.locator("[data-wiki-search-q]").fill("slow-keyword");
+  await page.locator("[data-wiki-search-tag-path]").fill("ai/platform");
+  await page.locator("[data-wiki-search-submit]").click();
+  await page.locator("[data-wiki-search-q]").fill("fast-keyword");
+  await page.locator("[data-wiki-search-tag-path]").fill("ai/platform");
+  await page.locator("[data-wiki-search-submit]").click();
+  await expect(page.getByText("빠른 검색 결과")).toBeVisible();
+  await page.waitForTimeout(260);
+  await expect(page.getByText("빠른 검색 결과")).toBeVisible();
+  await expect(page.getByText("느린 검색 결과")).toHaveCount(0);
+  await page.unroute("**/api/wiki?*");
+
+  await page.locator("[data-wiki-search-q]").fill("no-match-keyword");
+  await page.locator("[data-wiki-search-tag-path]").fill("ai/platform");
+  await page.locator("[data-wiki-search-submit]").click();
+  await expect(
+    page.getByText("조건에 맞는 댓글을 찾지 못했습니다."),
+  ).toBeVisible();
+
+  await page.locator("[data-wiki-search-q]").fill("nextjs");
+  await page.locator("[data-wiki-search-tag-path]").fill("bad/path/");
+  await page.locator("[data-wiki-search-submit]").click();
+  await expect(
+    page.getByText(
+      "tagPath must match ^[a-z0-9-]+(?:/[a-z0-9-]+)*$ (lowercase path segments).",
+    ),
+  ).toBeVisible();
+  await page.locator("[data-wiki-search-q]").fill("");
+  await page.locator("[data-wiki-search-tag-path]").fill("");
+  await page.locator("[data-wiki-search-submit]").click();
+  await expect(
+    page.getByText("검색어 또는 태그 경로를 입력해 주세요."),
+  ).toBeVisible();
+  await expect(
+    page
+      .locator("[data-wiki-search-results]")
+      .getByRole("button", { name: "다시 시도" }),
+  ).toHaveCount(0);
+
+  let failOnce = true;
+  await page.route("**/api/wiki?*", async (route) => {
+    const requestUrl = new URL(route.request().url());
+    if (
+      failOnce &&
+      requestUrl.searchParams.get("q") === "nextjs" &&
+      requestUrl.searchParams.get("tagPath") === "ai/platform"
+    ) {
+      failOnce = false;
+      await route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({
+          error: {
+            code: "INTERNAL_ERROR",
+            message: "임시 검색 오류",
+            details: null,
+          },
+        }),
+      });
+      return;
+    }
+
+    await route.continue();
+  });
+
+  await page.locator("[data-wiki-search-q]").fill("nextjs");
+  await page.locator("[data-wiki-search-tag-path]").fill("ai/platform");
+  await page.locator("[data-wiki-search-submit]").click();
+  await expect(page.getByText("임시 검색 오류")).toBeVisible();
+  await page
+    .locator("[data-wiki-search-results]")
+    .getByRole("button", { name: "다시 시도" })
+    .click();
+  await expect(page.getByText("수정된 댓글: nextjs 하위 경로")).toBeVisible();
+  await page.unroute("**/api/wiki?*");
+
+  await page.getByRole("button", { name: "검색 해제" }).click();
+  await expect(page.locator("[data-wiki-search-results]")).toHaveCount(0);
+
   await page.goto("/wiki/ai/platform", { waitUntil: "networkidle" });
   await page.addStyleTag({ content: DISABLE_ANIMATION_STYLE });
 
@@ -166,7 +331,7 @@ test("wiki explorer keeps context with in-place navigation, history, and refresh
   page,
   request,
 }, testInfo) => {
-  const seed = Date.now();
+  const seed = 20260224;
   const post = await insertPostDirect(request, {
     title: `PW-WIKI-INPLACE-${seed}`,
     content: "위키 탐색 인플레이스 시나리오",
@@ -192,8 +357,10 @@ test("wiki explorer keeps context with in-place navigation, history, and refresh
     tagPath: "ai/platform/nextjs",
   });
 
+  await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
   await page.goto("/wiki", { waitUntil: "networkidle" });
   await waitForDocumentTitle(page);
+  await page.addStyleTag({ content: DISABLE_ANIMATION_STYLE });
   await expect(page).toHaveURL(/\/wiki$/);
 
   const isMobile = testInfo.project.name === "mobile-360";
@@ -223,12 +390,20 @@ test("wiki explorer keeps context with in-place navigation, history, and refresh
     .toBe(historyAfterAi);
   await expect(page).toHaveURL(/\/wiki\/ai$/);
   await expect(
+    treePanel.getByRole("link", { name: "ai", exact: true }),
+  ).toHaveAttribute("aria-current", "page");
+  await expect(
     treePanel.getByRole("link", { name: "platform", exact: true }),
   ).toHaveCount(0);
 
-  await treePanel
-    .getByRole("button", { name: "ai 펼치기", exact: true })
-    .click();
+  await openTreePanel();
+  await treePanel.getByRole("link", { name: "ai", exact: true }).click();
+  await expect
+    .poll(async () => {
+      return await page.evaluate(() => window.history.length);
+    })
+    .toBe(historyAfterAi);
+  await expect(page).toHaveURL(/\/wiki\/ai$/);
   await expect(
     treePanel.getByRole("link", { name: "platform", exact: true }),
   ).toBeVisible();
@@ -251,6 +426,9 @@ test("wiki explorer keeps context with in-place navigation, history, and refresh
     })
     .toBe(historyAfterPlatform);
   await expect(page).toHaveURL(/\/wiki\/ai\/platform$/);
+  await expect(
+    treePanel.getByRole("link", { name: "platform", exact: true }),
+  ).toHaveAttribute("aria-current", "page");
   const platformHeading = page.getByRole("heading", {
     name: "위키 경로: /ai/platform",
     exact: true,
@@ -264,14 +442,30 @@ test("wiki explorer keeps context with in-place navigation, history, and refresh
     treePanel.getByRole("link", { name: "nextjs", exact: true }),
   ).toHaveCount(0);
 
-  await treePanel
-    .getByRole("button", { name: "platform 펼치기", exact: true })
-    .click();
+  await openTreePanel();
+  await treePanel.getByRole("link", { name: "platform", exact: true }).click();
+  await expect
+    .poll(async () => {
+      return await page.evaluate(() => window.history.length);
+    })
+    .toBe(historyAfterPlatform);
+  await expect(page).toHaveURL(/\/wiki\/ai\/platform$/);
   const nextjsTreeLink = treePanel.getByRole("link", {
     name: "nextjs",
     exact: true,
   });
   await expect(nextjsTreeLink).toBeVisible();
+  await assertNoHorizontalPageScroll(
+    page,
+    `[${testInfo.project.name}] /wiki/ai/platform retoggle has horizontal overflow`,
+  );
+  await expectNoSeriousA11y(page);
+  await expect(page.locator("main")).toHaveScreenshot(
+    "wiki-inplace-retoggle-platform.png",
+    {
+      maxDiffPixelRatio: getWikiDiffThreshold(testInfo.project.name),
+    },
+  );
 
   await page.evaluate(() => {
     document.body.style.minHeight = "5000px";

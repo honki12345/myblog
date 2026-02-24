@@ -1,9 +1,13 @@
 import { spawn } from "node:child_process";
 import net from "node:net";
+import path from "node:path";
 import process from "node:process";
 
 const ROOT = process.cwd();
 const NPX_COMMAND = process.platform === "win32" ? "npx.cmd" : "npx";
+const PLAYWRIGHT_DB_PATH =
+  process.env.DATABASE_PATH?.trim() ||
+  path.join(ROOT, "data", "playwright-ui.db");
 
 const PROJECTS = ["mobile-360", "tablet-768", "desktop-1440"];
 const SUPPORTED_SUITES = new Set(["all", "functional", "visual"]);
@@ -167,6 +171,7 @@ function runPlaywright(args, envOverrides = {}) {
       cwd: ROOT,
       env: {
         ...process.env,
+        DATABASE_PATH: PLAYWRIGHT_DB_PATH,
         ...envOverrides,
       },
       stdio: "inherit",

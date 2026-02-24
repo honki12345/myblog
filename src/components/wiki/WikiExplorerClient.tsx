@@ -908,7 +908,7 @@ export default function WikiExplorerClient({
                 setSearchQueryInput(event.currentTarget.value)
               }
               placeholder="댓글/글 제목에서 찾을 키워드"
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-400 dark:ring-offset-slate-900 dark:focus-visible:ring-slate-300"
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:ring-offset-slate-900 dark:placeholder:text-slate-400 dark:focus-visible:ring-slate-300"
               data-wiki-search-q
             />
           </label>
@@ -924,7 +924,7 @@ export default function WikiExplorerClient({
                 setSearchTagPathInput(event.currentTarget.value)
               }
               placeholder="예: ai/platform"
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-400 dark:ring-offset-slate-900 dark:focus-visible:ring-slate-300"
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:ring-offset-slate-900 dark:placeholder:text-slate-400 dark:focus-visible:ring-slate-300"
               data-wiki-search-tag-path
             />
           </label>
@@ -958,7 +958,7 @@ export default function WikiExplorerClient({
             <button
               type="button"
               onClick={resetSearch}
-              className="inline-flex rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none dark:border-slate-500 dark:text-slate-100 dark:hover:bg-slate-800 dark:ring-offset-slate-900 dark:focus-visible:ring-slate-300"
+              className="inline-flex rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none dark:border-slate-500 dark:text-slate-100 dark:ring-offset-slate-900 dark:hover:bg-slate-800 dark:focus-visible:ring-slate-300"
               data-wiki-search-reset
             >
               초기화

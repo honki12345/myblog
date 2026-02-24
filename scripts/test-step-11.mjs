@@ -521,6 +521,21 @@ async function runApiScenario() {
   );
   assert(aiCategory, "wiki root should include ai category");
 
+  const wikiRootLimitOnly = await requestJson("/api/wiki?limit=50");
+  assert(
+    wikiRootLimitOnly.status === 200,
+    "wiki root limit-only request should return 200",
+  );
+  assert(
+    typeof wikiRootLimitOnly.data?.summary?.totalPaths === "number" &&
+      Array.isArray(wikiRootLimitOnly.data?.categories),
+    "wiki root limit-only request should keep overview response shape",
+  );
+  assert(
+    wikiRootLimitOnly.data?.query === undefined,
+    "wiki root limit-only request should not switch to search response",
+  );
+
   const wikiPlatform = await requestJson("/api/wiki/ai/platform");
   assert(wikiPlatform.status === 200, "wiki path should return 200");
   assert(
@@ -531,6 +546,92 @@ async function runApiScenario() {
     Array.isArray(wikiPlatform.data?.comments) &&
       wikiPlatform.data.comments.length === 1,
     "wiki path comments should include one visible item",
+  );
+
+  const wikiSearchKeyword = await requestJson(
+    "/api/wiki?q=%EA%B3%B5%EA%B0%9C&sort=relevance&limit=10",
+  );
+  assert(
+    wikiSearchKeyword.status === 200,
+    "wiki root keyword search should return 200",
+  );
+  assert(
+    wikiSearchKeyword.data?.query?.q === "공개",
+    "wiki keyword search should echo normalized query",
+  );
+  assert(
+    wikiSearchKeyword.data?.query?.sort === "relevance",
+    "wiki keyword search should keep relevance sort",
+  );
+  assert(
+    wikiSearchKeyword.data?.totalCount === 1,
+    "wiki keyword search should include one visible result",
+  );
+  assert(
+    wikiSearchKeyword.data?.items?.[0]?.tagPath === "ai/platform/nextjs",
+    "wiki keyword search should return the nextjs tagged comment",
+  );
+
+  const wikiSearchTagPath = await requestJson("/api/wiki?tagPath=ai/platform");
+  assert(
+    wikiSearchTagPath.status === 200,
+    "wiki root tagPath search should return 200",
+  );
+  assert(
+    wikiSearchTagPath.data?.query?.tagPath === "ai/platform",
+    "wiki tagPath search should normalize path filter",
+  );
+  assert(
+    wikiSearchTagPath.data?.query?.sort === "updated",
+    "wiki tagPath-only search should fallback to updated sort",
+  );
+  assert(
+    wikiSearchTagPath.data?.totalCount === 1,
+    "wiki tagPath-only search should exclude hidden comments",
+  );
+
+  const wikiSearchNoMatch = await requestJson("/api/wiki?q=no-match-keyword");
+  assert(
+    wikiSearchNoMatch.status === 200,
+    "wiki search without matches should still return 200",
+  );
+  assert(
+    wikiSearchNoMatch.data?.totalCount === 0 &&
+      Array.isArray(wikiSearchNoMatch.data?.items) &&
+      wikiSearchNoMatch.data.items.length === 0,
+    "wiki search without matches should return an empty result",
+  );
+
+  const wikiPathKeyword = await requestJson(
+    "/api/wiki/ai/platform?q=%EA%B3%B5%EA%B0%9C&limit=10",
+  );
+  assert(
+    wikiPathKeyword.status === 200,
+    "wiki path keyword search should return 200",
+  );
+  assert(
+    wikiPathKeyword.data?.path === "ai/platform",
+    "wiki path keyword search should preserve the normalized path",
+  );
+  assert(
+    wikiPathKeyword.data?.query?.path === "ai/platform",
+    "wiki path keyword search should include scoped path metadata",
+  );
+  assert(
+    wikiPathKeyword.data?.totalCount === 1,
+    "wiki path keyword search should return one scoped match",
+  );
+
+  const wikiPathTagPathRejected = await requestJson(
+    "/api/wiki/ai/platform?q=%EA%B3%B5%EA%B0%9C&tagPath=ai",
+  );
+  assert(
+    wikiPathTagPathRejected.status === 400,
+    "wiki path search should reject tagPath parameter",
+  );
+  assert(
+    wikiPathTagPathRejected.data?.error?.code === "INVALID_INPUT",
+    "wiki path search tagPath rejection should use INVALID_INPUT",
   );
 
   const hideVisibleComment = await requestJson(

@@ -5,7 +5,10 @@ import path from "node:path";
 import Database from "better-sqlite3";
 import { expect, type APIRequestContext, type Page } from "@playwright/test";
 
-const ROOT = path.resolve(__dirname, "../..");
+// Playwright transpiles test files into cache paths, so `__dirname` may not
+// reliably point to the active git worktree. Use `process.cwd()` (the test
+// runner cwd) to keep DB/env paths scoped to the current worktree.
+const ROOT = process.cwd();
 const ENV_PATH = path.join(ROOT, ".env.local");
 
 export const PLAYWRIGHT_DATABASE_PATH =

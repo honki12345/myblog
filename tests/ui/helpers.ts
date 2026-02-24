@@ -488,11 +488,9 @@ async function triggerRevalidationForSeededPost(
     return;
   }
 
-  if (!response.ok()) {
-    throw new Error(
-      `failed to trigger route revalidation: ${response.status()} ${await response.text()}`,
-    );
-  }
+  throw new Error(
+    `failed to trigger route revalidation: ${response.status()} ${await response.text()}`,
+  );
 }
 
 export async function seedVisualPosts(

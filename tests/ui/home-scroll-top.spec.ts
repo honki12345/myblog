@@ -1,5 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
-import { authenticateAdminSession, waitForDocumentTitle } from "./helpers";
+import {
+  authenticateAdminSession,
+  insertCommentDirect,
+  insertPostDirect,
+  waitForDocumentTitle,
+} from "./helpers";
 
 const HOME_TITLE_LINK_SELECTOR =
   'header a[aria-label="홈 (honki12345 블로그)"]';
@@ -111,12 +116,31 @@ test("home title link scrolls to top when already on /wiki", async ({
 
 test("home title link keeps navigation policy across wiki paths and modifier keys", async ({
   page,
+  request,
 }) => {
-  await authenticateAdminSession(page, { nextPath: "/wiki/sample" });
+  const seed = Date.now();
+  const wikiPath = `home-scroll-top/${seed}`;
+  const escapedWikiPath = wikiPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const seededPost = await insertPostDirect(request, {
+    title: `PW-SEED-HOME-TITLE-LINK-${seed}`,
+    content: "홈 타이틀 링크 경로 시드",
+    tags: ["home-scroll-top"],
+    status: "published",
+    sourceUrl: `https://playwright.seed/home-scroll-top/${seed}`,
+    origin: "original",
+  });
+  await insertCommentDirect(request, {
+    postId: seededPost.id,
+    content: "홈 타이틀 링크 위키 경로 시드",
+    tagPath: wikiPath,
+    isHidden: false,
+  });
+
+  await authenticateAdminSession(page, { nextPath: `/wiki/${wikiPath}` });
   await page.waitForLoadState("networkidle");
   await waitForDocumentTitle(page);
 
-  await expect(page).toHaveURL(/\/wiki\/sample$/);
+  await expect(page).toHaveURL(new RegExp(`/wiki/${escapedWikiPath}$`));
 
   const titleLink = getHomeTitleLink(page);
   await expect(titleLink).toHaveCount(1);

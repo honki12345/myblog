@@ -158,7 +158,7 @@
 - 사전조건: 댓글 + 태그 경로 데이터 존재
 - 기본흐름: `/api/wiki`, `/api/wiki/[...path]`, `/wiki`, `/wiki/[...path]`에서 카테고리 트리/브레드크럼/원문 링크를 조회하고, 검색 파라미터(`q`, `tagPath`, `sort`, `limit`)로 내용/태그 필터를 단독 또는 조합으로 적용한다. `/`는 `/wiki`로 리다이렉트된다. 위키 탐색 셸은 경로 선택 시 URL을 `push/replace` 정책으로 동기화하며, 활성(검은색) 경로 재클릭 시 선택 경로/URL/history를 유지한 채 하위 트리를 `닫기 -> 재열기` 토글한다. `/api/wiki?limit=...`처럼 `q/tagPath/sort` 없이 `limit`만 전달된 요청은 검색 모드로 전환하지 않고 루트 overview 응답 형태를 유지한다.
 - 예외흐름: 잘못된 경로/검색 파라미터는 `400`, 존재하지 않는 경로는 `404`, `/api/wiki/[...path]`에 `tagPath`를 함께 전달하면 `400 INVALID_INPUT`
-- 수용기준: 공개 조회/검색에서 `is_hidden=0 AND deleted_at IS NULL`만 노출되고 하위 경로 집계가 일관된다. 키워드+태그 조합 기본 정렬은 `관련도 -> updated_at DESC -> id DESC`를 따른다. 비관리자 세션에서는 댓글 영역의 `블로그 글 보기` 링크가 DOM에 노출되지 않는다. 활성 경로 재클릭 토글 동안 `window.history.length`가 증가하지 않고 선택 경로/URL(`/wiki/{path}`)이 유지된다. 위키 헤딩은 `위키`로 일관되며 인플레이스 탐색 이후 Back/Forward 및 새로고침 시 동일 경로 컨텍스트를 복원한다. 검색 상태 UX(로딩/빈 결과/에러/재시도)가 일관되게 동작하며, 동시 검색 요청 시 최신 요청 결과가 최종 상태를 덮어써야 한다. 검색 입력 미충족 오류(`검색어 또는 태그 경로를 입력해 주세요.`)에서는 재시도 버튼이 노출되지 않는다. 상세 화면의 상위 버튼 라벨은 `상위 경로 (/wiki/...)` 형식으로 목적지를 노출하고, 루트 직하위 경로에서도 `href=/wiki` 활성 링크를 유지한다. `360/768/1440` 뷰포트에서 긴 목적지 라벨이 수평 오버플로우를 유발하지 않는다.
+- 수용기준: 공개 조회/검색에서 `is_hidden=0 AND deleted_at IS NULL`만 노출되고 하위 경로 집계가 일관된다. 키워드+태그 조합 기본 정렬은 `관련도 -> updated_at DESC -> id DESC`를 따른다. 댓글 카드 메타 상단은 `왼쪽(tagPath + blog title) / 오른쪽(updated)` 2열로 정렬되고, 블로그 제목은 상단에서 강조 스타일로 노출된다. 댓글 카드 하단은 제목 텍스트 없이 링크(`블로그 글 보기`, `원문 링크`)만 렌더링하며, 두 링크가 모두 없으면 하단 링크 행을 렌더링하지 않는다. 비관리자 세션에서는 댓글 영역의 `블로그 글 보기` 링크가 DOM에 노출되지 않는다. 활성 경로 재클릭 토글 동안 `window.history.length`가 증가하지 않고 선택 경로/URL(`/wiki/{path}`)이 유지된다. 위키 헤딩은 `위키`로 일관되며 인플레이스 탐색 이후 Back/Forward 및 새로고침 시 동일 경로 컨텍스트를 복원한다. 검색 상태 UX(로딩/빈 결과/에러/재시도)가 일관되게 동작하며, 동시 검색 요청 시 최신 요청 결과가 최종 상태를 덮어써야 한다. 검색 입력 미충족 오류(`검색어 또는 태그 경로를 입력해 주세요.`)에서는 재시도 버튼이 노출되지 않는다. 상세 화면의 상위 버튼 라벨은 `상위 경로 (/wiki/...)` 형식으로 목적지를 노출하고, 루트 직하위 경로에서도 `href=/wiki` 활성 링크를 유지한다. `360/768/1440` 뷰포트에서 긴 목적지 라벨이 수평 오버플로우를 유발하지 않는다.
 - 연결 테스트: `scripts/test-step-11.mjs`, `tests/ui/accessibility.spec.ts`, `tests/ui/wiki-view.spec.ts`, `tests/ui/visual-regression.spec.ts`
 
 ### UC-UI-001 다크 모드/고대비 UI 가독성 및 회귀 기준
@@ -188,7 +188,7 @@
 | UC-UPLOAD-001 | UPLOAD | 업로드 인증/유효성 검증 | `scripts/test-step-3.mjs`, `scripts/test-step-9.mjs` | Active |
 | UC-VISIBILITY-001 | VISIBILITY | 홈 canonical redirect + 포스트 경로 관리자 전용 접근 정책 | `scripts/test-step-5.mjs`, `scripts/test-step-10.mjs`, `tests/ui/draft-visibility.spec.ts`, `tests/ui/home-empty-state.spec.ts`, `tests/ui/home-scroll-top.spec.ts`, `tests/ui/tags-index.spec.ts`, `tests/ui/write-link-auth.spec.ts`, `tests/ui/post-admin-actions.spec.ts` | Active |
 | UC-WIKI-001 | WIKI | 관리자 댓글 CRUD + 태그 경로 검증 | `scripts/test-step-11.mjs`, `tests/ui/wiki-view.spec.ts` | Active |
-| UC-WIKI-002 | WIKI | 공개 위키 트리/경로 조회 + 내용/태그 검색 + 숨김/삭제 비노출 + limit 단독 호환/검색 레이스 방지 + 상위경로 목적지 라벨 UX + 재클릭 토글 history 불변 | `scripts/test-step-11.mjs`, `tests/ui/accessibility.spec.ts`, `tests/ui/wiki-view.spec.ts`, `tests/ui/visual-regression.spec.ts` | Active |
+| UC-WIKI-002 | WIKI | 공개 위키 트리/경로 조회 + 내용/태그 검색 + 숨김/삭제 비노출 + limit 단독 호환/검색 레이스 방지 + 상위경로 목적지 라벨 UX + 재클릭 토글 history 불변 + 댓글 메타 2열 정렬/링크 행 조건 렌더 | `scripts/test-step-11.mjs`, `tests/ui/accessibility.spec.ts`, `tests/ui/wiki-view.spec.ts`, `tests/ui/visual-regression.spec.ts` | Active |
 | UC-UI-001 | UI | 다크 모드/고대비 UI 가독성 및 회귀 기준 | `tests/ui/dark-mode-risk.spec.ts`, `tests/ui/accessibility.spec.ts`, `tests/ui/visual-regression.spec.ts` | Active |
 
 ## 6. 테스트 게이트 정책

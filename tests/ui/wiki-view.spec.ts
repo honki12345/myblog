@@ -154,6 +154,28 @@ test("admin manages post comments and wiki pages expose only visible comments", 
       .locator("[data-wiki-search-results]")
       .getByRole("link", { name: "블로그 글 보기", exact: true }),
   ).toHaveAttribute("href", `/posts/${created.slug}`);
+  const searchCommentCard = page
+    .locator("[data-wiki-search-results] [data-wiki-comment-card]")
+    .filter({ hasText: "수정된 댓글: nextjs 하위 경로" })
+    .first();
+  await expect(
+    searchCommentCard.locator("[data-wiki-comment-meta-left]"),
+  ).toContainText("/ai/platform/nextjs");
+  await expect(
+    searchCommentCard.locator("[data-wiki-comment-post-title]"),
+  ).toHaveText(seed.title);
+  await expect(
+    searchCommentCard.locator("[data-wiki-comment-meta-right]"),
+  ).toContainText("업데이트:");
+  await expect(
+    searchCommentCard.locator("[data-wiki-comment-links]"),
+  ).not.toContainText(seed.title);
+  await expect(
+    searchCommentCard.locator("[data-wiki-comment-links]"),
+  ).toContainText("블로그 글 보기");
+  await expect(
+    searchCommentCard.locator("[data-wiki-comment-links]"),
+  ).toContainText("원문 링크");
 
   // Newer search results should win even if an earlier request resolves later.
   await page.unroute("**/api/wiki?*");
@@ -300,6 +322,22 @@ test("admin manages post comments and wiki pages expose only visible comments", 
   await expect(
     page.getByRole("link", { name: "/ai/platform/nextjs", exact: true }),
   ).toBeVisible();
+  const detailCommentCard = page
+    .locator("[data-wiki-detail-panel] [data-wiki-comment-card]")
+    .filter({ hasText: "수정된 댓글: nextjs 하위 경로" })
+    .first();
+  await expect(
+    detailCommentCard.locator("[data-wiki-comment-meta-left]"),
+  ).toContainText("/ai/platform/nextjs");
+  await expect(
+    detailCommentCard.locator("[data-wiki-comment-post-title]"),
+  ).toHaveText(seed.title);
+  await expect(
+    detailCommentCard.locator("[data-wiki-comment-meta-right]"),
+  ).toContainText("업데이트:");
+  await expect(
+    detailCommentCard.locator("[data-wiki-comment-links]"),
+  ).not.toContainText(seed.title);
   await expect(
     page.getByRole("link", { name: "블로그 글 보기", exact: true }),
   ).toHaveAttribute("href", `/posts/${created.slug}`);
@@ -325,6 +363,42 @@ test("admin manages post comments and wiki pages expose only visible comments", 
   await expect(page).toHaveScreenshot("wiki-path.png", {
     maxDiffPixelRatio: getWikiDiffThreshold(testInfo.project.name),
   });
+
+  const noLinkSeed: SeededPost = {
+    title: "PW-SEED-WIKI-NO-LINKS",
+    content: "링크 없음 렌더링 검증용",
+    tags: ["wiki", "nolinks"],
+    status: "published",
+    sourceUrl: null,
+    origin: "original",
+  };
+  const noLinkPost = await insertPostDirect(page.request, noLinkSeed);
+  await insertCommentDirect(page.request, {
+    postId: noLinkPost.id,
+    content: "링크 없는 공개 댓글",
+    tagPath: "ai/platform/no-links",
+  });
+
+  await page.context().clearCookies();
+  await page.goto("/wiki/ai/platform/no-links", { waitUntil: "networkidle" });
+  await page.addStyleTag({ content: DISABLE_ANIMATION_STYLE });
+  await expect(
+    page.getByRole("heading", { name: "위키 경로: /ai/platform/no-links" }),
+  ).toBeVisible();
+  const noLinkCard = page
+    .locator("[data-wiki-detail-panel] [data-wiki-comment-card]")
+    .filter({ hasText: "링크 없는 공개 댓글" })
+    .first();
+  await expect(noLinkCard.locator("[data-wiki-comment-post-title]")).toHaveText(
+    noLinkSeed.title,
+  );
+  await expect(noLinkCard.locator("[data-wiki-comment-links]")).toHaveCount(0);
+  await expect(
+    noLinkCard.getByRole("link", { name: "블로그 글 보기", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    noLinkCard.getByRole("link", { name: "원문 링크", exact: true }),
+  ).toHaveCount(0);
 });
 
 test("wiki explorer keeps context with in-place navigation, history, and refresh", async ({

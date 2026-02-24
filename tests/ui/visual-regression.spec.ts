@@ -261,6 +261,9 @@ for (const route of routes) {
       await expect(
         page.getByRole("heading", { name: "하위 카테고리" }),
       ).toBeVisible();
+      await expect(
+        page.getByRole("link", { name: /상위 경로\s*\(\/wiki\)/ }),
+      ).toHaveAttribute("href", "/wiki");
     }
 
     if (route.name === "tags") {

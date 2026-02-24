@@ -204,16 +204,16 @@ export default function AdminTodosClient() {
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6 lg:px-8">
       <header className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight">관리자 TODO</h1>
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-slate-600 dark:text-slate-300">
           상태(`todo`, `doing`, `done`)와 우선순위/마감일을 함께 관리합니다.
         </p>
       </header>
 
       <form
         onSubmit={handleCreate}
-        className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 md:grid-cols-2"
+        className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 md:grid-cols-2 dark:border-slate-700 dark:bg-slate-900"
       >
-        <label className="grid gap-1 text-sm font-medium text-slate-700 md:col-span-2">
+        <label className="grid gap-1 text-sm font-medium text-slate-700 md:col-span-2 dark:text-slate-200">
           제목
           <input
             type="text"
@@ -221,11 +221,11 @@ export default function AdminTodosClient() {
             onChange={(event) =>
               setForm((prev) => ({ ...prev, title: event.target.value }))
             }
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-600"
             disabled={isSubmitting}
           />
         </label>
-        <label className="grid gap-1 text-sm font-medium text-slate-700">
+        <label className="grid gap-1 text-sm font-medium text-slate-700 dark:text-slate-200">
           우선순위
           <select
             value={form.priority}
@@ -235,7 +235,7 @@ export default function AdminTodosClient() {
                 priority: event.target.value as TodoPriority,
               }))
             }
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-600"
             disabled={isSubmitting}
           >
             <option value="low">low</option>
@@ -243,7 +243,7 @@ export default function AdminTodosClient() {
             <option value="high">high</option>
           </select>
         </label>
-        <label className="grid gap-1 text-sm font-medium text-slate-700">
+        <label className="grid gap-1 text-sm font-medium text-slate-700 dark:text-slate-200">
           마감일
           <input
             type="datetime-local"
@@ -251,18 +251,18 @@ export default function AdminTodosClient() {
             onChange={(event) =>
               setForm((prev) => ({ ...prev, dueAt: event.target.value }))
             }
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-600"
             disabled={isSubmitting}
           />
         </label>
-        <label className="grid gap-1 text-sm font-medium text-slate-700 md:col-span-2">
+        <label className="grid gap-1 text-sm font-medium text-slate-700 md:col-span-2 dark:text-slate-200">
           설명
           <textarea
             value={form.description}
             onChange={(event) =>
               setForm((prev) => ({ ...prev, description: event.target.value }))
             }
-            className="min-h-24 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="min-h-24 rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-600"
             disabled={isSubmitting}
           />
         </label>
@@ -278,34 +278,36 @@ export default function AdminTodosClient() {
       </form>
 
       {errorMessage ? (
-        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300">
           {errorMessage}
         </p>
       ) : null}
 
       <section className="space-y-3">
         {isLoading ? (
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-slate-600 dark:text-slate-300">
             TODO 목록을 불러오는 중입니다...
           </p>
         ) : items.length === 0 ? (
-          <p className="text-sm text-slate-600">등록된 TODO가 없습니다.</p>
+          <p className="text-sm text-slate-600 dark:text-slate-300">
+            등록된 TODO가 없습니다.
+          </p>
         ) : (
           items.map((item) => (
             <article
               key={item.id}
-              className="rounded-xl border border-slate-200 bg-white p-4"
+              className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900">
+                  <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
                     {item.title}
                   </h2>
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                     status: {item.status} | priority: {item.priority}
                   </p>
                   {item.dueAt ? (
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
                       due: {new Date(item.dueAt).toLocaleString("ko-KR")}
                     </p>
                   ) : null}
@@ -313,7 +315,7 @@ export default function AdminTodosClient() {
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
-                    className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                    className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
                     onClick={() => {
                       updateTodo(item.id, {
                         status: getNextStatus(item.status),
@@ -330,7 +332,7 @@ export default function AdminTodosClient() {
                         priority: event.target.value as TodoPriority,
                       }).catch(() => undefined);
                     }}
-                    className="rounded-md border border-slate-300 px-2 py-1.5 text-xs text-slate-700"
+                    className="rounded-md border border-slate-300 px-2 py-1.5 text-xs text-slate-700 dark:border-slate-600 dark:text-slate-200"
                   >
                     <option value="low">low</option>
                     <option value="medium">medium</option>
@@ -338,7 +340,7 @@ export default function AdminTodosClient() {
                   </select>
                   <button
                     type="button"
-                    className="rounded-md border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50"
+                    className="rounded-md border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 dark:border-rose-700 dark:text-rose-300 dark:hover:bg-rose-900/40"
                     onClick={() => {
                       deleteTodo(item.id).catch(() => undefined);
                     }}
@@ -348,7 +350,7 @@ export default function AdminTodosClient() {
                 </div>
               </div>
               {item.description ? (
-                <p className="mt-3 text-sm whitespace-pre-wrap text-slate-700">
+                <p className="mt-3 text-sm whitespace-pre-wrap text-slate-700 dark:text-slate-200">
                   {item.description}
                 </p>
               ) : null}

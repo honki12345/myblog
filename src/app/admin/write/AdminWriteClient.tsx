@@ -309,7 +309,7 @@ export default function AdminWriteClient() {
           <h1 className="text-2xl font-semibold tracking-tight">
             {editPostId ? `글 수정 #${editPostId}` : "새 글 작성"}
           </h1>
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
             관리자 세션 기반 편집기입니다. 상태 변경 API는 CSRF 검증이
             적용됩니다.
           </p>
@@ -317,43 +317,43 @@ export default function AdminWriteClient() {
       </header>
 
       {editorError ? (
-        <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300">
           {editorError}
         </p>
       ) : null}
 
       <form onSubmit={handleSave} className="mt-6 space-y-4">
-        <div className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-3">
-          <label className="grid gap-1 text-sm font-medium text-slate-700 sm:col-span-2">
+        <div className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-3 dark:border-slate-700 dark:bg-slate-900">
+          <label className="grid gap-1 text-sm font-medium text-slate-700 sm:col-span-2 dark:text-slate-200">
             제목
             <input
               type="text"
               value={title}
               onChange={(event) => setTitle(event.target.value)}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-600"
               placeholder="제목을 입력하세요"
               disabled={isLoadingPost || isSaving}
             />
           </label>
-          <label className="grid gap-1 text-sm font-medium text-slate-700">
+          <label className="grid gap-1 text-sm font-medium text-slate-700 dark:text-slate-200">
             상태
             <select
               value={status}
               onChange={(event) => setStatus(event.target.value as PostStatus)}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-600"
               disabled={isLoadingPost || isSaving}
             >
               <option value="draft">draft</option>
               <option value="published">published</option>
             </select>
           </label>
-          <label className="grid gap-1 text-sm font-medium text-slate-700 lg:col-span-3">
+          <label className="grid gap-1 text-sm font-medium text-slate-700 lg:col-span-3 dark:text-slate-200">
             태그 (콤마 구분)
             <input
               type="text"
               value={tagsInput}
               onChange={(event) => setTagsInput(event.target.value)}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-600"
               placeholder="nextjs, react"
               disabled={isLoadingPost || isSaving}
             />
@@ -362,23 +362,25 @@ export default function AdminWriteClient() {
 
         <div className="grid gap-4 lg:grid-cols-2">
           <section className="space-y-2">
-            <h2 className="text-sm font-semibold text-slate-700">Markdown</h2>
+            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+              Markdown
+            </h2>
             <textarea
               ref={textareaRef}
               value={content}
               onChange={(event) => setContent(event.target.value)}
-              className="min-h-[420px] w-full rounded-xl border border-slate-300 bg-white px-3 py-3 font-mono text-sm leading-6"
+              className="min-h-[420px] w-full rounded-xl border border-slate-300 bg-white px-3 py-3 font-mono text-sm leading-6 dark:border-slate-600 dark:bg-slate-900"
               placeholder="마크다운 본문을 입력하세요"
               disabled={isLoadingPost || isSaving}
             />
           </section>
 
           <section className="space-y-2">
-            <h2 className="text-sm font-semibold text-slate-700">
+            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
               실시간 프리뷰
             </h2>
             <article
-              className="markdown-preview min-h-[420px] rounded-xl border border-slate-200 bg-white p-4"
+              className="markdown-preview min-h-[420px] rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
               dangerouslySetInnerHTML={{
                 __html:
                   previewHtml.length > 0
@@ -389,8 +391,8 @@ export default function AdminWriteClient() {
           </section>
         </div>
 
-        <section className="space-y-2 rounded-xl border border-slate-200 bg-white p-4">
-          <h2 className="text-sm font-semibold text-slate-700">
+        <section className="space-y-2 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
             이미지 업로드
           </h2>
           <label
@@ -406,8 +408,8 @@ export default function AdminWriteClient() {
             }}
             className={`flex cursor-pointer items-center justify-center rounded-lg border border-dashed px-4 py-6 text-sm ${
               isDragOver
-                ? "border-slate-900 bg-slate-100"
-                : "border-slate-300 text-slate-600 hover:bg-slate-50"
+                ? "border-slate-900 bg-slate-100 dark:bg-slate-800"
+                : "border-slate-300 text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800/70"
             }`}
           >
             {isUploading
@@ -441,7 +443,7 @@ export default function AdminWriteClient() {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
             disabled={isUploading || isSaving}
           >
             파일 선택

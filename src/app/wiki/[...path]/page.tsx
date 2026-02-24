@@ -75,7 +75,7 @@ export default async function WikiPathPage({ params }: PageProps) {
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 sm:px-6 lg:px-8">
       <header className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight">위키</h1>
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-slate-600 dark:text-slate-300">
           경로 `/{overview.path}` 기준으로 정확히 매칭된 댓글{" "}
           {overview.exactCount}개, 하위 경로 포함 총 {overview.totalCount}개를
           탐색할 수 있습니다.

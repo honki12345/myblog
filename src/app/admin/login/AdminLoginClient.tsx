@@ -207,32 +207,32 @@ export default function AdminLoginClient({ nextPath }: AdminLoginClientProps) {
     <main className="mx-auto flex w-full max-w-md flex-col gap-5 px-4 py-8 sm:px-6 lg:px-8">
       <header className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight">관리자 로그인</h1>
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-slate-600 dark:text-slate-300">
           비밀번호 인증 후 TOTP 또는 복구코드로 2차 인증을 완료해 주세요.
         </p>
       </header>
 
-      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
         {stage === "primary" ? (
           <form onSubmit={handlePrimarySubmit} className="space-y-3">
-            <label className="grid gap-1 text-sm font-medium text-slate-700">
+            <label className="grid gap-1 text-sm font-medium text-slate-700 dark:text-slate-200">
               아이디
               <input
                 type="text"
                 value={username}
                 onChange={(event) => setUsername(event.target.value)}
-                className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-600"
                 autoComplete="username"
                 disabled={isSubmitting}
               />
             </label>
-            <label className="grid gap-1 text-sm font-medium text-slate-700">
+            <label className="grid gap-1 text-sm font-medium text-slate-700 dark:text-slate-200">
               비밀번호
               <input
                 type="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-600"
                 autoComplete="current-password"
                 disabled={isSubmitting}
               />
@@ -247,16 +247,16 @@ export default function AdminLoginClient({ nextPath }: AdminLoginClientProps) {
           </form>
         ) : (
           <form onSubmit={handleVerifySubmit} className="space-y-3">
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-slate-600 dark:text-slate-300">
               6자리 TOTP 또는 복구코드를 입력해 주세요.
             </p>
-            <label className="grid gap-1 text-sm font-medium text-slate-700">
+            <label className="grid gap-1 text-sm font-medium text-slate-700 dark:text-slate-200">
               인증 코드
               <input
                 type="text"
                 value={code}
                 onChange={(event) => setCode(event.target.value)}
-                className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-600"
                 autoComplete="one-time-code"
                 placeholder="123456 또는 복구코드"
                 disabled={isSubmitting}
@@ -271,7 +271,7 @@ export default function AdminLoginClient({ nextPath }: AdminLoginClientProps) {
             </button>
             <button
               type="button"
-              className="w-full rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+              className="w-full rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
               onClick={() => {
                 setStage("primary");
                 setCode("");
@@ -284,20 +284,20 @@ export default function AdminLoginClient({ nextPath }: AdminLoginClientProps) {
               이전 단계로
             </button>
 
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900/60">
               {totpEnabled ? (
-                <p className="text-xs text-slate-700">
+                <p className="text-xs text-slate-700 dark:text-slate-200">
                   이미 2FA가 활성화되어 있어 QR을 다시 표시할 수 없습니다.
                 </p>
               ) : (
                 <>
-                  <p className="text-xs text-slate-700">
+                  <p className="text-xs text-slate-700 dark:text-slate-200">
                     Google Authenticator 등록이 아직 안 되어 있으면 QR을 먼저
                     스캔해 주세요.
                   </p>
                   <button
                     type="button"
-                    className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+                    className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
                     onClick={handleLoadTotpSetup}
                     disabled={isSubmitting || isLoadingTotpSetup}
                   >
@@ -307,7 +307,7 @@ export default function AdminLoginClient({ nextPath }: AdminLoginClientProps) {
                   </button>
 
                   {totpSetupError ? (
-                    <p className="mt-2 text-xs text-red-700">
+                    <p className="mt-2 text-xs text-red-700 dark:text-rose-300">
                       {totpSetupError}
                     </p>
                   ) : null}
@@ -320,15 +320,15 @@ export default function AdminLoginClient({ nextPath }: AdminLoginClientProps) {
                         width={192}
                         height={192}
                         unoptimized
-                        className="mx-auto h-48 w-48 rounded border border-slate-300 bg-white p-2"
+                        className="mx-auto h-48 w-48 rounded border border-slate-300 bg-white p-2 dark:border-slate-600 dark:bg-slate-900"
                       />
-                      <p className="text-xs text-slate-700">
+                      <p className="text-xs text-slate-700 dark:text-slate-200">
                         수동 등록 키:{" "}
-                        <code className="rounded bg-slate-200 px-1 py-0.5">
+                        <code className="rounded bg-slate-200 px-1 py-0.5 dark:bg-slate-700">
                           {totpSetup.secret}
                         </code>
                       </p>
-                      <p className="text-xs text-slate-600">
+                      <p className="text-xs text-slate-600 dark:text-slate-300">
                         Issuer: {totpSetup.issuer} / Account:{" "}
                         {totpSetup.accountName}
                       </p>
@@ -342,7 +342,7 @@ export default function AdminLoginClient({ nextPath }: AdminLoginClientProps) {
       </section>
 
       {errorMessage ? (
-        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300">
           {errorMessage}
         </p>
       ) : null}

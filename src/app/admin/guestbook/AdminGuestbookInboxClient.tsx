@@ -64,13 +64,13 @@ export default function AdminGuestbookInboxClient() {
           <h1 className="text-2xl font-semibold tracking-tight">
             프라이빗 방명록 인박스
           </h1>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-slate-600 dark:text-slate-300">
             게스트별 1:1 스레드 목록입니다.
           </p>
         </div>
         <button
           type="button"
-          className="inline-flex items-center justify-center rounded-lg bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-300 hover:bg-slate-50"
+          className="inline-flex items-center justify-center rounded-lg bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-300 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800/70"
           onClick={() => loadThreads()}
         >
           새로고침
@@ -80,26 +80,26 @@ export default function AdminGuestbookInboxClient() {
       {errorMessage ? (
         <div
           role="alert"
-          className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800"
+          className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-200"
         >
           {errorMessage}
         </div>
       ) : null}
 
       {isLoading ? (
-        <div className="rounded-xl border border-slate-200 bg-white px-4 py-4 text-sm text-slate-600">
+        <div className="rounded-xl border border-slate-200 bg-white px-4 py-4 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
           불러오는 중...
         </div>
       ) : null}
 
       {!isLoading ? (
-        <section className="rounded-xl border border-slate-200 bg-white">
+        <section className="rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
           {threads.length === 0 ? (
-            <div className="px-4 py-6 text-sm text-slate-600">
+            <div className="px-4 py-6 text-sm text-slate-600 dark:text-slate-300">
               아직 생성된 스레드가 없습니다.
             </div>
           ) : (
-            <ul className="divide-y divide-slate-200">
+            <ul className="divide-y divide-slate-200 dark:divide-slate-700">
               {threads.map((thread) => {
                 return (
                   <li key={thread.id}>
@@ -109,27 +109,27 @@ export default function AdminGuestbookInboxClient() {
                       onClick={() =>
                         router.push(`/admin/guestbook/${thread.id}`)
                       }
-                      className="flex w-full flex-col gap-2 px-4 py-4 text-left hover:bg-slate-50"
+                      className="flex w-full flex-col gap-2 px-4 py-4 text-left hover:bg-slate-50 dark:hover:bg-slate-800/70"
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="min-w-0">
-                          <div className="text-sm font-semibold text-slate-900">
+                          <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                             <span className="font-mono">
                               {thread.guestUsername}
                             </span>
                           </div>
-                          <div className="text-xs text-slate-500">
+                          <div className="text-xs text-slate-500 dark:text-slate-400">
                             메시지 {thread.messageCount}개
                           </div>
                         </div>
-                        <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
+                        <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
                           {thread.lastMessageRole === "admin"
                             ? "관리자 답장"
                             : "게스트 메시지"}
                         </span>
                       </div>
                       {thread.lastMessagePreview ? (
-                        <p className="line-clamp-2 text-sm text-slate-600">
+                        <p className="line-clamp-2 text-sm text-slate-600 dark:text-slate-300">
                           {thread.lastMessagePreview}
                         </p>
                       ) : null}

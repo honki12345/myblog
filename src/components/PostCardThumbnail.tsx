@@ -56,7 +56,7 @@ export default function PostCardThumbnail({
 
   return (
     <div
-      className="relative aspect-video w-full overflow-hidden rounded-lg border border-slate-200 bg-slate-100"
+      className="relative aspect-video w-full overflow-hidden rounded-lg border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-800"
       data-post-thumbnail
       data-post-thumbnail-state={state}
     >

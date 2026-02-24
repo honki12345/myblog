@@ -1,8 +1,13 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --surface: #ffffff;
+  --surface-muted: #f1f5f9;
+  --border-strong: #cbd5e1;
+  --focus-ring: #334155;
 }
 
 @theme inline {
@@ -14,36 +19,99 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    color-scheme: dark;
+    --background: #020617;
+    --foreground: #e2e8f0;
+    --surface: #0f172a;
+    --surface-muted: #1e293b;
+    --border-strong: #334155;
+    --focus-ring: #cbd5e1;
   }
 }
 
+@media (prefers-contrast: more) {
+  :root {
+    --border-strong: #475569;
+    --focus-ring: #0f172a;
+  }
+}
+
+@media (prefers-contrast: more) and (prefers-color-scheme: dark) {
+  :root {
+    --border-strong: #cbd5e1;
+    --focus-ring: #f8fafc;
+  }
+}
+
+html,
 body {
-  background: var(--background);
+  min-height: 100%;
+}
+
+body {
+  background-color: var(--background);
+  background-image: radial-gradient(
+    circle at top right,
+    rgb(148 163 184 / 0.18) 0,
+    transparent 58%
+  );
   color: var(--foreground);
   font-family: var(--font-geist-sans), sans-serif;
 }
 
+@media (prefers-color-scheme: dark) {
+  body {
+    background-image: radial-gradient(
+      circle at top right,
+      rgb(51 65 85 / 0.35) 0,
+      transparent 58%
+    );
+  }
+}
+
+@layer base {
+  :where(
+    a,
+    button,
+    input,
+    textarea,
+    select,
+    summary,
+    [role="button"],
+    [tabindex]:not([tabindex="-1"])
+  ):focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+
+  :where(input, textarea, select):disabled {
+    opacity: 0.75;
+  }
+
+  ::selection {
+    background: rgb(148 163 184 / 0.4);
+  }
+}
+
 @layer components {
   .header-nav-item {
-    @apply inline-flex min-h-10 items-center justify-center rounded-md px-2.5 py-2 text-slate-700 hover:bg-slate-100 sm:px-3;
+    @apply inline-flex min-h-10 items-center justify-center rounded-md px-2.5 py-2 text-slate-700 hover:bg-slate-100 sm:px-3 dark:text-slate-200 dark:hover:bg-slate-800;
   }
 
   .markdown-preview {
-    @apply text-base leading-7 text-slate-800;
+    @apply text-base leading-7 text-slate-800 dark:text-slate-200;
   }
 
   .markdown-preview h1 {
-    @apply mt-8 mb-4 text-3xl font-bold tracking-tight text-slate-900;
+    @apply mt-8 mb-4 text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100;
   }
 
   .markdown-preview h2 {
-    @apply mt-7 mb-3 text-2xl font-semibold tracking-tight text-slate-900;
+    @apply mt-7 mb-3 text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-100;
   }
 
   .markdown-preview h3 {
-    @apply mt-6 mb-3 text-lg font-semibold text-slate-900;
+    @apply mt-6 mb-3 text-lg font-semibold text-slate-900 dark:text-slate-100;
   }
 
   .markdown-preview p {
@@ -63,32 +131,36 @@ body {
   }
 
   .markdown-preview pre {
-    @apply my-4 overflow-x-auto rounded-lg bg-slate-900 p-4 text-sm text-slate-100;
+    @apply my-4 overflow-x-auto rounded-lg bg-slate-900 p-4 text-sm text-slate-100 dark:bg-slate-950;
   }
 
   .markdown-preview code {
-    @apply rounded bg-slate-100 px-1 py-0.5 font-mono text-sm text-slate-800;
+    @apply rounded bg-slate-100 px-1 py-0.5 font-mono text-sm text-slate-800 dark:bg-slate-800 dark:text-slate-100;
   }
 
   .markdown-preview pre code {
     @apply bg-transparent p-0 text-inherit;
   }
 
+  .markdown-preview a {
+    @apply underline decoration-slate-300 underline-offset-2 hover:decoration-slate-500 dark:decoration-slate-600 dark:hover:decoration-slate-300;
+  }
+
   .markdown-content {
-    @apply text-base leading-7 text-slate-800;
+    @apply text-base leading-7 text-slate-800 dark:text-slate-200;
     overflow-wrap: anywhere;
   }
 
   .markdown-content h1 {
-    @apply mt-8 mb-4 text-3xl font-bold tracking-tight text-slate-900;
+    @apply mt-8 mb-4 text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100;
   }
 
   .markdown-content h2 {
-    @apply mt-7 mb-3 text-2xl font-semibold tracking-tight text-slate-900;
+    @apply mt-7 mb-3 text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-100;
   }
 
   .markdown-content h3 {
-    @apply mt-6 mb-3 text-lg font-semibold text-slate-900;
+    @apply mt-6 mb-3 text-lg font-semibold text-slate-900 dark:text-slate-100;
   }
 
   .markdown-content p {
@@ -108,19 +180,19 @@ body {
   }
 
   .markdown-content a {
-    @apply underline decoration-slate-300 underline-offset-2 hover:decoration-slate-500;
+    @apply underline decoration-slate-300 underline-offset-2 hover:decoration-slate-500 dark:decoration-slate-600 dark:hover:decoration-slate-300;
   }
 
   .markdown-content pre {
-    @apply my-4 overflow-x-auto rounded-lg bg-slate-900 p-4 text-sm text-slate-100;
+    @apply my-4 overflow-x-auto rounded-lg bg-slate-900 p-4 text-sm text-slate-100 dark:bg-slate-950;
   }
 
   .markdown-content pre:focus-visible {
-    @apply ring-2 ring-slate-400 ring-offset-2 ring-offset-white outline-none;
+    @apply ring-2 ring-slate-400 ring-offset-2 ring-offset-white outline-none dark:ring-slate-300 dark:ring-offset-slate-900;
   }
 
   .markdown-content code {
-    @apply rounded bg-slate-100 px-1 py-0.5 font-mono text-sm text-slate-800;
+    @apply rounded bg-slate-100 px-1 py-0.5 font-mono text-sm text-slate-800 dark:bg-slate-800 dark:text-slate-100;
   }
 
   .markdown-content pre code {
@@ -140,12 +212,16 @@ body {
   }
 
   .markdown-content table:focus-visible {
-    @apply ring-2 ring-slate-400 ring-offset-2 ring-offset-white outline-none;
+    @apply ring-2 ring-slate-400 ring-offset-2 ring-offset-white outline-none dark:ring-slate-300 dark:ring-offset-slate-900;
+  }
+
+  .markdown-content th {
+    @apply bg-slate-100 dark:bg-slate-800;
   }
 
   .markdown-content th,
   .markdown-content td {
-    @apply border border-slate-200 px-3 py-2 align-top;
+    @apply border border-slate-200 px-3 py-2 align-top dark:border-slate-700;
   }
 
   .markdown-content .katex-display {
@@ -156,14 +232,52 @@ body {
   .markdown-content .katex {
     overflow-x: auto;
     overflow-y: hidden;
+    color: inherit;
   }
 
   .markdown-content .mermaid-container {
-    @apply my-4 overflow-x-auto rounded-lg border border-slate-200 bg-white p-3;
+    @apply my-4 overflow-x-auto rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-950;
   }
 
   /* Hide preview chips when the drawer is expanded. */
   [data-tags-drawer][open] + [data-tags-drawer-preview] {
     display: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .header-nav-item {
+    @apply underline underline-offset-2;
+  }
+
+  .markdown-content a,
+  .markdown-preview a {
+    text-decoration-thickness: 2px;
+  }
+}
+
+@media (forced-colors: active) {
+  * {
+    forced-color-adjust: auto;
+  }
+
+  :where(
+    a,
+    button,
+    input,
+    textarea,
+    select,
+    summary,
+    [role="button"],
+    [tabindex]:not([tabindex="-1"])
+  ):focus-visible {
+    outline: 2px solid Highlight !important;
+    outline-offset: 2px;
+  }
+
+  .markdown-content .mermaid-container {
+    border-color: CanvasText;
+    background: Canvas;
+    color: CanvasText;
   }
 }

@@ -68,7 +68,7 @@ export default function HomeTitleLink({
   );
 
   const focusStyles =
-    "rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white";
+    "rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 dark:focus-visible:ring-slate-300 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:ring-offset-slate-900";
   const mergedClassName = className
     ? `${className} ${focusStyles}`
     : focusStyles;

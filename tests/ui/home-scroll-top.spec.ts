@@ -1,10 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
-import {
-  authenticateAdminSession,
-  waitForDocumentTitle,
-} from "./helpers";
+import { authenticateAdminSession, waitForDocumentTitle } from "./helpers";
 
-const HOME_TITLE_LINK_SELECTOR = 'header a[aria-label="홈 (honki12345 블로그)"]';
+const HOME_TITLE_LINK_SELECTOR =
+  'header a[aria-label="홈 (honki12345 블로그)"]';
 
 type ClickProbeResult = {
   defaultPrevented: boolean;
@@ -59,7 +57,9 @@ async function probeHomeTitleClickBehavior(
   }, HOME_TITLE_LINK_SELECTOR);
 }
 
-test("home title link scrolls to top when already on /wiki", async ({ page }) => {
+test("home title link scrolls to top when already on /wiki", async ({
+  page,
+}) => {
   await authenticateAdminSession(page, { nextPath: "/wiki" });
   await page.waitForLoadState("networkidle");
   await waitForDocumentTitle(page);
